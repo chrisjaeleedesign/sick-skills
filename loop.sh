@@ -1,16 +1,35 @@
 #!/bin/bash
 # Ralph Wiggum Loop - Bash Option
-# Usage: ./loop.sh [max_iterations]
+# Usage: ./loop.sh [--experiment] [max_iterations]
 #
 # Requires: Claude Code CLI installed (`claude` command available)
 # Run from repo root directory
+#
+# Flags:
+#   --experiment  When all tasks complete, generate new experiment phases
+#                 and continue looping instead of exiting.
 
 set -e
 
-MAX_ITERATIONS=${1:-25}
+# Parse arguments
+EXPERIMENT_MODE=false
+MAX_ITERATIONS=25
+
+for arg in "$@"; do
+    case $arg in
+        --experiment)
+            EXPERIMENT_MODE=true
+            ;;
+        *)
+            MAX_ITERATIONS=$arg
+            ;;
+    esac
+done
+
 ITERATION=0
 PROMPT_FILE="ralph_prompts/LOOP.md"
 COMMIT_PROMPT_FILE="ralph_prompts/COMMIT.md"
+EXPERIMENT_PROMPT_FILE="ralph_prompts/EXPERIMENT_NEXT.md"
 
 # Ensure we're in repo root
 if [ ! -f "$PROMPT_FILE" ]; then
@@ -18,7 +37,11 @@ if [ ! -f "$PROMPT_FILE" ]; then
     exit 1
 fi
 
-echo "Starting Ralph loop (max $MAX_ITERATIONS iterations)"
+if [ "$EXPERIMENT_MODE" = true ]; then
+    echo "Starting Ralph loop in EXPERIMENT mode (max $MAX_ITERATIONS iterations)"
+else
+    echo "Starting Ralph loop (max $MAX_ITERATIONS iterations)"
+fi
 echo "=========================================="
 
 while [ $ITERATION -lt $MAX_ITERATIONS ]; do
@@ -52,12 +75,29 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
         echo ""
         echo "=========================================="
         echo "All checkboxes complete at iteration $ITERATION"
-        
+
         # Run cleanup
         echo "Running plan cleanup..."
         claude --dangerously-skip-permissions -p "$(cat ralph_prompts/CLEANUP.md)" 2>&1 || true
-        
-        exit 0
+
+        if [ "$EXPERIMENT_MODE" = true ]; then
+            # Experiment mode: generate new phases and continue
+            echo ""
+            echo "=========================================="
+            echo "Experiment mode: generating next phase..."
+            claude --dangerously-skip-permissions -p "$(cat "$EXPERIMENT_PROMPT_FILE")" 2>&1 || true
+
+            # Verify new tasks were generated
+            if grep -q "^\- \[ \]" IMPLEMENTATION_PLAN.md 2>/dev/null; then
+                echo "[✓] New experiment phase generated — continuing loop"
+            else
+                echo "[!] No new tasks generated — exiting experiment loop"
+                exit 0
+            fi
+        else
+            # Build mode: exit
+            exit 0
+        fi
     fi
 
     # Brief pause between iterations
