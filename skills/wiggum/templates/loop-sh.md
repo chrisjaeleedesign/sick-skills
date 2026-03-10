@@ -9,10 +9,12 @@ This is the reference template for generating `.wiggum/loop.sh`. The create flow
 # Wiggum Loop — Headless worker execution
 # Usage: .wiggum/loop.sh [max_iterations]
 #
-# Runs from .wiggum/ directory, executes headless Claude in PROJECT_ROOT.
-# Requires: Claude Code CLI (`claude` command available)
+# Runs from .wiggum/ directory, executes a configurable worker in PROJECT_ROOT.
+# Worker options:
+#   - Default: Claude CLI (`claude` command)
+#   - Override: set WIGGUM_WORKER_CMD to a command that accepts one argument: prompt file path
 
-set -e
+set -euo pipefail
 
 # Resolve paths
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -21,9 +23,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MAX_ITERATIONS=${1:-25}
 MAX_REVIEW_ROUNDS=3
 ITERATION=0
+WIGGUM_WORKER_CMD=${WIGGUM_WORKER_CMD:-claude}
 
 PROMPT_FILE="$SCRIPT_DIR/prompts/loop.md"
-COMMIT_PROMPT_FILE="$SCRIPT_DIR/prompts/commit.md"
 CLEANUP_PROMPT_FILE="$SCRIPT_DIR/prompts/cleanup.md"
 REVIEW_PROMPT_FILE="$SCRIPT_DIR/prompts/review.md"
 HOLISTIC_REVIEW_PROMPT_FILE="$SCRIPT_DIR/prompts/holistic-review.md"
@@ -43,13 +45,33 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 # Validate prompt file
-if [ ! -f "$PROMPT_FILE" ]; then
-    echo "Error: $PROMPT_FILE not found."
+for required_file in "$PROMPT_FILE" "$CLEANUP_PROMPT_FILE" "$REVIEW_PROMPT_FILE" "$HOLISTIC_REVIEW_PROMPT_FILE" "$PLAN_FILE"; do
+    if [ ! -f "$required_file" ]; then
+        echo "Error: required file not found: $required_file"
+        exit 1
+    fi
+done
+
+if ! command -v "$WIGGUM_WORKER_CMD" >/dev/null 2>&1; then
+    echo "Error: worker command not found: $WIGGUM_WORKER_CMD"
+    echo "Set WIGGUM_WORKER_CMD to an installed command."
     exit 1
 fi
 
+run_worker() {
+    local prompt_file="$1"
+
+    if [ "$WIGGUM_WORKER_CMD" = "claude" ]; then
+        claude --dangerously-skip-permissions -p "$(cat "$prompt_file")"
+        return
+    fi
+
+    "$WIGGUM_WORKER_CMD" "$prompt_file"
+}
+
 echo "Starting Wiggum loop (max $MAX_ITERATIONS iterations)"
 echo "Project: $PROJECT_ROOT"
+echo "Worker command: $WIGGUM_WORKER_CMD"
 echo "=========================================="
 
 # Track which phase we're in for phase-level commits
@@ -63,9 +85,9 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     echo ">>> Iteration $ITERATION of $MAX_ITERATIONS"
     echo "-------------------------------------------"
 
-    # Run headless Claude from project root
+    # Run worker from project root
     cd "$PROJECT_ROOT"
-    OUTPUT=$(claude --dangerously-skip-permissions -p "$(cat "$PROMPT_FILE")" 2>&1) || true
+    OUTPUT=$(run_worker "$PROMPT_FILE" 2>&1) || true
 
     # Save run log
     {
@@ -79,6 +101,33 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     } > "$RUN_LOG"
 
     echo "$OUTPUT"
+
+    # Check for BLOCKED signal
+    if echo "$OUTPUT" | grep -qE "^BLOCKED:"; then
+        BLOCKED_REASON=$(echo "$OUTPUT" | grep -E "^BLOCKED:" | sed -n '1p' | sed 's/^BLOCKED:[[:space:]]*//')
+        if [ -z "$BLOCKED_REASON" ]; then
+            BLOCKED_REASON="Worker reported blocked state"
+        fi
+
+        echo ""
+        echo "[x] Worker reported BLOCKED: $BLOCKED_REASON"
+
+        REMAINING=$(grep -c "^\- \[ \]" "$PLAN_FILE" 2>/dev/null) || REMAINING=0
+        COMPLETED_COUNT=$(grep -c "^\- \[x\]" "$PLAN_FILE" 2>/dev/null) || COMPLETED_COUNT=0
+        TOTAL=$((REMAINING + COMPLETED_COUNT))
+
+        {
+            echo "# Wiggum Loop Progress"
+            echo ""
+            echo "**Last updated**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "**Iteration**: $ITERATION of $MAX_ITERATIONS"
+            echo "**Tasks**: $COMPLETED_COUNT / $TOTAL completed ($REMAINING remaining)"
+            echo "**Status**: BLOCKED"
+            echo "**Blocker**: $BLOCKED_REASON"
+        } > "$PROGRESS_FILE"
+
+        exit 2
+    fi
 
     # Check for COMPLETE signal
     TASK_COMPLETED=false
@@ -118,7 +167,7 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
                 echo ""
                 echo "[~] Review: $CURRENT_PHASE (round $REVIEW_ROUND/$MAX_REVIEW_ROUNDS)..."
                 cd "$PROJECT_ROOT"
-                REVIEW_OUTPUT=$(claude --dangerously-skip-permissions -p "$(cat "$REVIEW_PROMPT_FILE")" 2>&1) || true
+                REVIEW_OUTPUT=$(run_worker "$REVIEW_PROMPT_FILE" 2>&1) || true
                 echo "$REVIEW_OUTPUT"
 
                 # Save review log
@@ -143,14 +192,20 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
                 echo "[!] Max review rounds reached — proceeding to commit"
             fi
 
-            # Commit
-            echo ""
-            echo "[->] Committing $CURRENT_PHASE..."
-            cd "$PROJECT_ROOT"
-            if [ -n "$(git status --porcelain .)" ]; then
-                claude --dangerously-skip-permissions -p "$(cat "$COMMIT_PROMPT_FILE")" 2>&1 || true
-            fi
-            LAST_COMPLETED_PHASE="$CURRENT_PHASE"
+            # Review prompt handles committing when clean — no separate commit step needed
+
+            # Re-read plan to find highest completed phase (worker may have done multiple)
+            LAST_COMPLETED_PHASE=""
+            while IFS= read -r phase_line; do
+                phase_name=$(echo "$phase_line" | sed 's/^## //')
+                phase_section=$(sed -n "/^## ${phase_name//\//\\/}$/,/^## /p" "$PLAN_FILE" | sed '$ d')
+                if echo "$phase_section" | grep -q "^\- \[ \]"; then
+                    break
+                fi
+                if echo "$phase_section" | grep -q "^\- \[x\]"; then
+                    LAST_COMPLETED_PHASE="$phase_name"
+                fi
+            done < <(grep "^## Phase" "$PLAN_FILE")
         fi
     fi
 
@@ -183,7 +238,7 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
                 echo ""
                 echo "[~] Holistic review (round $HOLISTIC_ROUND/$MAX_REVIEW_ROUNDS)..."
                 cd "$PROJECT_ROOT"
-                HOLISTIC_OUTPUT=$(claude --dangerously-skip-permissions -p "$(cat "$HOLISTIC_REVIEW_PROMPT_FILE")" 2>&1) || true
+                HOLISTIC_OUTPUT=$(run_worker "$HOLISTIC_REVIEW_PROMPT_FILE" 2>&1) || true
                 echo "$HOLISTIC_OUTPUT"
 
                 HOLISTIC_LOG="$LOG_DIR/holistic-r${HOLISTIC_ROUND}.md"
@@ -206,18 +261,19 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
                 echo "[!] Max holistic review rounds reached — proceeding"
             fi
 
-            # Commit holistic fixes
+            # Commit holistic fixes directly
             if [ -n "$(git status --porcelain .)" ]; then
                 echo "[->] Committing holistic review fixes..."
                 cd "$PROJECT_ROOT"
-                claude --dangerously-skip-permissions -p "$(cat "$COMMIT_PROMPT_FILE")" 2>&1 || true
+                git add .
+                git commit -m "Holistic review fixes"
             fi
         fi
 
         # Run cleanup (archive completed phases to COMPLETED.md)
         echo "Running cleanup..."
         cd "$PROJECT_ROOT"
-        claude --dangerously-skip-permissions -p "$(cat "$CLEANUP_PROMPT_FILE")" 2>&1 || true
+        run_worker "$CLEANUP_PROMPT_FILE" 2>&1 || true
 
         # Final commit
         if [ -n "$(git status --porcelain .)" ]; then
@@ -251,9 +307,10 @@ exit 1
 ## Key Adaptations from Original
 
 1. **Path resolution**: `SCRIPT_DIR` is `.wiggum/`, `PROJECT_ROOT` is its parent
-2. **Headless runs from PROJECT_ROOT**: `cd "$PROJECT_ROOT"` before running `claude -p`
+2. **Worker runs from PROJECT_ROOT**: `cd "$PROJECT_ROOT"` before running `run_worker`
 3. **Logs to `.wiggum/logs/`**: Each run saved as `run-NNN.md`
 4. **Progress file**: Updated after each iteration at `.wiggum/logs/progress.md`
 5. **Phase-level commits**: Detects phase boundaries instead of committing per task
 6. **Git init**: Checks and initializes git if needed
-7. **No experiment mode**: Removed `--experiment` flag and related logic
+7. **Worker-agnostic execution**: `WIGGUM_WORKER_CMD` supports commands beyond Claude
+8. **Blocked-state handling**: Worker can output `BLOCKED: ...` to stop loop early with clear status

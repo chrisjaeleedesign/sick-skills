@@ -21,7 +21,7 @@ Then stop.
 Read `.wiggum/SPECS/project_spec.md` and `.wiggum/IMPLEMENTATION_PLAN.md`.
 
 Perform a quick quality check:
-- **Completeness**: Are features detailed enough for headless Claude to implement?
+- **Completeness**: Are features detailed enough for a headless worker agent to implement?
 - **Ambiguity**: Any requirements that could be interpreted multiple ways?
 - **Traceability**: Does every spec requirement have a plan task, and vice versa?
 
@@ -36,7 +36,7 @@ Present the plan summary and ask for explicit approval:
 > - **Tasks remaining**: N unchecked across M phases
 > - **First uncompleted phase**: [Phase name and goal]
 > - **Estimated iterations**: N (one per task)
-> - **Note**: This runs `claude --dangerously-skip-permissions` in headless mode.
+> - **Note**: This runs the worker configured in `.wiggum/loop.sh` (default: Claude CLI; override via `WIGGUM_WORKER_CMD` with a command that accepts a prompt file path).
 >
 > Proceed?
 
@@ -45,23 +45,26 @@ Wait for explicit user confirmation before proceeding. Do NOT start the loop wit
 ## Step 4: Execute Loop
 
 1. Make sure `.wiggum/loop.sh` is executable: run `chmod +x .wiggum/loop.sh`
-2. Run `.wiggum/loop.sh` via Bash with `run_in_background: true` so the loop executes as a background process
-3. Tell the user the loop has started and that they can check `.wiggum/logs/progress.md` for status
+2. Start the loop as a background process and persist PID/logs:
+   - `mkdir -p .wiggum/logs`
+   - `bash .wiggum/loop.sh > .wiggum/logs/loop-live.log 2>&1 & echo $! > .wiggum/logs/loop.pid`
+3. Tell the user the loop has started and report the PID from `.wiggum/logs/loop.pid`
 4. Use the Read tool to read `.wiggum/logs/progress.md` periodically to monitor status
-5. Report significant milestones to the user (phase completions, task counts)
-6. Use TaskOutput with the background task ID to check if the process has completed
+5. Check whether the process is still running with `ps -p "$(cat .wiggum/logs/loop.pid)"`
+6. Report significant milestones to the user (phase completions, task counts, blocked state)
 
 ## Step 5: Post-loop
 
-When the loop finishes (progress.md shows ALL COMPLETE or the background process exits):
+When the loop finishes (progress.md shows ALL COMPLETE, shows BLOCKED, or the background process exits):
 
 1. Read `.wiggum/logs/progress.md` for final status
-2. Read the project source code and `.wiggum/SPECS/project_spec.md`
-3. Run **post-loop spec verification**:
+2. Read `.wiggum/logs/loop-live.log` for worker output summary and any errors
+3. Read the project source code and `.wiggum/SPECS/project_spec.md`
+4. Run **post-loop spec verification**:
    - For each spec requirement, check if the implementation matches
    - Produce a checklist: "Spec says X → Code does/doesn't do X"
    - Report gaps, drift, or unimplemented requirements
-4. Report results to the user:
+5. Report results to the user:
 
 > **Loop complete!**
 > - **Iterations**: N

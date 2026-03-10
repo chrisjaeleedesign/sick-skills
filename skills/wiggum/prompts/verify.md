@@ -23,7 +23,7 @@ Read all files in `.wiggum/SPECS/` and `.wiggum/IMPLEMENTATION_PLAN.md`.
 Check for the following:
 
 ### Completeness
-- Are all features described with enough detail for headless Claude to implement?
+- Are all features described with enough detail for a headless worker agent to implement?
 - Are there vague requirements like "should be fast" or "user-friendly" without concrete criteria?
 - Flag: `CRITICAL` if a feature lacks implementation detail, `WARNING` if edge cases missing
 

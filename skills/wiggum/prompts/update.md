@@ -1,6 +1,6 @@
-# Update — Refresh Loop Infrastructure from Global Templates
+# Update — Refresh Loop Infrastructure from Skill Templates
 
-Refresh project `.wiggum/` files from the latest global templates.
+Refresh project `.wiggum/` files from the latest Wiggum skill templates.
 
 User's request: $ARGUMENTS
 
@@ -13,26 +13,35 @@ Use Glob to check for `.wiggum/IMPLEMENTATION_PLAN.md` in the current working di
 If NOT found, STOP. Tell the user:
 > No `.wiggum/` directory found. Use `/wiggum [description]` to create one.
 
+## Step 1.5: Resolve `TEMPLATE_DIR`
+
+Resolve the templates directory from the loaded Wiggum skill bundle:
+
+- Prefer the skill base directory provided by the harness when this skill is loaded.
+- Fallback: locate this skill's `templates/` directory beside `SKILL.md`.
+- Do NOT assume a hardcoded home path like `~/.claude/...`.
+
+Set `TEMPLATE_DIR` to that resolved path before processing files.
+
 ## Step 2: Parse Scope
 
 Strip the trigger keyword ("update", "upgrade", or "refresh") from `$ARGUMENTS`. Examine what remains:
 
 | Remaining arguments | Scope | Files |
 |---|---|---|
-| Empty or "all" | **all** | All 4 files below |
-| Contains "prompt" or "prompts" | **prompts** | 3 prompt files only |
+| Empty or "all" | **all** | All files below |
+| Contains "prompt" or "prompts" | **prompts** | 4 prompt files only |
 | Contains "loop" or "loop.sh" | **loop** | loop.sh only |
 
 **File mapping:**
 
 | Scope | Global Template | Project File |
 |---|---|---|
-| prompts, all | `~/.claude/skills/wiggum/templates/loop-prompt.md` | `.wiggum/prompts/loop.md` |
-| prompts, all | `~/.claude/skills/wiggum/templates/commit-prompt.md` | `.wiggum/prompts/commit.md` |
-| prompts, all | `~/.claude/skills/wiggum/templates/cleanup-prompt.md` | `.wiggum/prompts/cleanup.md` |
-| prompts, all | `~/.claude/skills/wiggum/templates/review-prompt.md` | `.wiggum/prompts/review.md` |
-| prompts, all | `~/.claude/skills/wiggum/templates/holistic-review-prompt.md` | `.wiggum/prompts/holistic-review.md` |
-| loop, all | `~/.claude/skills/wiggum/templates/loop-sh.md` | `.wiggum/loop.sh` |
+| prompts, all | `${TEMPLATE_DIR}/loop-prompt.md` | `.wiggum/prompts/loop.md` |
+| prompts, all | `${TEMPLATE_DIR}/cleanup-prompt.md` | `.wiggum/prompts/cleanup.md` |
+| prompts, all | `${TEMPLATE_DIR}/review-prompt.md` | `.wiggum/prompts/review.md` |
+| prompts, all | `${TEMPLATE_DIR}/holistic-review-prompt.md` | `.wiggum/prompts/holistic-review.md` |
+| loop, all | `${TEMPLATE_DIR}/loop-sh.md` | `.wiggum/loop.sh` |
 
 ## Step 3: Process Each File
 
@@ -40,7 +49,7 @@ For each file in scope, do the following:
 
 ### 3a. Read the global template
 
-Read the template file from `~/.claude/skills/wiggum/templates/`. Extract the content from inside the fenced code block (the content between the ``` delimiters — do NOT include the ``` lines themselves). This is the **template content**.
+Read the template file from `${TEMPLATE_DIR}`. Extract the content from inside the fenced code block (the content between the ``` delimiters — do NOT include the ``` lines themselves). This is the **template content**.
 
 ### 3b. Read the project file
 
@@ -106,7 +115,6 @@ Display a summary:
 > | File | Status |
 > |------|--------|
 > | `.wiggum/prompts/loop.md` | [status] |
-> | `.wiggum/prompts/commit.md` | [status] |
 > | `.wiggum/prompts/cleanup.md` | [status] |
 > | `.wiggum/prompts/review.md` | [status] |
 > | `.wiggum/prompts/holistic-review.md` | [status] |

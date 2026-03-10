@@ -90,7 +90,7 @@ If this is a new version (v2+), adjust the structure:
 ## Core Features
 
 ### [Feature 1]
-- [Detailed description — enough for headless Claude to implement without human guidance]
+- [Detailed description — enough for a headless worker to implement without human guidance]
 - [Behavior details, edge cases, acceptance criteria]
 
 ### [Feature 2]
@@ -114,7 +114,7 @@ If no reference was specified: "None specified — follow standard conventions f
 - [Scope boundaries to prevent feature creep]
 ```
 
-Features MUST be detailed enough for a headless Claude instance to implement without asking questions. Include:
+Features MUST be detailed enough for a headless worker agent to implement without asking questions. Include:
 - Expected behavior for each feature
 - Edge cases (empty states, error conditions, boundary values)
 - Acceptance criteria (how to verify it works)
@@ -124,7 +124,7 @@ Features MUST be detailed enough for a headless Claude instance to implement wit
 ```markdown
 # Implementation Plan
 
-> **Wiggum Loop Rule**: Each iteration completes one full phase. Do all unchecked tasks in the current phase, in order. If this plan drifts from specs, flag it in the changelog.
+> **Wiggum Loop Rule**: Each iteration completes at least one full phase. The worker may combine the next phase if it's small and tightly coupled. If this plan drifts from specs, flag it in the changelog.
 
 ---
 
@@ -158,9 +158,14 @@ Key requirements:
 - Phase 0 MUST have concrete commands — never "set up the project" or "initialize the repo"
 - Each phase has a `> **Goal**:` blockquote
 - Each phase ends with a `**Verify**` task
-- 3-7 tasks per phase
-- 2-4 feature phases total for v1
 - All tasks use `- [ ]` checkbox format
+
+Phase design principles:
+- Each phase should deliver a coherent, testable unit of functionality — something you could demo or verify end-to-end
+- Don't create phases that produce intermediate artifacts with no standalone value (e.g., "set up data model" alone — pair it with the endpoints that use it)
+- Group tightly-coupled work into the same phase (data model + CRUD, component + its state management)
+- A phase is too big if it touches more than ~3 unrelated concerns
+- A phase is too small if its output can't be meaningfully tested in isolation
 
 ### 3d. `.wiggum/COMPLETED.md`
 
@@ -206,37 +211,53 @@ _Phases are archived here as they complete during loop execution._
 
 - `[directory]`: [Description]
 - `.wiggum/`: Loop infrastructure (specs, plan, logs)
+
+## Code Philosophy
+
+- No redundancy — don't implement the same logic in multiple places
+- Complex problems, simple solutions — if it needs a paragraph to explain, simplify
+- No hacky workarounds — solve the root problem, don't patch around it
+- Follow best practices for the language/framework in use
+- Keep code tight and standardized — consistent patterns, minimal abstraction layers
+- Avoid premature abstraction — three similar lines > one premature helper
+- Every file a new developer opens should be immediately understandable
 ```
 
 Derive commands and conventions from the chosen tech stack. If augmenting an existing project, read the code to match existing patterns.
 
-### 3f. `.wiggum/loop.sh`
+### 3f. Resolve `TEMPLATE_DIR`
 
-Read the template at `~/.claude/skills/wiggum/templates/loop-sh.md`. Extract the bash script from the code block and write it to `.wiggum/loop.sh`. Then make it executable:
+Resolve the templates directory from the loaded Wiggum skill bundle:
+
+- Prefer the skill base directory provided by the harness when this skill is loaded.
+- Fallback: locate this skill's `templates/` directory beside `SKILL.md`.
+- Do NOT assume a hardcoded home path like `~/.claude/...`.
+
+Set `TEMPLATE_DIR` to that resolved path before generating template-derived files.
+
+### 3g. `.wiggum/loop.sh`
+
+Read the template at `${TEMPLATE_DIR}/loop-sh.md`. Extract the bash script from the code block and write it to `.wiggum/loop.sh`. Then make it executable:
 
 ```bash
 chmod +x .wiggum/loop.sh
 ```
 
-### 3g. `.wiggum/prompts/loop.md`
+### 3h. `.wiggum/prompts/loop.md`
 
-Read the template at `~/.claude/skills/wiggum/templates/loop-prompt.md`. Extract the prompt from the code block and write it to `.wiggum/prompts/loop.md`.
-
-### 3h. `.wiggum/prompts/commit.md`
-
-Read the template at `~/.claude/skills/wiggum/templates/commit-prompt.md`. Extract the prompt and write it to `.wiggum/prompts/commit.md`.
+Read the template at `${TEMPLATE_DIR}/loop-prompt.md`. Extract the prompt from the code block and write it to `.wiggum/prompts/loop.md`.
 
 ### 3i. `.wiggum/prompts/cleanup.md`
 
-Read the template at `~/.claude/skills/wiggum/templates/cleanup-prompt.md`. Extract the prompt and write it to `.wiggum/prompts/cleanup.md`.
+Read the template at `${TEMPLATE_DIR}/cleanup-prompt.md`. Extract the prompt and write it to `.wiggum/prompts/cleanup.md`.
 
 ### 3j. `.wiggum/prompts/review.md`
 
-Read the template at `~/.claude/skills/wiggum/templates/review-prompt.md`. Extract the prompt and write it to `.wiggum/prompts/review.md`.
+Read the template at `${TEMPLATE_DIR}/review-prompt.md`. Extract the prompt and write it to `.wiggum/prompts/review.md`.
 
 ### 3k. `.wiggum/prompts/holistic-review.md`
 
-Read the template at `~/.claude/skills/wiggum/templates/holistic-review-prompt.md`. Extract the prompt from the code block and write it to `.wiggum/prompts/holistic-review.md`.
+Read the template at `${TEMPLATE_DIR}/holistic-review-prompt.md`. Extract the prompt from the code block and write it to `.wiggum/prompts/holistic-review.md`.
 
 ### 3l. `.wiggum/logs/` directory and `.wiggum/.gitignore`
 

@@ -1,7 +1,6 @@
 ---
 name: wiggum
-description: Autonomous development loop — scaffold, run, and manage phased implementation plans
-user-invocable: true
+description: "Scaffold and operate a .wiggum autonomous implementation loop: create specs/plans, run phased build iterations, refine or modify plans, verify spec coverage, archive completed versions, and refresh loop templates when users invoke /wiggum workflows."
 ---
 
 Autonomous development loop for phased implementation plans.
@@ -37,9 +36,11 @@ Use Glob to check for `.wiggum/IMPLEMENTATION_PLAN.md` in the current working di
 | Unchecked tasks exist | "refine", "sharpen", "improve plan", "review plan" | **REFINE** |
 | Unchecked tasks exist | Describes new work ("add ...", "also ...", "include ...") | **MODIFY** |
 | Unchecked tasks exist | "verify", "check", "review" | **VERIFY** |
+| Unchecked tasks exist | Any other non-empty arguments | **MODIFY** |
 | All tasks done (`[x]`) | Empty | **ASK** |
 | All tasks done (`[x]`) | Describes new work or starts with "v2:", "v3:", "next:" | **VERSION** |
 | All tasks done (`[x]`) | "verify", "check", "review" | **VERIFY** |
+| All tasks done (`[x]`) | Any other non-empty arguments | **VERSION** |
 
 ### Step 3: Execute route
 
@@ -63,7 +64,7 @@ Display when routed to HELP:
 
 > **Wiggum** — autonomous phased development loop
 >
-> Wiggum scaffolds your project into specs, an implementation plan, and a loop script. It then runs headless Claude instances to build your project phase by phase — with automated code review and UI quality checks at each step.
+> Wiggum scaffolds your project into specs, an implementation plan, and a loop script. It then runs headless worker agents to build your project phase by phase — with automated code review and UI quality checks at each step.
 >
 > ### Getting Started
 > ```
@@ -77,7 +78,7 @@ Display when routed to HELP:
 > |---------|-------------|
 > | `/wiggum [describe your project]` | Scaffold a new project loop |
 > | `/wiggum run` | Start or resume the implementation loop |
-> | `/wiggum refine` | Sharpen the plan before running (recommended) |
+> | `/wiggum refine` | Discuss and improve the plan |
 > | `/wiggum verify` | Audit specs vs. implementation |
 > | `/wiggum add [feature]` | Add new phases to the current plan |
 > | `/wiggum update` | Refresh loop infrastructure from latest templates |
@@ -87,7 +88,7 @@ Display when routed to HELP:
 > ### How It Works
 >
 > 1. **Scaffold** — `/wiggum [idea]` creates specs, a phased plan, and loop infrastructure
-> 2. **Refine** (optional) — `/wiggum refine` reviews decisions against best practices
+> 2. **Refine** (optional) — `/wiggum refine` discuss and improve the plan conversationally
 > 3. **Run** — `/wiggum run` executes the loop: each iteration completes one phase
 > 4. **Review** — After each phase, automated review checks behavior, UI, and code quality (loops until clean)
 > 5. **Verify** — `/wiggum verify` audits what was built against the original specs
@@ -107,9 +108,10 @@ Display when routed to HELP:
 >
 > ### Tips
 > - Be specific in your project description — more detail = better specs
-> - Use `/wiggum refine` before `/wiggum run` for higher quality output
+> - Use `/wiggum refine` to talk through the plan before running — bring any docs or references
 > - Specify UI reference apps during setup (e.g., "make it feel like Linear") for better UI decisions
 > - Review the generated specs and plan before running — push back on anything that doesn't look right
+> - To use a non-Claude worker, set `WIGGUM_WORKER_CMD` to a command that accepts a prompt file path
 
 ## ASK Text (all tasks complete)
 

@@ -49,7 +49,7 @@ Requirements:
 - Each task should be atomic and testable
 - 3-7 tasks per phase
 - End each phase with a **Verify** task
-- Include enough technical detail for headless Claude to implement
+- Include enough technical detail for a headless worker agent to implement
 
 ## Step 4: Sync Specifications
 

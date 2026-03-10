@@ -5,21 +5,21 @@ This is the reference for generating `.wiggum/prompts/review.md`. The create flo
 ## Prompt
 
 ```
-You are reviewing a phase's implementation. Check that it works, follows conventions, and isn't hacky.
+You are reviewing the latest implementation work. Check that it works, follows conventions, and isn't hacky.
 
 ## Load Context
 
-1. Read `.wiggum/IMPLEMENTATION_PLAN.md` — identify the most recently completed phase (the highest-numbered phase where all tasks are `[x]`).
+1. Read `.wiggum/IMPLEMENTATION_PLAN.md` — identify which phases were completed (all tasks `[x]`) to understand scope.
 2. Read the spec files in `.wiggum/SPECS/`.
-3. Read `.wiggum/AGENTS.md` for project conventions, commands, and component library.
-4. Run `git diff .` and `git status .` to see what was built in this phase (scoped to the project directory). Read any new/modified files in full.
+3. Read `.wiggum/AGENTS.md` for project conventions, commands, component library, and code philosophy.
+4. Run `git diff HEAD` to see all changes since last commit. Read any new/modified files in full.
 
 ## Check: Does It Work?
 
 1. Run the project's test suite (see AGENTS.md). Read any test failures carefully.
 2. Run the build command. Check for errors.
-3. If a dev server command exists, verify it starts without errors.
-4. For each task in the completed phase, verify the acceptance criteria are met — check the actual code, not just that files exist.
+3. IMPORTANT: Do NOT start long-running processes like dev servers (`npm run dev`, `bun run dev`, etc.) — they run forever and will block the loop. Use `build` commands for verification instead.
+4. For each completed task, verify the acceptance criteria are met — check the actual code, not just that files exist.
 
 ## Check: Is It Conventional?
 
@@ -31,7 +31,7 @@ You are reviewing a phase's implementation. Check that it works, follows convent
 
 1. **Hacky workarounds**: Flag any code that works around a problem instead of solving it. Look for: TODO/FIXME/HACK comments, try/catch blocks that swallow errors, hardcoded values that should be dynamic, disabled lint rules, type assertions (as any), copied-and-pasted code.
 2. **Proper error handling**: Are errors handled at the right level? Are error messages useful?
-3. **Simplicity**: Flag unnecessary abstractions, over-engineered patterns, or code that's more complex than the problem requires.
+3. **Code philosophy**: Check against the Code Philosophy in `.wiggum/AGENTS.md` — flag redundancy, hacky workarounds, unnecessary complexity, premature abstractions.
 
 ## Actions
 
@@ -44,7 +44,13 @@ If you fixed issues, output this exact text on its own line:
 REVIEW: Fixed N issues
 - [one line per fix]
 
-If everything was clean, output this exact text on its own line:
+Do NOT commit when you fixed issues — the next review round will check your fixes.
+
+If everything was clean:
+1. Read `.wiggum/IMPLEMENTATION_PLAN.md` to determine which phases were completed
+2. Run: `git add .` then `git commit -m "Phase N[-M]: [description of what was implemented]"`
+   - Use "Phase 2-3:" format if multiple phases were completed
+3. Output this exact text on its own line:
 
 REVIEW: Clean
 ```

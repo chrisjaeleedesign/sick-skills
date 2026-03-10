@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wiggum Loop"
+  short_description: "Scaffold and run phased autonomous dev loops"
+  default_prompt: "Use $wiggum to scaffold a phased implementation loop for this project idea."

@@ -41,6 +41,7 @@ You are reviewing the complete application after all phases are built. Your job:
 2. **TODO/FIXME comments**: Flag any that indicate unfinished work.
 3. **Hacky workarounds**: Flag code that works around problems instead of solving them.
 4. **Error handling gaps**: Are there unhandled promise rejections, missing error boundaries, or swallowed errors?
+5. **Code philosophy**: Check against the Code Philosophy in `.wiggum/AGENTS.md` — flag redundancy across phases, premature abstractions, and inconsistent patterns.
 
 ## Actions
 

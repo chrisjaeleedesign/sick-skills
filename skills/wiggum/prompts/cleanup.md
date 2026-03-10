@@ -68,7 +68,7 @@ Edit `.wiggum/ROADMAP.md`:
    ```markdown
    # Implementation Plan
 
-   > **Wiggum Loop Rule**: Each iteration completes one full phase. Do all unchecked tasks in the current phase, in order.
+    > **Wiggum Loop Rule**: Each iteration completes at least one full phase. The worker may combine the next phase if it's small and tightly coupled.
 
    ---
 
