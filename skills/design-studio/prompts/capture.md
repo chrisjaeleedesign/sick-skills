@@ -9,20 +9,33 @@ You are capturing a screenshot of the current prototype to use as a visual refer
 1. **Check if studio is running:** `lsof -i :3001`
    - If not running → warn the user: "Studio not running — screenshot skipped. Run `/design-studio run` first for thumbnails."
 
-2. **Take screenshot** using browser automation tools (claude-in-chrome or similar):
-   - Navigate to the prototype URL (e.g., `http://localhost:3001/prototypes/<family>/v<N>`)
-   - Wait for page to load
-   - Capture full-page screenshot
-   - Save to `.design/references/<family>-v<N>.png`
+2. **Determine device preset** based on the design work just done:
+   - Mobile layout/design → `--device mobile`
+   - Tablet layout/design → `--device tablet`
+   - Laptop-specific work → `--device laptop`
+   - Default (most work) → omit flag (defaults to desktop)
 
-3. **Update manifest:** Add to the version's `references` array:
-   ```json
-   { "type": "screenshot", "path": "references/<family>-v<N>.png", "description": "Auto-captured after generation" }
+3. **Run capture script:**
+   ```bash
+   cd .design/studio && npx tsx scripts/capture.ts --family <slug> --version <N> [--device <preset>]
    ```
+   This launches headless Chromium, navigates to the prototype in bare capture mode (no Design Studio chrome), and saves a clean screenshot.
 
-4. **Read the screenshot** using the Read tool so it's in conversation context — this lets the agent (and user) see what was generated.
+4. **Update manifest:** Add to the version's `references` array:
+   ```json
+   { "type": "screenshot", "path": "references/<family>-v<N>.png", "description": "Auto-captured" }
+   ```
+   For non-desktop captures, the filename includes the device: `<family>-v<N>-<device>.png`
+
+5. **Read the screenshot** using the Read tool so it's in conversation context — this lets the agent (and user) see what was generated.
+
+## Fallback
+
+If the capture script fails (e.g., Playwright not installed), fall back to manual browser automation:
+- Navigate to `http://localhost:3001/prototypes/<family>/v<N>?capture=true`
+- Take a screenshot and save to `.design/references/<family>-v<N>.png`
 
 ## Constraints
 
-- You MUST capture a screenshot after generating a prototype. If browser automation tools are unavailable, warn the user that thumbnails will be missing for this version.
+- You MUST attempt a screenshot after generating a prototype.
 - Don't block the parent flow on screenshot failure.

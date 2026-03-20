@@ -21,9 +21,10 @@ You are creating a new prototype family from a design description.
    > Requirements:
    > - `"use client"` directive at top
    > - Self-contained — all data inline, realistic content (no lorem ipsum)
-   > - Imports allowed: `react`, `next/link`, `lucide-react` only
+   > - Imports allowed: `react`, `next/link`, `lucide-react` only. If `.design/studio/app/lib/seed-data.ts` exists, import from `@/app/lib/seed-data` instead of inlining data.
    > - Use CSS variable tokens from the design system (e.g., `bg-surface-1`, `text-text-primary`, `border-border`)
-   > - Include a back-to-gallery link at top: `<Link href="/">← Gallery</Link>`
+   > - **Sizing: The prototype renders inside a scaled 1440×900 container. Root element MUST use `w-full h-full` — NEVER use viewport units (`100vh`, `h-screen`, `100dvh`, `100vw`, `min-h-screen`). Use `flex-1 overflow-y-auto` for scrollable regions.**
+   > - Do NOT include a back-to-gallery link — the parent layout provides navigation
    > - Full interactivity: hover states, toggles, animations where appropriate
    > - Target 500-800 lines, rich and complete
    > - Design direction: [insert user's description]
@@ -50,6 +51,10 @@ You are creating a new prototype family from a design description.
    Set `current` to `{ "family": "<slug>", "version": 1 }`.
 
    Also add the new slug to a section's grid: if any section has `"focus": true`, find the first empty cell in that section (scan row 0 left-to-right, then row 1, etc.). Place the slug at that cell coordinate in the grid record. If the grid is full, increment the section's `rows` by 1 and place at `"newRow:0"`. If no sections exist, skip (the family will appear in Unsorted).
+
+   If the manifest API supports `add-family` (POST with `{"action": "add-family", "family": {...}}`), use that instead of reading/writing the manifest file directly — it handles grid placement atomically.
+
+   **Section ordering:** Sections are rendered in array order (newest first). When creating a new section, prepend it to the `sections` array (or use `{"action": "add-section", "section": {...}}` which prepends automatically).
 
 5. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new prototype. Save to `.design/references/<slug>-v1.png` and add to the version's `references` array.
 

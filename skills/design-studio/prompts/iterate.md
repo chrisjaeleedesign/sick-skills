@@ -37,9 +37,10 @@ You are forking a prototype version with a new design direction.
    > Requirements:
    > - Address specific element feedback from Agentation annotations (they include CSS selectors and bounding boxes pointing to exact elements)
    > - Apply the user's new direction
-   > - Same constraints: `"use client"`, self-contained, react + next/link + lucide-react only
+   > - Same constraints: `"use client"`, self-contained, react + next/link + lucide-react only. If `@/app/lib/seed-data` exists, import from there.
    > - Use CSS variable tokens (bg-surface-1, text-text-primary, etc.)
-   > - Keep the back-to-gallery link
+   > - **Sizing: The prototype renders inside a scaled 1440×900 container. Root element MUST use `w-full h-full` — NEVER use viewport units (`100vh`, `h-screen`, `100dvh`, `100vw`, `min-h-screen`). Use `flex-1 overflow-y-auto` for scrollable regions.**
+   > - Do NOT include a back-to-gallery link — the parent layout provides navigation
    > - Target 500-800 lines
    >
    > Be bold with the direction. This is iteration — the user wants to see meaningful change, not subtle tweaks.

@@ -1,0 +1,47 @@
+{
+  "current": {
+    "family": "example-dashboard",
+    "version": 1
+  },
+  "sections": [
+    {
+      "id": "sec-default",
+      "name": "Examples",
+      "focus": true,
+      "collapsed": false,
+      "columns": 1,
+      "rows": 1,
+      "grid": {
+        "0:0": "example-dashboard"
+      }
+    }
+  ],
+  "families": {
+    "example-dashboard": {
+      "name": "Example Dashboard",
+      "slug": "example-dashboard",
+      "description": "A sample prototype to demonstrate the design studio.",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "versions": [
+        {
+          "number": 1,
+          "direction": "Sample prototype with design token showcase",
+          "parentVersion": null,
+          "starred": false,
+          "references": [
+            {
+              "type": "screenshot",
+              "path": "references/example-dashboard-v1.png",
+              "description": "Auto-captured"
+            }
+          ],
+          "createdAt": "2026-01-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  "settings": {
+    "port": 3001,
+    "showThumbnails": true
+  }
+}
