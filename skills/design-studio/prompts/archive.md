@@ -21,4 +21,17 @@ You are trashing a prototype family the user is done exploring. Trashing hides i
 
 6. **Write updated manifest.**
 
-7. **Report:** Confirm what was trashed and what `current` now points to. Mention the user can restore it from the Trash filter in the gallery.
+7. **Log to journal:** Run from `.design/studio/`:
+   ```bash
+   cd .design/studio && npx tsx scripts/journal-log.ts --table event --type archived \
+     --body "Archived <family name>" \
+     --family <slug> --tags "archived"
+   ```
+   If the user explicitly killed a direction with reasoning, also log a decision:
+   ```bash
+   cd .design/studio && npx tsx scripts/journal-log.ts --table insight --type decision \
+     --body "<reason for killing the direction>" \
+     --family <slug> --tags "killed" --status killed
+   ```
+
+8. **Report:** Confirm what was trashed and what `current` now points to. Mention the user can restore it from the Trash filter in the gallery.

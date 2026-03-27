@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   DndContext,
@@ -29,9 +29,13 @@ import {
   ImageOff,
   Filter,
   GripVertical,
+  X,
 } from "lucide-react";
 import type { Manifest, Family, Section, Settings } from "@/app/lib/manifest";
+import { COLOR_PALETTE } from "@/app/lib/types";
+import { parseDropId, applyDragResult } from "@/app/lib/grid";
 import { FamilyCard } from "./family-card";
+import { GallerySidebar } from "./gallery-sidebar";
 
 // ---------------------------------------------------------------------------
 // Inline-editable section name
@@ -132,10 +136,38 @@ function DroppableCell({ id, children }: { id: string; children?: React.ReactNod
 function DraggableCard({ slug, children }: { slug: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: slug });
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners}
+    <div ref={setNodeRef} {...attributes} {...listeners} data-family-slug={slug}
       className={`cursor-grab touch-none active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}>
       {children}
     </div>
+  );
+}
+
+function GutterRight({ sectionId, row }: { sectionId: string; row: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${sectionId}:gutter-right:${row}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-h-[120px] flex items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
+        isOver
+          ? "border-primary/40 bg-primary/5"
+          : "border-transparent hover:border-border"
+      }`}
+    >
+      <Plus className="h-3 w-3 text-text-tertiary opacity-0 transition-opacity group-hover/section:opacity-100" />
+    </div>
+  );
+}
+
+function GutterBottom({ sectionId, col }: { sectionId: string; col: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${sectionId}:gutter-bottom:${col}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`h-8 rounded-lg border-2 border-dashed transition-colors ${
+        isOver ? "border-primary/40 bg-primary/5" : "border-transparent"
+      }`}
+    />
   );
 }
 
@@ -143,20 +175,13 @@ function DraggableCard({ slug, children }: { slug: string; children: React.React
 // Grid helpers
 // ---------------------------------------------------------------------------
 
-function canRemoveRow(section: Section): { allowed: boolean; reason: string } {
-  if (section.rows <= 1) return { allowed: false, reason: "Minimum 1 row" };
-  const lastRow = section.rows - 1;
-  for (let c = 0; c < section.columns; c++) {
-    if (section.grid[`${lastRow}:${c}`]) return { allowed: false, reason: "Last row has cards — move them first" };
-  }
-  return { allowed: true, reason: "" };
-}
-
-function canRemoveCol(section: Section): { allowed: boolean; reason: string } {
-  if (section.columns <= 1) return { allowed: false, reason: "Minimum 1 column" };
-  const lastCol = section.columns - 1;
-  for (let r = 0; r < section.rows; r++) {
-    if (section.grid[`${r}:${lastCol}`]) return { allowed: false, reason: "Last column has cards — move them first" };
+function canRemoveDimension(section: Section, axis: "row" | "col"): { allowed: boolean; reason: string } {
+  const size = axis === "row" ? section.rows : section.columns;
+  if (size <= 1) return { allowed: false, reason: `Minimum 1 ${axis}` };
+  const last = size - 1;
+  for (let i = 0; i < (axis === "row" ? section.columns : section.rows); i++) {
+    const key = axis === "row" ? `${last}:${i}` : `${i}:${last}`;
+    if (section.grid[key]) return { allowed: false, reason: `Last ${axis} has cards — move them first` };
   }
   return { allowed: true, reason: "" };
 }
@@ -176,7 +201,15 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
     () => new Set(manifest.sections.map((s) => s.id))
   );
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
+  const lastSelectedRef = useRef<string | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Drag-to-select state
+  const [selectionRect, setSelectionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const isDragSelectingRef = useRef(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -252,46 +285,14 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
       return;
     }
 
-    const slug = activeStr;
-    const targetId = overStr;
+    // Card drag — delegate to pure function
+    const target = parseDropId(overStr);
+    if (!target) return;
 
-    // Parse droppable id: "sectionId:row:col"
-    const parts = targetId.split(":");
-    if (parts.length < 3) return;
-    const targetCol = parseInt(parts.pop()!, 10);
-    const targetRow = parseInt(parts.pop()!, 10);
-    const targetSectionId = parts.join(":");
-    const targetKey = `${targetRow}:${targetCol}`;
+    const result = applyDragResult(sections, activeStr, target);
+    if (!result) return;
 
-    // Find source location
-    let sourceSectionId: string | null = null;
-    let sourceKey: string | null = null;
-    for (const s of sections) {
-      const entry = Object.entries(s.grid).find(([, v]) => v === slug);
-      if (entry) { sourceSectionId = s.id; sourceKey = entry[0]; break; }
-    }
-
-    const targetSection = sections.find((s) => s.id === targetSectionId);
-    if (!targetSection) return;
-
-    const occupant = targetSection.grid[targetKey];
-    if (sourceSectionId === targetSectionId && sourceKey === targetKey) return;
-
-    const nextSections = sections.map((s) => {
-      const isSource = s.id === sourceSectionId;
-      const isTarget = s.id === targetSectionId;
-      if (!isSource && !isTarget) return s;
-
-      const nextGrid = { ...s.grid };
-      if (isTarget) nextGrid[targetKey] = slug;
-      if (isSource && sourceKey) {
-        if (occupant) nextGrid[sourceKey] = occupant;
-        else delete nextGrid[sourceKey];
-      }
-      return { ...s, grid: nextGrid };
-    });
-
-    save({ sections: nextSections });
+    save({ sections: result });
   }
 
   // -- Trash / Restore --
@@ -334,15 +335,123 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
 
   function removeRow(id: string) {
     const s = sections.find((sec) => sec.id === id);
-    if (!s || !canRemoveRow(s).allowed) return;
+    if (!s || !canRemoveDimension(s, "row").allowed) return;
     updateSection(id, { rows: s.rows - 1 });
   }
 
   function removeColumn(id: string) {
     const s = sections.find((sec) => sec.id === id);
-    if (!s || !canRemoveCol(s).allowed) return;
+    if (!s || !canRemoveDimension(s, "col").allowed) return;
     updateSection(id, { columns: s.columns - 1 });
   }
+
+  // -- Selection --
+
+  /** Build an ordered list of all visible (non-archived) slugs for shift-click range. */
+  function allVisibleSlugs(): string[] {
+    const slugs: string[] = [];
+    for (const section of sections) {
+      if (!visibleSections.has(section.id)) continue;
+      for (let r = 0; r < section.rows; r++) {
+        for (let c = 0; c < section.columns; c++) {
+          const slug = section.grid[`${r}:${c}`];
+          if (slug && families[slug] && !families[slug].archived) slugs.push(slug);
+        }
+      }
+    }
+    for (const slug of unsortedSlugs) slugs.push(slug);
+    return slugs;
+  }
+
+  function handleSelect(slug: string, e: React.MouseEvent) {
+    setSelectedSlugs(prev => {
+      const next = new Set(prev);
+
+      if (e.shiftKey && lastSelectedRef.current) {
+        // Range select
+        const ordered = allVisibleSlugs();
+        const a = ordered.indexOf(lastSelectedRef.current);
+        const b = ordered.indexOf(slug);
+        if (a !== -1 && b !== -1) {
+          const [start, end] = a < b ? [a, b] : [b, a];
+          for (let i = start; i <= end; i++) next.add(ordered[i]);
+        }
+      } else {
+        // Toggle — always add/remove without clearing others
+        if (next.has(slug)) next.delete(slug); else next.add(slug);
+      }
+
+      lastSelectedRef.current = slug;
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedSlugs(new Set());
+    lastSelectedRef.current = null;
+  }
+
+  // -- Drag-to-select --
+
+  function handleMainMouseDown(e: React.MouseEvent) {
+    // Only start drag-select on left click on empty space (not on cards, buttons, inputs)
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    // Don't start if clicking on interactive elements or card content
+    if (target.closest("a, button, input, [data-drag-handle], .group\\/card")) return;
+
+    dragOriginRef.current = { x: e.clientX, y: e.clientY };
+    isDragSelectingRef.current = false;
+  }
+
+  useEffect(() => {
+    function handleMouseMove(e: MouseEvent) {
+      if (!dragOriginRef.current) return;
+      const dx = e.clientX - dragOriginRef.current.x;
+      const dy = e.clientY - dragOriginRef.current.y;
+      // Require minimum drag distance to start
+      if (!isDragSelectingRef.current && Math.abs(dx) + Math.abs(dy) < 10) return;
+      isDragSelectingRef.current = true;
+
+      const x = Math.min(e.clientX, dragOriginRef.current.x);
+      const y = Math.min(e.clientY, dragOriginRef.current.y);
+      const w = Math.abs(dx);
+      const h = Math.abs(dy);
+      setSelectionRect({ x, y, w, h });
+
+      // Find all card elements within the rectangle
+      if (!mainRef.current) return;
+      const cards = mainRef.current.querySelectorAll("[data-family-slug]");
+      const next = new Set<string>();
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        const slug = card.getAttribute("data-family-slug");
+        if (!slug) return;
+        // Check intersection
+        if (rect.right >= x && rect.left <= x + w && rect.bottom >= y && rect.top <= y + h) {
+          next.add(slug);
+        }
+      });
+      setSelectedSlugs(next);
+    }
+
+    function handleMouseUp() {
+      dragOriginRef.current = null;
+      isDragSelectingRef.current = false;
+      setSelectionRect(null);
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  const selectedFamilies = Array.from(selectedSlugs)
+    .map(s => families[s])
+    .filter(Boolean);
 
   // -- Render --
 
@@ -425,12 +534,33 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
         {showThumbnails ? <Image className="h-3.5 w-3.5" /> : <ImageOff className="h-3.5 w-3.5" />}
         Thumbnails
       </button>
+
+      {/* Selection indicator */}
+      {selectedSlugs.size > 0 && (
+        <div className="flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5">
+          <span className="text-xs font-medium text-primary">
+            {selectedSlugs.size} selected
+          </span>
+          <button
+            onClick={clearSelection}
+            className="rounded p-0.5 text-primary hover:bg-primary/10"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
     </>,
     toolbarTarget
   );
 
+  const sidebarOpen = selectedSlugs.size > 0;
+
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
+    <main
+      ref={mainRef}
+      onMouseDown={handleMainMouseDown}
+      className={`mx-auto px-6 py-10 transition-all ${sidebarOpen ? "mr-96 max-w-5xl" : "max-w-6xl"}`}
+    >
       {toolbar}
       <DndContext
         id="gallery-dnd"
@@ -446,8 +576,8 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
         >
         {sections.filter((s) => visibleSections.has(s.id)).map((section) => {
           const cardCount = Object.keys(section.grid).length;
-          const rowCheck = canRemoveRow(section);
-          const colCheck = canRemoveCol(section);
+          const rowCheck = canRemoveDimension(section, "row");
+          const colCheck = canRemoveDimension(section, "col");
           return (
             <SortableSection key={section.id} id={section.id}>
               {(dragHandleProps) => (
@@ -464,11 +594,19 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
                 </button>
                 <button
                   onClick={() => updateSection(section.id, { focus: !section.focus })}
-                  className={`transition-colors ${section.focus ? "text-accent-blue" : "text-text-tertiary hover:text-text-secondary"}`}
+                  className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                    section.focus
+                      ? "border-accent-blue bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20"
+                      : "border-border text-text-tertiary hover:border-accent-blue/40 hover:text-text-secondary"
+                  }`}
                   title={section.focus ? "Remove from focus" : "Add to focus"}
                 >
-                  <Target className={`h-4 w-4 ${section.focus ? "fill-accent-blue/20" : ""}`} />
+                  <Target className={`h-3 w-3 ${section.focus ? "fill-accent-blue/20" : ""}`} />
+                  Focus
                 </button>
+                {section.color && (
+                  <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${COLOR_PALETTE[section.color].dot}`} />
+                )}
                 <SectionName name={section.name} onRename={(name) => { updateSection(section.id, { name }); setEditingSectionId(null); }} autoEdit={editingSectionId === section.id} />
                 <span className="text-[10px] text-text-tertiary">{cardCount}</span>
                 <div className="flex-1" />
@@ -493,10 +631,12 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
                 <div>
                   <div
                     className="grid gap-3"
-                    style={{ gridTemplateColumns: `repeat(${section.columns}, minmax(0, 1fr))` }}
+                    style={{
+                      gridTemplateColumns: `repeat(${section.columns}, minmax(0, 1fr)) 24px`
+                    }}
                   >
-                    {Array.from({ length: section.rows }).map((_, row) =>
-                      Array.from({ length: section.columns }).map((_, col) => {
+                    {Array.from({ length: section.rows }).map((_, row) => {
+                      const cells = Array.from({ length: section.columns }).map((_, col) => {
                         const key = `${row}:${col}`;
                         const slug = section.grid[key];
                         const family = slug ? families[slug] : null;
@@ -510,14 +650,28 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
                                   isCurrent={currentFamily === slug}
                                   currentVersion={currentVersion}
                                   showThumbnail={showThumbnails}
+                                  isSelected={selectedSlugs.has(slug)}
                                   onTrash={trashFamily}
+                                  onSelect={handleSelect}
                                 />
                               </DraggableCard>
                             )}
                           </DroppableCell>
                         );
-                      })
-                    )}
+                      });
+                      return (
+                        <React.Fragment key={row}>
+                          {cells}
+                          <GutterRight
+                            sectionId={section.id}
+                            row={row}
+                          />
+                        </React.Fragment>
+                      );
+                    })}
+                    {activeId && Array.from({ length: section.columns }).map((_, col) => (
+                      <GutterBottom key={`gutter-bottom-${col}`} sectionId={section.id} col={col} />
+                    ))}
                   </div>
                   {/* Row/col controls */}
                   <div className="mt-2 flex items-center gap-1">
@@ -538,8 +692,11 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
                       <Minus className="h-3 w-3" /> Row
                     </button>
                     <span className="mx-1 text-border">|</span>
-                    <button onClick={() => updateSection(section.id, { columns: section.columns + 1 })}
-                      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-text-tertiary hover:bg-surface-2 hover:text-text-secondary">
+                    <button
+                      onClick={() => updateSection(section.id, { columns: section.columns + 1 })}
+                      title="Add column"
+                      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-text-tertiary hover:bg-surface-2 hover:text-text-secondary"
+                    >
                       <Plus className="h-3 w-3" /> Col
                     </button>
                     <button
@@ -578,7 +735,8 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
                 return (
                   <DraggableCard key={slug} slug={slug}>
                     <FamilyCard family={family} isCurrent={currentFamily === slug}
-                      currentVersion={currentVersion} showThumbnail={showThumbnails} onTrash={trashFamily} />
+                      currentVersion={currentVersion} showThumbnail={showThumbnails}
+                      isSelected={selectedSlugs.has(slug)} onTrash={trashFamily} onSelect={handleSelect} />
                   </DraggableCard>
                 );
               })}
@@ -612,6 +770,24 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
           ) : null}
         </DragOverlay>
       </DndContext>
+      {sidebarOpen && (
+        <GallerySidebar
+          selectedFamilies={selectedFamilies}
+          onClose={clearSelection}
+        />
+      )}
+      {/* Drag-to-select rectangle overlay */}
+      {selectionRect && (
+        <div
+          className="pointer-events-none fixed z-50 rounded border border-primary/50 bg-primary/10"
+          style={{
+            left: selectionRect.x,
+            top: selectionRect.y,
+            width: selectionRect.w,
+            height: selectionRect.h,
+          }}
+        />
+      )}
     </main>
   );
 }

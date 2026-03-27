@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import type { ThoughtColor } from "./types";
 
 export interface Reference {
   type: "screenshot" | "file" | "text";
@@ -21,6 +22,7 @@ export interface Family {
   slug: string;
   description: string;
   archived?: boolean;
+  color?: ThoughtColor;
   createdAt: string;
   versions: Version[];
 }
@@ -30,6 +32,7 @@ export interface Section {
   name: string;
   focus: boolean;
   collapsed: boolean;
+  color?: ThoughtColor;
   columns: number;
   rows: number;
   grid: Record<string, string>; // "row:col" -> familySlug

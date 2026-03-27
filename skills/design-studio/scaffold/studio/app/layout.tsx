@@ -3,9 +3,8 @@
 import "./globals.css";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Moon, Sun, BookOpen } from "lucide-react";
+import { Moon, Sun, ListChecks, Brain } from "lucide-react";
 import { Agentation } from "agentation";
-import { JournalModal } from "./journal-modal";
 
 export default function RootLayout({
   children,
@@ -16,7 +15,6 @@ export default function RootLayout({
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("capture") === "true"
   );
   const [dark, setDark] = useState(false);
-  const [journalOpen, setJournalOpen] = useState(false);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -26,9 +24,9 @@ export default function RootLayout({
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "j" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "t" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setJournalOpen((v) => !v);
+        window.location.href = "/thoughts";
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -48,15 +46,21 @@ export default function RootLayout({
                 </span>
               </Link>
               <div id="header-toolbar" className="flex flex-1 items-center justify-end gap-2" />
-              <button
-                onClick={() => setJournalOpen(true)}
+              <Link
+                href="/thoughts"
                 className="flex h-8 items-center gap-1.5 rounded-md px-2.5 hover:bg-surface-2 transition-colors"
-                aria-label="Open journal"
-                title="Design Journal (⌘J)"
+                title="Thoughts (⌘T)"
               >
-                <BookOpen className="h-4 w-4 text-text-secondary" />
-                <span className="text-xs text-text-secondary">Journal</span>
-              </button>
+                <Brain className="h-4 w-4 text-text-secondary" />
+                <span className="text-xs text-text-secondary">Thoughts</span>
+              </Link>
+              <Link
+                href="/features"
+                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 hover:bg-surface-2 transition-colors"
+              >
+                <ListChecks className="h-4 w-4 text-text-secondary" />
+                <span className="text-xs text-text-secondary">Features</span>
+              </Link>
               <button
                 onClick={() => setDark(!dark)}
                 className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2 transition-colors"
@@ -70,8 +74,7 @@ export default function RootLayout({
               </button>
             </header>
             {children}
-            {journalOpen && <JournalModal onClose={() => setJournalOpen(false)} />}
-            <Agentation />
+            <Agentation endpoint="http://localhost:4747" />
           </>
         )}
       </body>

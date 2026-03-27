@@ -11,8 +11,11 @@ You are setting up a `.design/` workspace in the user's project.
    - Top-level directories: `references/` (with `.gitkeep`), `studio/`
    - Studio config files: `studio/package.json`, `studio/next.config.ts`, `studio/postcss.config.mjs`, `studio/tsconfig.json`
    - Studio app files: `studio/app/globals.css`, `studio/app/layout.tsx`, `studio/app/page.tsx`, `studio/app/gallery.tsx`, `studio/app/family-card.tsx`, `studio/app/journal-modal.tsx`
-   - Studio lib files: `studio/app/lib/manifest.ts`, `studio/app/lib/constants.ts`, `studio/app/lib/journal.ts`
-   - Studio API routes: `studio/app/api/manifest/route.ts`, `studio/app/api/journal/route.ts`, `studio/app/api/screenshot/[family]/[version]/route.ts`
+   - Studio lib files: `studio/app/lib/manifest.ts`, `studio/app/lib/constants.ts`, `studio/app/lib/types.ts`, `studio/app/lib/db.ts`, `studio/app/lib/grid.ts`
+   - Studio features page: `studio/app/features/page.tsx`, `studio/app/features/features.tsx`
+   - Studio features API: `studio/app/api/features/route.ts`
+   - Studio API routes: `studio/app/api/manifest/route.ts`, `studio/app/api/journal/route.ts`, `studio/app/api/journal/meta/route.ts`, `studio/app/api/screenshot/[family]/[version]/route.ts`
+   - Studio scripts: `studio/scripts/capture.ts`, `studio/scripts/journal-log.ts`
    - Studio prototypes: `studio/app/prototypes/layout.tsx`, `studio/app/prototypes/example-dashboard/v1/page.tsx`
 
 2. **Install dependencies:**

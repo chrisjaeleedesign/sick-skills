@@ -9,8 +9,11 @@ import {
   ArchiveRestore,
   ChevronDown,
   ChevronUp,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import type { Family } from "@/app/lib/manifest";
+import { COLOR_PALETTE } from "@/app/lib/types";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor(
@@ -31,16 +34,20 @@ export function FamilyCard({
   currentVersion,
   showThumbnail,
   isTrashView,
+  isSelected,
   onTrash,
   onRestore,
+  onSelect,
 }: {
   family: Family;
   isCurrent: boolean;
   currentVersion: number | null;
   showThumbnail: boolean;
   isTrashView?: boolean;
+  isSelected?: boolean;
   onTrash?: (slug: string) => void;
   onRestore?: (slug: string) => void;
+  onSelect?: (slug: string, e: React.MouseEvent) => void;
 }) {
   const latest = family.versions[family.versions.length - 1];
   const [thumbExpanded, setThumbExpanded] = useState(true);
@@ -50,9 +57,29 @@ export function FamilyCard({
   return (
     <div
       className={`group/card relative rounded-lg border p-4 transition-colors ${
-        isCurrent ? "border-primary/30 bg-card" : "border-border bg-card"
+        isSelected
+          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+          : isCurrent ? "border-primary/30 bg-card" : "border-border bg-card"
       }`}
     >
+      {/* Selection checkbox — top-left, visible on hover or when selected */}
+      {onSelect && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect(family.slug, e);
+          }}
+          className={`absolute left-2 top-2 z-10 rounded p-0.5 transition-opacity ${
+            isSelected
+              ? "opacity-100 text-primary"
+              : "opacity-0 text-text-tertiary group-hover/card:opacity-100 hover:text-primary"
+          }`}
+        >
+          {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+        </button>
+      )}
+
       {/* Action button — top-right, visible on hover */}
       {!isTrashView && onTrash && (
         <button
@@ -83,16 +110,21 @@ export function FamilyCard({
       >
         {/* Header */}
         <div className="flex items-baseline justify-between pr-6">
-          <h2 className="text-sm font-medium text-text-primary truncate">
-            {family.name}
-          </h2>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {family.color && (
+              <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${COLOR_PALETTE[family.color].dot}`} />
+            )}
+            <h2 className="text-sm font-medium text-text-primary truncate">
+              {family.name}
+            </h2>
+          </div>
           {isCurrent && (
             <span className="text-[10px] font-medium uppercase tracking-wide text-primary">
               current
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-text-tertiary truncate">
+        <p className="mt-0.5 text-xs text-text-tertiary leading-relaxed">
           {family.description}
         </p>
 

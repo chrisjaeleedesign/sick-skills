@@ -42,20 +42,77 @@ Present the plan summary and ask for explicit approval:
 
 Wait for explicit user confirmation before proceeding. Do NOT start the loop without approval.
 
-## Step 4: Execute Loop
+## Step 4: Launch Loop
 
 1. Make sure `.wiggum/loop.sh` is executable: run `chmod +x .wiggum/loop.sh`
-2. Start the loop as a background process and persist PID/logs:
+2. **Nested session fix**: Verify that `loop.sh` contains `unset CLAUDECODE` near the top. Claude Code sets a `CLAUDECODE` env var and refuses to launch if it detects one (to prevent accidental nesting). Since our workers are intentionally separate processes, this must be unset. If the line is missing, add `unset CLAUDECODE 2>/dev/null || true` after `set -euo pipefail`.
+3. Start the loop as a background process and persist PID/logs:
    - `mkdir -p .wiggum/logs`
    - `bash .wiggum/loop.sh > .wiggum/logs/loop-live.log 2>&1 & echo $! > .wiggum/logs/loop.pid`
-3. Tell the user the loop has started and report the PID from `.wiggum/logs/loop.pid`
-4. Use the Read tool to read `.wiggum/logs/progress.md` periodically to monitor status
-5. Check whether the process is still running with `ps -p "$(cat .wiggum/logs/loop.pid)"`
-6. Report significant milestones to the user (phase completions, task counts, blocked state)
+4. Tell the user the loop has started and report the PID from `.wiggum/logs/loop.pid`
 
-## Step 5: Post-loop
+## Step 5: Active Monitoring
 
-When the loop finishes (progress.md shows ALL COMPLETE, shows BLOCKED, or the background process exits):
+After launching, enter an active monitoring loop. Continue monitoring until the loop finishes, is blocked, or the user intervenes.
+
+### Monitoring cycle
+
+Run this cycle repeatedly, sleeping 2-3 minutes between checks:
+
+1. **Process health**: `ps -p "$(cat .wiggum/logs/loop.pid)" -o pid,state,etime,%cpu 2>/dev/null`
+   - If process is dead → check exit code and logs, report to user, go to Step 6
+2. **Task progress**: Count `- [x]` and `- [ ]` in `.wiggum/IMPLEMENTATION_PLAN.md`
+   - Record the count each cycle to detect stalls
+3. **Log tail**: Read last 30 lines of `.wiggum/logs/loop-live.log` for errors or status
+4. **Report milestones**: When task count increases, tell the user what completed
+
+### Stuck detection
+
+A worker is **stuck** if ANY of these are true:
+
+| Signal | Detection | Threshold |
+|--------|-----------|-----------|
+| **No progress** | Task count unchanged between checks | 3 consecutive checks (~6-9 min) with no change AND worker process has been running >15 min total |
+| **Repeated errors** | Same error line appears 3+ times in last 50 lines of log | Immediate |
+| **Zombie worker** | Process alive but <1% CPU for >10 min and no new log output | 2 consecutive checks |
+
+**Known error patterns to watch for:**
+- `Cannot be launched inside another Claude Code session` → missing `unset CLAUDECODE`
+- `Error: worker command not found` → worker not installed
+- `BLOCKED:` in output → worker self-reported block (this is handled by loop.sh, but monitor for it)
+- Rapid iteration cycling with `[!] No COMPLETE signal` on every iteration → worker failing repeatedly
+
+### Recovery procedure
+
+When stuck is detected:
+
+1. **Identify the stuck process**: Find the worker child process: `pgrep -P "$(cat .wiggum/logs/loop.pid)"`
+2. **Kill stuck processes**: Kill the worker child first, then the loop parent:
+   ```
+   kill <worker_pid>
+   kill <loop_pid>
+   ```
+3. **Diagnose**: Read the last 100 lines of `.wiggum/logs/loop-live.log` and identify the root cause
+4. **Fix if possible**: Apply a fix if the issue is identifiable (e.g., add missing `unset CLAUDECODE`, fix a file permission, etc.)
+5. **Report to user**: Tell the user what happened, what was stuck, and what you fixed
+6. **Restart**: Relaunch the loop — it will pick up from the last checked-off task:
+   ```
+   bash .wiggum/loop.sh > .wiggum/logs/loop-live.log 2>&1 & echo $! > .wiggum/logs/loop.pid
+   ```
+7. **Resume monitoring**: Go back to the monitoring cycle
+
+If the same stuck condition recurs after 2 restart attempts, stop and ask the user for guidance instead of retrying indefinitely.
+
+### Progress reporting
+
+- **On milestone** (phase completion, review round): Report immediately
+- **On stuck + recovery**: Report what happened and that you restarted
+- **Periodic summary**: Every ~10 minutes if the user is present, give a brief status line (tasks done / total, current phase, elapsed time)
+- **If user is away**: Minimize output, just track internally and report the full summary when they return or when the loop finishes
+
+## Step 6: Post-loop
+
+When the loop finishes (all tasks checked, progress.md shows ALL COMPLETE, BLOCKED signal, or the process exits cleanly):
 
 1. Read `.wiggum/logs/progress.md` for final status
 2. Read `.wiggum/logs/loop-live.log` for worker output summary and any errors

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { DEVICE_PRESETS, DEVICE_ICONS, type DevicePreset } from "@/app/lib/constants";
 
@@ -10,6 +11,37 @@ export default function PrototypeLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const [familyInfo, setFamilyInfo] = useState<{ name: string; description: string; version: number } | null>(null);
+
+  // Extract family slug and version from pathname
+  useEffect(() => {
+    const match = pathname?.match(/\/prototypes\/([^/]+)\/v(\d+)/);
+    if (!match) return;
+    const [, slug, ver] = match;
+    fetch("/api/manifest")
+      .then((r) => r.json())
+      .then((data) => {
+        const family = data.families?.[slug];
+        if (family) {
+          setFamilyInfo({ name: family.name, description: family.description, version: parseInt(ver) });
+        }
+      })
+      .catch(() => {});
+  }, [pathname]);
+
+  // Force light mode while viewing prototypes.
+  // Prototypes control their own color schemes and must not inherit
+  // the gallery's dark mode toggle from <html class="dark">.
+  useEffect(() => {
+    const html = document.documentElement;
+    const wasDark = html.classList.contains("dark");
+    html.classList.remove("dark");
+    return () => {
+      if (wasDark) html.classList.add("dark");
+    };
+  }, []);
+
   const [captureMode] = useState<DevicePreset | null>(() => {
     if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
@@ -46,7 +78,7 @@ export default function PrototypeLayout({
           "--container-width": `${cap.width}px`,
           "--container-height": `${cap.height}px`,
         } as React.CSSProperties}
-        className="overflow-hidden bg-white"
+        className="overflow-hidden"
       >
         {children}
       </div>
@@ -64,6 +96,17 @@ export default function PrototypeLayout({
           <ArrowLeft className="h-3.5 w-3.5" />
           Gallery
         </Link>
+        {familyInfo && (
+          <>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs font-medium text-text-primary truncate">{familyInfo.name}</span>
+              <span className="text-[10px] text-text-tertiary font-mono shrink-0">v{familyInfo.version}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <span className="text-[11px] text-text-secondary truncate max-w-[400px]">{familyInfo.description}</span>
+          </>
+        )}
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-1">
           {(Object.keys(DEVICE_PRESETS) as DevicePreset[]).map((key) => {
@@ -111,7 +154,7 @@ export default function PrototypeLayout({
               "--container-width": `${width}px`,
               "--container-height": `${height}px`,
             } as React.CSSProperties}
-            className="relative overflow-auto rounded-xl bg-white"
+            className="relative overflow-hidden rounded-xl prototype-frame"
           >
             {children}
           </div>

@@ -8,14 +8,8 @@
   --foreground: #0f0f10;
   --card: #ffffff;
   --card-foreground: #0f0f10;
-  --popover: #ffffff;
-  --popover-foreground: #0f0f10;
   --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #3f3f46;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
   --accent: #2563eb;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
@@ -51,14 +45,8 @@
   --foreground: #fafafa;
   --card: #171717;
   --card-foreground: #fafafa;
-  --popover: #171717;
-  --popover-foreground: #fafafa;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --secondary: #27272a;
-  --secondary-foreground: #f4f4f5;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
   --accent: #3b82f6;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
@@ -96,14 +84,8 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -132,6 +114,10 @@
   --color-accent-green: var(--accent-green);
   --color-accent-amber: var(--accent-amber);
   --color-accent-red: var(--accent-red);
+
+  /* Pebble warm palette — theme-level colors for Tailwind class generation.
+     bg-pb-* uses background shades, text-pb-* uses text shades, border-pb uses border shade.
+     Since Tailwind v4 uses the same --color-X for bg/text/border, we use @utility overrides below. */
 }
 
 @layer base {
@@ -142,3 +128,20 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Pebble design token utilities — explicit bg/text/border separation */
+@utility bg-pb { background-color: #FAF8F4; }
+@utility bg-pb-surface { background-color: #FFFCF8; }
+@utility bg-pb-muted { background-color: #F0ECE6; }
+@utility bg-pb-border { background-color: #E8E4DE; }
+@utility border-pb { border-color: #E8E4DE; }
+@utility border-pb-light { border-color: #F0ECE6; }
+@utility text-pb { color: #1A1714; }
+@utility text-pb-secondary { color: #3D3832; }
+@utility text-pb-muted { color: #5C5650; }
+@utility text-pb-tertiary { color: #9C9590; }
+@utility text-pb-faint { color: #CFCAC4; }
+
+/* Prototype frames: dark mode isolation is handled by the prototype layout
+   component which removes .dark from <html> while a prototype is mounted.
+   No CSS overrides needed — prototypes inherit clean light-mode variables. */

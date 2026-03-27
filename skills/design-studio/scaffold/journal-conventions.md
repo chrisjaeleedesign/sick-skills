@@ -61,3 +61,54 @@ In practice: just append the new version and a note. Don't rewrite history.
 - Reactions: `rxn-NNN`
 - Learnings: `lrn-NNN`
 - Decisions: `dec-NNN`
+
+---
+
+## Thoughts System
+
+Thoughts are a creative journal layer that sits alongside the structured insights/events system. While insights track design decisions with formal status lifecycles, thoughts capture inspiration, philosophy, and half-formed ideas that may influence designs later.
+
+### Storage
+Thoughts live in the SQLite database (`journal.db`) — not in JSONL. Access via the `/api/thoughts` REST API.
+
+### Thought Kinds
+- `observation` — aesthetic instinct, gut reaction, or something noticed
+- `question` — open question or uncertainty to explore
+- `principle` — design rule, philosophy, or constraint
+- `reference` — external inspiration (video, article, app, image)
+
+### Conviction Levels
+- `hunch` — just a feeling, may not stick
+- `leaning` — repeated or reinforced, gaining confidence
+- `confident` — tested and validated through prototyping
+- `core` — foundational belief, unlikely to change
+
+### Revision Stack
+Each thought has a revision stack (newest first). Revisions capture how a thought evolves over time. The latest revision is the "current" version.
+
+### Relationships to Insights
+Existing journal insights were migrated into thoughts during initial setup:
+| Insight Type | → Thought Kind | → Conviction |
+|---|---|---|
+| preference | principle | confident |
+| learning | observation | leaning |
+| reaction | observation | hunch |
+| direction | observation | leaning |
+| decision (final) | principle | core |
+| decision (active) | principle | confident |
+
+### Colors
+Thoughts, families, sections, and boards can have colors for visual organization. Colors use the `ThoughtColor` type (15 options: red, orange, amber, yellow, lime, emerald, teal, cyan, blue, indigo, violet, purple, pink, rose, gray).
+
+### Boards
+Boards are curated collections of thoughts. Thoughts can be placed on a board at x,y positions. AI-arranged views use semantic search to auto-populate boards from a natural language query.
+
+### Proactive Capture
+The design-studio skill automatically captures thoughts from conversations. When a user shares inspiration, philosophy, or aesthetic ideas, the agent saves them as thoughts without being asked. See SKILL.md for detection signals.
+
+### API Endpoints
+- `GET/POST /api/thoughts` — CRUD for thoughts (actions: create-thought, update-thought, delete-thought, add-revision, add-attachment, add-relation, remove-relation)
+- `GET /api/thoughts/meta` — metadata (tags, families, colors, kinds)
+- `GET/POST /api/thoughts/boards` — board CRUD
+- `GET /api/thoughts/search` — hybrid search (FTS5 + semantic embeddings)
+- `POST /api/thoughts/migrate` — one-time migration of journal insights to thoughts

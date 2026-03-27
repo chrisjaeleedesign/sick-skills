@@ -62,7 +62,29 @@ You are forking a prototype version with a new design direction.
 
 8. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new version.
 
-9. **Report:** Always end with a clickable link to every page that was created or changed. Read the port from `.design/manifest.json` settings. Format:
+9. **Log to journal:** Run from `.design/studio/`:
+   ```bash
+   cd .design/studio && npx tsx scripts/journal-log.ts --table event --type iterated \
+     --body "Iterated <family name> v<source> → v<new> — <direction>" \
+     --family <slug> --tags "iterated,v<new>"
+   ```
+   If the user provided explicit feedback that prompted this iteration (e.g., "too busy", "I prefer the sidebar approach"), also log a reaction insight:
+   ```bash
+   cd .design/studio && npx tsx scripts/journal-log.ts --table insight --type reaction \
+     --body "<user's feedback that prompted this change>" \
+     --family <slug> --tags "feedback" --status active
+   ```
+
+10. **Capture thoughts:** If the user's direction includes philosophical or aesthetic ideas (beyond element-specific feedback), save them as thoughts linked to the family via the thoughts API (see SKILL.md "Proactive Thought Capture"). Also check Agentation annotations — if any contain broader ideas (not just "move this button"), capture those as thoughts too.
+
+    Examples of what to capture:
+    - "Try making it feel more organic, less grid-based" → observation, tags: [aesthetic, layout]
+    - "I think the key insight is that navigation IS content" → principle, tags: [navigation, ux]
+    - User's Agentation annotation says "this whole approach feels too corporate" → observation, tags: [aesthetic, feedback]
+
+    Skip for purely mechanical feedback ("make the font bigger", "swap these two elements").
+
+11. **Report:** Always end with a clickable link to every page that was created or changed. Read the port from `.design/manifest.json` settings. Format:
 
    > **New version:** [<family name> v<N+1>](http://localhost:<port>/prototypes/<family>/v<N+1>)
    > **Forked from:** [v<N>](http://localhost:<port>/prototypes/<family>/v<N>)

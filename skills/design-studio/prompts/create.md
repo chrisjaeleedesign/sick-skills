@@ -58,7 +58,27 @@ You are creating a new prototype family from a design description.
 
 5. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new prototype. Save to `.design/references/<slug>-v1.png` and add to the version's `references` array.
 
-6. **Report:** Always end with a clickable link to every page that was created or changed. Read the port from `.design/manifest.json` settings. Format:
+6. **Log to journal:** Run from `.design/studio/`:
+   ```bash
+   cd .design/studio && npx tsx scripts/journal-log.ts --table event --type created \
+     --body "Created <family name> v1 — <direction>" \
+     --family <slug> --tags "created,v1"
+   ```
+   Also log the design direction as an insight:
+   ```bash
+   cd .design/studio && npx tsx scripts/journal-log.ts --table insight --type direction \
+     --body "<user's design intent / description>" \
+     --family <slug> --tags "<relevant comma-separated tags>" --status active
+   ```
+
+7. **Capture thoughts:** If the user's description includes design philosophy, aesthetic ideas, or principles (beyond just "make a sidebar layout"), save them as thoughts linked to the new family. Use the thoughts API (see SKILL.md "Proactive Thought Capture" section). Examples of what to capture:
+   - "I want something that feels alive, not static" → observation, tags: [aesthetic, animation]
+   - "Navigation should be contextual, not fixed" → principle, tags: [navigation, ux]
+   - "Inspired by that Stripe dashboard" → reference, tags: [inspiration, dashboard]
+
+   Skip this step if the user's description is purely functional with no philosophical/aesthetic content.
+
+8. **Report:**
 
    > **Created:** [<family name> v1](http://localhost:<port>/prototypes/<slug>/v1)
 

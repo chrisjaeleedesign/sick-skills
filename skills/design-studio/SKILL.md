@@ -32,6 +32,9 @@ Use Glob to check for `.design/manifest.json` in the current working directory.
 | "new", "fresh", "concept", "start over" | **CREATE** |
 | "archive", "trash", "done with", "shelve", "hide", "remove" | **ARCHIVE** |
 | "run", "start", "serve", "dev" | **RUN** |
+| "update", "upgrade", "refresh" | **UPDATE** |
+| "features", "feature map", "feature table", "map features" | **FEATURES** |
+| "push", "sync back", "update scaffold", "push to scaffold" | **PUSH** |
 | _(empty)_ | **STATUS** |
 | _(anything else — a design direction)_ | **ITERATE** |
 
@@ -46,6 +49,9 @@ When `$ARGUMENTS` is empty, show status. When it has content, default to iterate
 | ITERATE | Read and follow [prompts/iterate.md](prompts/iterate.md) |
 | ARCHIVE | Read and follow [prompts/archive.md](prompts/archive.md) |
 | RUN | Read and follow [prompts/run.md](prompts/run.md) |
+| UPDATE | Read and follow [prompts/update.md](prompts/update.md) |
+| FEATURES | Read and follow [prompts/features.md](prompts/features.md) |
+| PUSH | Read and follow [prompts/push.md](prompts/push.md) |
 
 ### STATUS (inline — no separate prompt file)
 
@@ -64,6 +70,44 @@ When `$ARGUMENTS` is empty and `.design/` exists, read the manifest and display 
 > What would you like to do? Describe a direction to iterate, or say "new" to start a fresh concept.
 
 Also check Agentation for pending annotations — if any exist, mention: "You have {N} pending annotations from the browser."
+
+### Proactive Thought Capture
+
+**During ANY design-studio interaction** (create, iterate, status, or conversation), watch for the user sharing inspiration, philosophy, aesthetic ideas, or references. When detected, automatically save as a thought via `POST /api/thoughts` on the studio server (default port from manifest settings, typically localhost:3001).
+
+**Detection signals:**
+- User mentions watching, reading, or seeing something ("I saw this video about...", "I was reading about...")
+- User shares a philosophy or principle ("color should represent state, not be literal", "intentional unfinishedness")
+- User describes an aesthetic direction ("organic, breathing interfaces", "brutalist but warm")
+- User references external media (YouTube links, articles, images, other apps/products)
+- User expresses a design instinct or gut reaction that goes beyond the current prototype
+
+**How to capture:**
+```bash
+curl -s -X POST http://localhost:<port>/api/thoughts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create-thought",
+    "thought": {
+      "kind": "<observation|question|principle|reference>",
+      "body": "<concise summary of the idea>",
+      "source_type": "conversation",
+      "family": "<current family slug if relevant, omit if general>",
+      "tags": ["<relevant tags>"],
+      "conviction": "hunch"
+    }
+  }'
+```
+
+**After capturing:** Briefly confirm: "Saved thought: [one-line summary]" — don't interrupt the flow.
+
+**Kind selection:**
+- Philosophy/principle/rule → `principle`
+- External reference (video, article, app) → `reference`
+- Aesthetic instinct or gut reaction → `observation`
+- Open question or uncertainty → `question`
+
+**Default conviction:** `hunch` for new ideas. Upgrade to `leaning` if the user repeats or reinforces the idea.
 
 ### Internal subroutines (not user-facing)
 
@@ -122,6 +166,11 @@ Display when routed to HELP:
 > /design-studio run
 > ```
 > Starts the studio server at localhost:3001.
+>
+> ```
+> /design-studio features
+> ```
+> Opens the feature mapping tool for exploring and connecting product features.
 >
 > ### How It Works
 >

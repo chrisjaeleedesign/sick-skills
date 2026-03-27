@@ -16,6 +16,11 @@ This is the reference template for generating `.wiggum/loop.sh`. The create flow
 
 set -euo pipefail
 
+# Allow nested Claude CLI invocations (when loop.sh is launched from within a Claude Code session).
+# Claude Code sets a CLAUDECODE env var and refuses to start if it detects one, to prevent
+# accidental nested sessions. Since our workers are intentionally separate processes, unset it.
+unset CLAUDECODE 2>/dev/null || true
+
 # Resolve paths
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -314,3 +319,4 @@ exit 1
 6. **Git init**: Checks and initializes git if needed
 7. **Worker-agnostic execution**: `WIGGUM_WORKER_CMD` supports commands beyond Claude
 8. **Blocked-state handling**: Worker can output `BLOCKED: ...` to stop loop early with clear status
+9. **Nested session fix**: `unset CLAUDECODE` allows launching Claude CLI workers from within a Claude Code session
