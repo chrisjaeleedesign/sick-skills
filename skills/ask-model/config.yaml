@@ -1,0 +1,20 @@
+default_model: gpt5
+
+aliases:
+  # OpenAI via Codex backend (ChatGPT Pro plan)
+  gpt5: openai/gpt-5.4
+  mini: openai/gpt-5.4-mini
+  codex: openai/gpt-5.3-codex
+  spark: openai/gpt-5.3-codex-spark
+
+  # OpenRouter
+  sonnet: openrouter/anthropic/claude-sonnet-4-6
+  opus: openrouter/anthropic/claude-opus-4-6
+  gemini: openrouter/google/gemini-3.1-pro
+
+providers:
+  openai:
+    auth: codex-oauth
+    token_store: ~/.claude/ask-model/openai-tokens.enc
+  openrouter:
+    env_key: OPENROUTER_API_KEY
