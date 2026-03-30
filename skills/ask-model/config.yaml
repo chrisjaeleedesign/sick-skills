@@ -15,6 +15,6 @@ aliases:
 providers:
   openai:
     auth: codex-oauth
-    token_store: ~/.claude/ask-model/openai-tokens.enc
+    token_source: ~/.codex/auth.json
   openrouter:
     env_key: OPENROUTER_API_KEY

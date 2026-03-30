@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import base64
 import hashlib
 import importlib
 import json
@@ -335,20 +336,18 @@ def build_messages_for_api(messages, system_prompt, current_content, current_att
 
 def encode_attachment(file_path, mime_type):
     """Encode a file as a base64 content part for the API."""
-    import base64
-
     path = Path(file_path)
     if not path.exists():
         return None
 
-    data = base64.b64encode(path.read_bytes()).decode("utf-8")
-
     if mime_type.startswith("image/"):
+        data = base64.b64encode(path.read_bytes()).decode("utf-8")
         return {
             "type": "image_url",
             "image_url": {"url": f"data:{mime_type};base64,{data}"},
         }
     elif mime_type.startswith("video/"):
+        data = base64.b64encode(path.read_bytes()).decode("utf-8")
         return {
             "type": "video_url",
             "video_url": {"url": f"data:{mime_type};base64,{data}"},

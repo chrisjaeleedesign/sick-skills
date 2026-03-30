@@ -104,11 +104,11 @@ When updating an item, append a status line:
 
 - If a path was provided, use it as the scan root
 - Otherwise, use the current working directory
-- Always exclude: `node_modules/`, `dist/`, `build/`, `.git/`, `vendor/`, `__pycache__/`, `.wiggum/logs/`, `archive/`
+- Always exclude: `node_modules/`, `dist/`, `build/`, `.git/`, `vendor/`, `__pycache__/`, `.agents/wiggum/logs/`, `archive/`
 
 ### Step 2: Read project conventions
 
-Check for and read (if they exist): `CLAUDE.md`, `AGENTS.md`, `.wiggum/AGENTS.md`, `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`. Extract: language, framework, naming conventions, project structure patterns. Summarize as a short "project context" block for agents.
+Check for and read (if they exist): `CLAUDE.md`, `AGENTS.md`, `.agents/wiggum/AGENTS.md`, `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`. Extract: language, framework, naming conventions, project structure patterns. Summarize as a short "project context" block for agents.
 
 ### Step 3: Dispatch parallel agents
 
