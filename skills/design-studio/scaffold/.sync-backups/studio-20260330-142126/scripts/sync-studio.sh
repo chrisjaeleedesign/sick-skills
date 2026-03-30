@@ -74,8 +74,7 @@ RSYNC_EXCLUDES=(
   --include='app/prototypes/'
   --include='app/prototypes/layout.tsx'
   --exclude='app/prototypes/**'
-  # Build artifacts, dependencies, and scaffold-specific files
-  --exclude='.gitignore'
+  # Build artifacts and dependencies
   --exclude='.next/'
   --exclude='node_modules/'
   --exclude='bun.lock'
