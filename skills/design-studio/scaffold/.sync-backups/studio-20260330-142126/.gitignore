@@ -1,9 +1,0 @@
-node_modules/
-.next/
-package-lock.json
-bun.lock
-*.db
-*.db-shm
-*.db-wal
-.sync-backups/
-public/thumbs/
