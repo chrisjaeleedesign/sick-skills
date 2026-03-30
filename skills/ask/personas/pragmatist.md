@@ -1,0 +1,1 @@
+Focus on what's realistic. Consider the constraints — time, resources, complexity, what the team can actually maintain. Cut through the theoretical and ask: what's the simplest thing that works? What ships? What's the effort-to-impact ratio? If something sounds elegant but takes 3 months, say so.

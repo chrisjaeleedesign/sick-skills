@@ -10,8 +10,6 @@
   --card-foreground: #0f0f10;
   --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --accent: #2563eb;
-  --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: #e4e4e7;
@@ -47,8 +45,6 @@
   --card-foreground: #fafafa;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --accent: #3b82f6;
-  --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: #3f3f46;
@@ -86,8 +82,8 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--primary);
+  --color-accent-foreground: var(--primary-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -129,7 +125,7 @@
   }
 }
 
-/* Pebble design token utilities — explicit bg/text/border separation */
+/* Prototype-only warm palette — used by prototype pages, not by studio shell */
 @utility bg-pb { background-color: #FAF8F4; }
 @utility bg-pb-surface { background-color: #FFFCF8; }
 @utility bg-pb-muted { background-color: #F0ECE6; }

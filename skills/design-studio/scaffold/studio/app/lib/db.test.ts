@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getDb } from "./db";
 import {
-  insertEvent,
-  insertInsight,
+  createEvent,
+  createInsight,
   queryEvents,
   queryInsights,
   updateInsight,
@@ -47,12 +47,12 @@ function makeInsight(overrides: Partial<Insight> & { id: string }): Omit<Insight
 }
 
 // ---------------------------------------------------------------------------
-// insertEvent / queryEvents
+// createEvent / queryEvents
 // ---------------------------------------------------------------------------
 
-describe("insertEvent / queryEvents", () => {
+describe("createEvent / queryEvents", () => {
   it("inserts an event and queries it back", () => {
-    insertEvent(makeEvent({ id: "evt-1", ts: "2025-01-01T00:00:00Z", body: "hello world" }));
+    createEvent(makeEvent({ id: "evt-1", ts: "2025-01-01T00:00:00Z", body: "hello world" }));
     const results = queryEvents();
     expect(results).toHaveLength(1);
     expect(results[0].id).toBe("evt-1");
@@ -63,17 +63,17 @@ describe("insertEvent / queryEvents", () => {
   });
 
   it("returns events in ts DESC order", () => {
-    insertEvent(makeEvent({ id: "evt-old", ts: "2025-01-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-new", ts: "2025-06-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-mid", ts: "2025-03-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-old", ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-new", ts: "2025-06-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-mid", ts: "2025-03-01T00:00:00Z" }));
 
     const results = queryEvents();
     expect(results.map((e) => e.id)).toEqual(["evt-new", "evt-mid", "evt-old"]);
   });
 
   it("filters by type", () => {
-    insertEvent(makeEvent({ id: "evt-1", type: "created", ts: "2025-01-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-2", type: "feedback", ts: "2025-01-02T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", type: "created", ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-2", type: "feedback", ts: "2025-01-02T00:00:00Z" }));
 
     const results = queryEvents({ type: "feedback" });
     expect(results).toHaveLength(1);
@@ -81,9 +81,9 @@ describe("insertEvent / queryEvents", () => {
   });
 
   it("filters by family", () => {
-    insertEvent(makeEvent({ id: "evt-1", family: "portfolio", ts: "2025-01-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-2", family: "branding", ts: "2025-01-02T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-3", ts: "2025-01-03T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", family: "portfolio", ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-2", family: "branding", ts: "2025-01-02T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-3", ts: "2025-01-03T00:00:00Z" }));
 
     const results = queryEvents({ family: "portfolio" });
     expect(results).toHaveLength(1);
@@ -91,9 +91,9 @@ describe("insertEvent / queryEvents", () => {
   });
 
   it("filters by tag using json_each", () => {
-    insertEvent(makeEvent({ id: "evt-1", tags: ["ui", "color"], ts: "2025-01-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-2", tags: ["typography"], ts: "2025-01-02T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-3", tags: ["ui", "layout"], ts: "2025-01-03T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", tags: ["ui", "color"], ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-2", tags: ["typography"], ts: "2025-01-02T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-3", tags: ["ui", "layout"], ts: "2025-01-03T00:00:00Z" }));
 
     const results = queryEvents({ tags: ["ui"] });
     expect(results).toHaveLength(2);
@@ -101,9 +101,9 @@ describe("insertEvent / queryEvents", () => {
   });
 
   it("filters by since/until date range", () => {
-    insertEvent(makeEvent({ id: "evt-1", ts: "2025-01-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-2", ts: "2025-03-15T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-3", ts: "2025-06-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-2", ts: "2025-03-15T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-3", ts: "2025-06-01T00:00:00Z" }));
 
     const results = queryEvents({ since: "2025-02-01T00:00:00Z", until: "2025-04-01T00:00:00Z" });
     expect(results).toHaveLength(1);
@@ -112,7 +112,7 @@ describe("insertEvent / queryEvents", () => {
 
   it("supports limit and offset pagination", () => {
     for (let i = 1; i <= 5; i++) {
-      insertEvent(makeEvent({ id: `evt-${i}`, ts: `2025-01-0${i}T00:00:00Z` }));
+      createEvent(makeEvent({ id: `evt-${i}`, ts: `2025-01-0${i}T00:00:00Z` }));
     }
 
     const page1 = queryEvents({ limit: 2 });
@@ -125,9 +125,9 @@ describe("insertEvent / queryEvents", () => {
   });
 
   it("supports FTS5 search on body text", () => {
-    insertEvent(makeEvent({ id: "evt-1", body: "redesigned the landing page", ts: "2025-01-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-2", body: "updated color palette", ts: "2025-01-02T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-3", body: "landing page animations", ts: "2025-01-03T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", body: "redesigned the landing page", ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-2", body: "updated color palette", ts: "2025-01-02T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-3", body: "landing page animations", ts: "2025-01-03T00:00:00Z" }));
 
     const results = queryEvents({ search: "landing" });
     expect(results).toHaveLength(2);
@@ -136,12 +136,12 @@ describe("insertEvent / queryEvents", () => {
 });
 
 // ---------------------------------------------------------------------------
-// insertInsight / queryInsights
+// createInsight / queryInsights
 // ---------------------------------------------------------------------------
 
-describe("insertInsight / queryInsights", () => {
+describe("createInsight / queryInsights", () => {
   it("inserts an insight and queries it back", () => {
-    insertInsight(makeInsight({ id: "ins-1", ts: "2025-01-01T00:00:00Z", body: "prefer dark themes" }));
+    createInsight(makeInsight({ id: "ins-1", ts: "2025-01-01T00:00:00Z", body: "prefer dark themes" }));
     const results = queryInsights();
     expect(results).toHaveLength(1);
     expect(results[0].id).toBe("ins-1");
@@ -152,9 +152,9 @@ describe("insertInsight / queryInsights", () => {
   });
 
   it("filters by status", () => {
-    insertInsight(makeInsight({ id: "ins-1", status: "active", ts: "2025-01-01T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-2", status: "superseded", ts: "2025-01-02T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-3", status: "killed", ts: "2025-01-03T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-1", status: "active", ts: "2025-01-01T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-2", status: "superseded", ts: "2025-01-02T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-3", status: "killed", ts: "2025-01-03T00:00:00Z" }));
 
     const active = queryInsights({ status: "active" });
     expect(active).toHaveLength(1);
@@ -166,8 +166,8 @@ describe("insertInsight / queryInsights", () => {
   });
 
   it("filters by type", () => {
-    insertInsight(makeInsight({ id: "ins-1", type: "preference", ts: "2025-01-01T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-2", type: "decision", ts: "2025-01-02T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-1", type: "preference", ts: "2025-01-01T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-2", type: "decision", ts: "2025-01-02T00:00:00Z" }));
 
     const results = queryInsights({ type: "preference" });
     expect(results).toHaveLength(1);
@@ -175,8 +175,8 @@ describe("insertInsight / queryInsights", () => {
   });
 
   it("filters by family", () => {
-    insertInsight(makeInsight({ id: "ins-1", family: "portfolio", ts: "2025-01-01T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-2", family: "brand", ts: "2025-01-02T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-1", family: "portfolio", ts: "2025-01-01T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-2", family: "brand", ts: "2025-01-02T00:00:00Z" }));
 
     const results = queryInsights({ family: "portfolio" });
     expect(results).toHaveLength(1);
@@ -184,9 +184,9 @@ describe("insertInsight / queryInsights", () => {
   });
 
   it("filters by tags with AND logic (all tags required)", () => {
-    insertInsight(makeInsight({ id: "ins-1", tags: ["color", "ui"], ts: "2025-01-01T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-2", tags: ["color"], ts: "2025-01-02T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-3", tags: ["color", "ui", "layout"], ts: "2025-01-03T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-1", tags: ["color", "ui"], ts: "2025-01-01T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-2", tags: ["color"], ts: "2025-01-02T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-3", tags: ["color", "ui", "layout"], ts: "2025-01-03T00:00:00Z" }));
 
     const results = queryInsights({ tags: ["color", "ui"] });
     expect(results).toHaveLength(2);
@@ -194,8 +194,8 @@ describe("insertInsight / queryInsights", () => {
   });
 
   it("supports FTS5 search", () => {
-    insertInsight(makeInsight({ id: "ins-1", body: "always use system fonts", ts: "2025-01-01T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-2", body: "dark mode is essential", ts: "2025-01-02T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-1", body: "always use system fonts", ts: "2025-01-01T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-2", body: "dark mode is essential", ts: "2025-01-02T00:00:00Z" }));
 
     const results = queryInsights({ search: "fonts" });
     expect(results).toHaveLength(1);
@@ -204,7 +204,7 @@ describe("insertInsight / queryInsights", () => {
 
   it("auto-generates timestamp when ts is omitted", () => {
     const before = new Date().toISOString();
-    insertInsight(makeInsight({ id: "ins-auto" }));
+    createInsight(makeInsight({ id: "ins-auto" }));
     const after = new Date().toISOString();
 
     const results = queryInsights();
@@ -220,7 +220,7 @@ describe("insertInsight / queryInsights", () => {
 
 describe("updateInsight", () => {
   beforeEach(() => {
-    insertInsight(makeInsight({
+    createInsight(makeInsight({
       id: "ins-upd",
       ts: "2025-01-01T00:00:00Z",
       body: "original body",
@@ -274,8 +274,8 @@ describe("updateInsight", () => {
 
 describe("allTags", () => {
   it("returns unique tags across both tables, sorted", () => {
-    insertEvent(makeEvent({ id: "evt-1", tags: ["beta", "alpha"], ts: "2025-01-01T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-1", tags: ["gamma", "alpha"], ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", tags: ["beta", "alpha"], ts: "2025-01-01T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-1", tags: ["gamma", "alpha"], ts: "2025-01-01T00:00:00Z" }));
 
     const tags = allTags();
     expect(tags).toEqual(["alpha", "beta", "gamma"]);
@@ -286,7 +286,7 @@ describe("allTags", () => {
   });
 
   it("returns empty array when rows have no tags", () => {
-    insertEvent(makeEvent({ id: "evt-1", tags: [], ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", tags: [], ts: "2025-01-01T00:00:00Z" }));
     expect(allTags()).toEqual([]);
   });
 });
@@ -297,17 +297,17 @@ describe("allTags", () => {
 
 describe("allFamilies", () => {
   it("returns unique families across both tables, sorted", () => {
-    insertEvent(makeEvent({ id: "evt-1", family: "branding", ts: "2025-01-01T00:00:00Z" }));
-    insertInsight(makeInsight({ id: "ins-1", family: "portfolio", ts: "2025-01-01T00:00:00Z" }));
-    insertEvent(makeEvent({ id: "evt-2", family: "branding", ts: "2025-01-02T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", family: "branding", ts: "2025-01-01T00:00:00Z" }));
+    createInsight(makeInsight({ id: "ins-1", family: "portfolio", ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-2", family: "branding", ts: "2025-01-02T00:00:00Z" }));
 
     const families = allFamilies();
     expect(families).toEqual(["branding", "portfolio"]);
   });
 
   it("excludes null families", () => {
-    insertEvent(makeEvent({ id: "evt-1", ts: "2025-01-01T00:00:00Z" })); // no family
-    insertInsight(makeInsight({ id: "ins-1", family: "only-one", ts: "2025-01-01T00:00:00Z" }));
+    createEvent(makeEvent({ id: "evt-1", ts: "2025-01-01T00:00:00Z" })); // no family
+    createInsight(makeInsight({ id: "ins-1", family: "only-one", ts: "2025-01-01T00:00:00Z" }));
 
     const families = allFamilies();
     expect(families).toEqual(["only-one"]);

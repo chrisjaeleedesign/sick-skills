@@ -83,7 +83,7 @@ export function queryInsights(params: QueryParams = {}): Insight[] {
  * Inserts a new event into the events table. If `ts` is not provided, the
  * current ISO timestamp is used. Tags and metadata are serialized to JSON.
  */
-export function insertEvent(
+export function createEvent(
   event: Omit<Event, "ts"> & { ts?: string },
 ): void {
   const db = getDb();
@@ -106,7 +106,7 @@ export function insertEvent(
  * Inserts a new insight into the insights table. If `ts` is not provided, the
  * current ISO timestamp is used. Tags and refs are serialized to JSON.
  */
-export function insertInsight(
+export function createInsight(
   insight: Omit<Insight, "ts"> & { ts?: string },
 ): void {
   const db = getDb();

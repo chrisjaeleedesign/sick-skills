@@ -5,17 +5,18 @@ import { Search, X, Star, LayoutGrid, List } from "lucide-react";
 import type {
   Thought,
   Revision,
-  Board,
   Event,
-  Conviction,
+  Importance,
   ThoughtColor,
 } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
-import { ThoughtCard, KindBadge, ConvictionBadge } from "./thought-card";
+import { ThoughtCard } from "./thought-card";
+import { KindBadge, ImportanceBadge } from "@/app/components/badges";
 import { ThoughtDetail } from "./thought-detail";
 
 import { EventRow } from "@/app/components/event-row";
-import { TagPill, FamilyBadge } from "@/app/components/badges";
+import { TagPill, FamilyBadge, Separator } from "@/app/components/badges";
+import { fetchApi } from "@/app/lib/fetch";
 
 // ---------------------------------------------------------------------------
 // Filter config
@@ -29,12 +30,13 @@ const KIND_FILTERS: { value: string; label: string }[] = [
   { value: "reference", label: "Reference" },
 ];
 
-const CONVICTION_FILTERS: { value: string; label: string }[] = [
+const IMPORTANCE_FILTERS: { value: string; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "hunch", label: "Hunch" },
-  { value: "leaning", label: "Leaning" },
-  { value: "confident", label: "Confident" },
-  { value: "core", label: "Core" },
+  { value: "invalidated", label: "Invalidated" },
+  { value: "signal", label: "Signal" },
+  { value: "assumption", label: "Assumption" },
+  { value: "guiding", label: "Guiding" },
+  { value: "foundational", label: "Foundational" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -56,11 +58,9 @@ export function ThoughtsView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [items, setItems] = useState<TimelineItem[]>([]);
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [selectedBoard, setSelectedBoard] = useState("");
   const [loading, setLoading] = useState(true);
   const [kindFilter, setKindFilter] = useState("all");
-  const [convictionFilter, setConvictionFilter] = useState("all");
+  const [importanceFilter, setImportanceFilter] = useState("all");
   const [colorFilter, setColorFilter] = useState<ThoughtColor | "">("");
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [familyFilter, setFamilyFilter] = useState("");
@@ -75,25 +75,10 @@ export function ThoughtsView() {
 
   // Fetch meta on mount
   useEffect(() => {
-    fetch("/api/thoughts/meta")
-      .then((r) => r.json())
-      .then((data: { families: string[] }) => setAvailableFamilies(data.families))
-      .catch(() => {});
+    fetchApi<{ families: string[] }>("/api/thoughts/meta")
+      .then((data) => setAvailableFamilies(data.families))
+      .catch(console.error);
   }, []);
-
-  // Fetch boards
-  const fetchBoards = useCallback(async () => {
-    try {
-      const res = await fetch("/api/thoughts/boards");
-      setBoards(await res.json());
-    } catch {
-      // fail silently
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchBoards();
-  }, [fetchBoards]);
 
   // Unified fetch — thoughts + events, merged chronologically
   const fetchAll = useCallback(async () => {
@@ -102,8 +87,7 @@ export function ThoughtsView() {
     // If searching, use dedicated search endpoint
     if (debouncedSearch) {
       try {
-        const res = await fetch(`/api/thoughts/search?q=${encodeURIComponent(debouncedSearch)}&limit=50`);
-        const data: ThoughtWithRevision[] = await res.json();
+        const data = await fetchApi<ThoughtWithRevision[]>(`/api/thoughts/search?q=${encodeURIComponent(debouncedSearch)}&limit=50`);
         setItems(data.map((t) => ({
           type: "thought" as const,
           thought: t,
@@ -111,8 +95,8 @@ export function ThoughtsView() {
             ? { body: t.latest_revision_body, seq: t.latest_revision_seq, created_at: t.latest_revision_created_at } as Revision
             : undefined,
         })));
-      } catch {
-        // fail silently
+      } catch (err) {
+        console.error(err);
       }
       setLoading(false);
       return;
@@ -121,19 +105,17 @@ export function ThoughtsView() {
     // Standard filtered query — thoughts + events in parallel
     const params = new URLSearchParams();
     if (kindFilter !== "all") params.set("kind", kindFilter);
-    if (convictionFilter !== "all") params.set("conviction", convictionFilter);
+    if (importanceFilter !== "all") params.set("importance", importanceFilter);
     if (colorFilter) params.set("color", colorFilter);
     if (pinnedOnly) params.set("pinned", "true");
     if (familyFilter) params.set("family", familyFilter);
     params.set("limit", "200");
 
     try {
-      const [thoughtsRes, eventsRes] = await Promise.all([
-        fetch(`/api/thoughts?${params.toString()}`),
-        fetch("/api/journal?table=events&limit=200"),
+      const [thoughts, events] = await Promise.all([
+        fetchApi<ThoughtWithRevision[]>(`/api/thoughts?${params.toString()}`),
+        fetchApi<Event[]>("/api/journal?table=events&limit=200"),
       ]);
-      const thoughts: ThoughtWithRevision[] = await thoughtsRes.json();
-      const events: Event[] = await eventsRes.json();
 
       const merged: TimelineItem[] = [
         ...thoughts.map((t) => ({
@@ -151,11 +133,11 @@ export function ThoughtsView() {
         return new Date(tsB).getTime() - new Date(tsA).getTime();
       });
       setItems(merged);
-    } catch {
-      // fail silently
+    } catch (err) {
+      console.error(err);
     }
     setLoading(false);
-  }, [debouncedSearch, kindFilter, convictionFilter, colorFilter, pinnedOnly, familyFilter]);
+  }, [debouncedSearch, kindFilter, importanceFilter, colorFilter, pinnedOnly, familyFilter]);
 
   useEffect(() => {
     fetchAll();
@@ -185,13 +167,6 @@ export function ThoughtsView() {
       body: JSON.stringify({ action: "delete-thought", id }),
     });
     setItems((prev) => prev.filter((item) => item.type !== "thought" || item.thought.id !== id));
-  }
-
-  // Apply board as filter preset
-  function handleBoardSelect(boardId: string) {
-    setSelectedBoard(boardId);
-    // Boards are saved filter presets — for now just track selection
-    // Full filter preset save/load is deferred
   }
 
   const thoughtItems = items.filter((i): i is Extract<TimelineItem, { type: "thought" }> => i.type === "thought");
@@ -247,15 +222,15 @@ export function ThoughtsView() {
           </button>
         ))}
 
-        <span className="mx-1 text-border">|</span>
+        <Separator />
 
-        {/* Conviction filter */}
-        {CONVICTION_FILTERS.map((f) => (
+        {/* Importance filter */}
+        {IMPORTANCE_FILTERS.map((f) => (
           <button
             key={f.value}
-            onClick={() => setConvictionFilter(f.value)}
+            onClick={() => setImportanceFilter(f.value)}
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${
-              convictionFilter === f.value
+              importanceFilter === f.value
                 ? "bg-primary text-white"
                 : "text-text-tertiary hover:bg-surface-2"
             }`}
@@ -293,7 +268,7 @@ export function ThoughtsView() {
           onClick={() => setPinnedOnly(!pinnedOnly)}
           className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
             pinnedOnly
-              ? "bg-amber-100 text-amber-700"
+              ? "bg-accent-amber/20 text-accent-amber"
               : "text-text-tertiary hover:bg-surface-2"
           }`}
         >
@@ -311,20 +286,6 @@ export function ThoughtsView() {
             <option value="">All families</option>
             {availableFamilies.map((f) => (
               <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-        )}
-
-        {/* Board selector */}
-        {boards.length > 0 && (
-          <select
-            value={selectedBoard}
-            onChange={(e) => handleBoardSelect(e.target.value)}
-            className="rounded-full border border-border px-2.5 py-1 text-[11px] text-text-tertiary outline-none focus:border-surface-3"
-          >
-            <option value="">All boards</option>
-            {boards.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
         )}
@@ -399,7 +360,7 @@ export function ThoughtsView() {
                 <div className="min-w-0 flex-1">
                   <div className="mb-0.5 flex flex-wrap items-center gap-2">
                     <KindBadge kind={item.thought.kind} />
-                    <ConvictionBadge conviction={item.thought.conviction} />
+                    {item.thought.importance && <ImportanceBadge importance={item.thought.importance} />}
                     <span className="text-[10px] text-text-tertiary">
                       {new Date(item.thought.created_at).toLocaleDateString("en-US", {
                         month: "short",

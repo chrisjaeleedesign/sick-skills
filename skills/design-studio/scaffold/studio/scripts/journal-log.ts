@@ -3,7 +3,7 @@
  * CLI script for logging journal entries to SQLite.
  * Usage: npx tsx scripts/journal-log.ts --table <event|insight> --type <type> --body <text> [options]
  */
-import { insertEvent, insertInsight } from "../app/lib/db";
+import { createEvent, createInsight } from "../app/lib/db-journal";
 import type { EventType, InsightType, InsightStatus } from "../app/lib/types";
 import { INSIGHT_PREFIXES } from "../app/lib/types";
 
@@ -60,7 +60,7 @@ const tags = args.tags ? args.tags.split(",").map((t) => t.trim()) : [];
 // --- Insert ---------------------------------------------------------------
 
 if (args.table === "event") {
-  insertEvent({
+  createEvent({
     id,
     type: args.type as EventType,
     body: args.body,
@@ -70,7 +70,7 @@ if (args.table === "event") {
     metadata: {},
   });
 } else {
-  insertInsight({
+  createInsight({
     id,
     type: args.type as InsightType,
     body: args.body,

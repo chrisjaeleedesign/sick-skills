@@ -1,0 +1,11 @@
+{
+  "eval_id": 1,
+  "eval_name": "simple-question",
+  "prompt": "/ask is this function thread-safe? Here's the code:\n\ndef increment_counter(counters, key):\n    counters[key] = counters.get(key, 0) + 1\n    return counters[key]",
+  "assertions": [
+    {"text": "Called ask.py without asking clarifying questions first", "type": "boolean"},
+    {"text": "Used an external model (not just answered inline)", "type": "boolean"},
+    {"text": "Response correctly identifies function as not thread-safe", "type": "boolean"},
+    {"text": "Created a JSONL conversation log file", "type": "boolean"}
+  ]
+}

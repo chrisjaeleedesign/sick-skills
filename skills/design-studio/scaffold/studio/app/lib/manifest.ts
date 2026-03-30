@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import { DESIGN_ROOT } from "./db";
 import type { ThoughtColor } from "./types";
 
 export interface Reference {
@@ -50,15 +51,33 @@ export interface Manifest {
   settings: Settings;
 }
 
-const MANIFEST_PATH = join(process.cwd(), "../manifest.json");
+const MANIFEST_PATH = join(DESIGN_ROOT, "manifest.json");
 
 const DEFAULT_SETTINGS: Settings = { port: 3001, showThumbnails: false };
 
+/** Raw JSON shape before validation/migration */
+interface RawManifest {
+  current?: { family: string; version: number } | null;
+  sections?: Array<{
+    id: string;
+    name: string;
+    focus?: boolean;
+    collapsed?: boolean;
+    color?: ThoughtColor;
+    columns?: number;
+    rows?: number;
+    grid?: Record<string, string>;
+    familySlugs?: string[];
+  }>;
+  families?: Record<string, Family>;
+  settings?: Partial<Settings>;
+}
+
 /** Migrate old familySlugs-based sections to grid format */
-function migrateSections(raw: any): Section[] {
+function migrateSections(raw: RawManifest): Section[] {
   if (!raw.sections?.length) return [];
-  return raw.sections.map((s: any) => {
-    if (s.grid) return s; // already migrated
+  return raw.sections.map((s) => {
+    if (s.grid) return s as Section;
     const slugs: string[] = s.familySlugs || [];
     const grid: Record<string, string> = {};
     slugs.forEach((slug, i) => { grid[`${i}:0`] = slug; });
@@ -76,11 +95,11 @@ function migrateSections(raw: any): Section[] {
 
 export function readManifest(): Manifest {
   try {
-    const raw = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
-    const needsMigration = raw.sections?.some((s: any) => s.familySlugs && !s.grid);
+    const raw: RawManifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
+    const needsMigration = raw.sections?.some((s) => s.familySlugs && !s.grid);
     const manifest: Manifest = {
       current: raw.current ?? null,
-      sections: needsMigration ? migrateSections(raw) : (raw.sections ?? []),
+      sections: needsMigration ? migrateSections(raw) : (raw.sections as Section[] ?? []),
       families: raw.families ?? {},
       settings: { ...DEFAULT_SETTINGS, ...raw.settings },
     };

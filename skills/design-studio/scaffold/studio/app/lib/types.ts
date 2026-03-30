@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Journal types — shared between server (db.ts) and client (journal-modal.tsx)
+// Journal types — shared between server (db-journal.ts) and client components
 // ---------------------------------------------------------------------------
 
 export type EventType = "created" | "iterated" | "archived" | "moved" | "feedback";
@@ -111,7 +111,7 @@ export const COLOR_PALETTE: Record<ThoughtColor, { bg: string; border: string; t
 
 export type ThoughtKind = "observation" | "question" | "principle" | "reference";
 export type SourceType = "video" | "article" | "conversation" | "observation" | "prototype" | "image";
-export type Conviction = "hunch" | "leaning" | "confident" | "core";
+export type Importance = "invalidated" | "signal" | "assumption" | "guiding" | "foundational";
 export type RelationType = "related" | "inspired_by" | "builds_on" | "contradicts";
 export type AttachmentType = "image" | "screenshot" | "thumbnail" | "video_ref";
 
@@ -125,7 +125,7 @@ export interface Thought {
   tags: string[];
   color?: ThoughtColor;
   pinned: boolean;
-  conviction: Conviction;
+  importance?: Importance;
   created_at: string;
   updated_at: string;
 }
@@ -176,7 +176,7 @@ export interface BoardItem {
 export interface ThoughtQueryParams {
   search?: string;
   kind?: ThoughtKind;
-  conviction?: Conviction;
+  importance?: Importance;
   color?: ThoughtColor;
   family?: string;
   tags?: string[];

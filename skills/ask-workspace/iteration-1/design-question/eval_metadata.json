@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "design-question",
+  "prompt": "/ask I'm trying to decide between Redis and Memcached for our caching layer. We have a Python/Django app with about 10k daily active users and we need session storage plus page fragment caching. What do you think?",
+  "assertions": [
+    {"text": "Recognized this as a broad design question (not a simple factual query)", "type": "boolean"},
+    {"text": "Suggested a flow or asked if user wants multiple perspectives before just answering", "type": "boolean"},
+    {"text": "Called ask.py to get an external model response", "type": "boolean"},
+    {"text": "Created a JSONL conversation log file", "type": "boolean"}
+  ]
+}

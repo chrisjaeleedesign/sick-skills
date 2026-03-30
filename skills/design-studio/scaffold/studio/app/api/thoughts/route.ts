@@ -48,7 +48,7 @@ export async function GET(request: Request) {
   const params: ThoughtQueryParams = {
     search: searchParams.get("search") ?? undefined,
     kind: (searchParams.get("kind") as ThoughtQueryParams["kind"]) ?? undefined,
-    conviction: (searchParams.get("conviction") as ThoughtQueryParams["conviction"]) ?? undefined,
+    importance: (searchParams.get("importance") as ThoughtQueryParams["importance"]) ?? undefined,
     color: (searchParams.get("color") as ThoughtQueryParams["color"]) ?? undefined,
     family: searchParams.get("family") ?? undefined,
     tags: searchParams.get("tags")?.split(",").filter(Boolean) ?? undefined,

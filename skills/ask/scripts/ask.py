@@ -32,7 +32,7 @@ from dotenv import load_dotenv
 # Resolve real path (through symlinks) to find repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
-REPO_ROOT = SKILL_DIR.parent.parent  # skills/ask-model -> skills -> repo root
+REPO_ROOT = SKILL_DIR.parent.parent  # skills/ask -> skills -> repo root
 
 # Load .env from repo root
 load_dotenv(REPO_ROOT / ".env")
@@ -102,6 +102,20 @@ def resolve_content(content_arg):
     return content_arg
 
 
+def resolve_persona(persona_arg):
+    """Resolve --persona: load from file or treat as inline text."""
+    if persona_arg is None:
+        return None
+
+    # Check for pre-baked persona file
+    persona_path = SKILL_DIR / "personas" / f"{persona_arg}.md"
+    if persona_path.exists():
+        return persona_path.read_text().strip()
+
+    # Treat as inline persona description
+    return persona_arg
+
+
 def collect_attachments(attach_paths):
     """Validate attachment paths and detect mime types."""
     attachments = []
@@ -132,7 +146,7 @@ def generate_id(content):
     return hashlib.sha256(content.encode()).hexdigest()[:8]
 
 
-def create_conversation(conv_id, model, provider, system_prompt, tags):
+def create_conversation(conv_id, model, provider, system_prompt, tags, flow=None, persona=None):
     """Create a new conversation file with metadata. Returns the path."""
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     filename = f"{date_str}_{conv_id}.jsonl"
@@ -157,6 +171,8 @@ def create_conversation(conv_id, model, provider, system_prompt, tags):
         "exchanges": 0,
         "tags": tags or [],
         "system_prompt": (system_prompt[:200] if system_prompt else None),
+        "flow": flow,
+        "persona": persona,
     }
 
     with open(path, "w") as f:
@@ -253,6 +269,10 @@ def show_conversation(path):
     print(f"**Exchanges:** {meta['exchanges']}")
     if meta.get("tags"):
         print(f"**Tags:** {', '.join(meta['tags'])}")
+    if meta.get("flow"):
+        print(f"**Flow:** {meta['flow']}")
+    if meta.get("persona"):
+        print(f"**Persona:** {meta['persona']}")
     if meta.get("parent"):
         print(f"**Branched from:** {meta['parent']}")
     if meta.get("system_prompt"):
@@ -268,9 +288,12 @@ def show_conversation(path):
 
         role = msg.get("type", "unknown")
         content = msg.get("content", "")
+        sender = msg.get("sender", role)
+        persona = msg.get("persona")
 
         if role == "user":
-            print(f"**User:**\n{content}\n")
+            label = f"**{sender}:**" if sender != "user" else "**User:**"
+            print(f"{label}\n{content}\n")
             attachments = msg.get("attachments", [])
             if attachments:
                 print("**Attachments:**")
@@ -278,7 +301,10 @@ def show_conversation(path):
                     print(f"  - {att['path']} ({att['mime']})")
                 print()
         elif role == "assistant":
-            print(f"**Assistant:**\n{content}\n")
+            label = sender or "Assistant"
+            if persona:
+                label = f"{label} [{persona}]"
+            print(f"**{label}:**\n{content}\n")
 
 
 def build_messages_for_api(messages, system_prompt, current_content, current_attachments):
@@ -432,6 +458,16 @@ def parse_args():
         choices=["none", "minimal", "low", "medium", "high", "xhigh"],
         help="Reasoning effort level for models that support it (e.g. o3).",
     )
+    parser.add_argument(
+        "--persona",
+        default=None,
+        help="Persona name (loads from personas/ dir) or inline persona description.",
+    )
+    parser.add_argument(
+        "--flow",
+        default=None,
+        help="Flow name (recorded in metadata for agent orchestration).",
+    )
     return parser.parse_args()
 
 
@@ -463,6 +499,10 @@ def main():
         print("Error: content is empty.", file=sys.stderr)
         sys.exit(2)
 
+    # --- Resolve persona ---
+    persona_name = args.persona  # Keep the name/string for metadata
+    persona_text = resolve_persona(args.persona)
+
     # --- Read system prompt ---
     system_prompt = None
     if args.system_prompt:
@@ -474,6 +514,12 @@ def main():
             )
             sys.exit(2)
         system_prompt = sp_path.read_text()
+
+    # Combine persona + system prompt
+    if persona_text and system_prompt:
+        system_prompt = persona_text + "\n\n" + system_prompt
+    elif persona_text:
+        system_prompt = persona_text
 
     # --- Collect attachments ---
     attachments = collect_attachments(args.attach)
@@ -503,7 +549,8 @@ def main():
         # New conversation
         conv_id = args.id or generate_id(content)
         conv_path = create_conversation(
-            conv_id, model_id, provider_name, system_prompt, args.tag
+            conv_id, model_id, provider_name, system_prompt, args.tag,
+            flow=args.flow, persona=persona_name,
         )
 
     # --- Build API messages ---
@@ -528,6 +575,7 @@ def main():
     # --- Save exchange ---
     user_msg = {
         "type": "user",
+        "sender": "user",
         "content": content,
         "attachments": [
             {"path": a["path"], "mime": a["mime"]} for a in attachments
@@ -535,8 +583,11 @@ def main():
     }
     assistant_msg = {
         "type": "assistant",
+        "sender": model_id,
         "content": response_text,
     }
+    if persona_name:
+        assistant_msg["persona"] = persona_name
     append_exchange(conv_path, user_msg, assistant_msg, args.tag)
 
     # --- Output ---

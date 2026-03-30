@@ -7,19 +7,8 @@ import {
 } from "lucide-react";
 import { EditPanel } from "./edit-panel";
 import { buildTree, TreeRow } from "./tree";
-
-// --- Types (exported for extracted modules) ---
-
-export interface Feature {
-  id: string; area: string; name: string; description: string;
-  notes: string; priority: string; status: string;
-  x: number; y: number; created_at: string; updated_at: string;
-}
-
-export interface FeatureConnection {
-  a_id: string; b_id: string; type: "parent" | "related";
-  note: string; created_at: string;
-}
+import type { Feature, FeatureConnection } from "@/app/lib/types";
+import { Separator } from "@/app/components/badges";
 
 interface FeaturesProps {
   initialFeatures: Feature[];
@@ -70,7 +59,7 @@ function Toolbar({ mode, setMode, areas, areaFilter, setAreaFilter, searchQuery,
   areaFilter: string; setAreaFilter: (a: string) => void; searchQuery: string;
   setSearchQuery: (q: string) => void; zoom: number; setZoom: (z: number) => void; onAdd: () => void;
 }) {
-  const sep = <div className="mx-1 h-5 w-px bg-border" />;
+  const sep = <Separator />;
   const active = "bg-surface-2 text-text-primary";
   const inactive = "text-text-tertiary hover:text-text-secondary";
   return (
@@ -84,9 +73,9 @@ function Toolbar({ mode, setMode, areas, areaFilter, setAreaFilter, searchQuery,
         </button>
       </div>
       {sep}
-      <button onClick={() => setAreaFilter("all")} className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition ${areaFilter === "all" ? "bg-text-primary text-surface-0" : inactive}`}>All</button>
+      <button onClick={() => setAreaFilter("all")} className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition ${areaFilter === "all" ? "bg-primary text-white" : inactive}`}>All</button>
       {areas.map((area) => (
-        <button key={area} onClick={() => setAreaFilter(area)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition ${areaFilter === area ? "bg-text-primary text-surface-0" : inactive}`}>
+        <button key={area} onClick={() => setAreaFilter(area)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition ${areaFilter === area ? "bg-primary text-white" : inactive}`}>
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: areaColor(area) }} />{area}
         </button>
       ))}
@@ -277,22 +266,22 @@ export function Features({ initialFeatures, initialConnections, initialAreas }: 
 
   async function handleCreate() {
     const nf = { name: "New Feature", area: areaFilter !== "all" ? areaFilter : areas[0] ?? "", description: "", notes: "", priority: "", status: "", x: (-panOffset.x + 400) | 0, y: (-panOffset.y + 300) | 0 };
-    try { const r = await apiPost({ action: "create", feature: nf }); setFeatures((p) => [...p, r.feature]); setEditingId(r.feature.id); } catch { /* */ }
+    try { const r = await apiPost({ action: "create", feature: nf }); setFeatures((p) => [...p, r.feature]); setEditingId(r.feature.id); } catch (err) { console.error(err); }
   }
 
   async function handleUpdate(id: string, updates: Partial<Feature>) {
     setFeatures((p) => p.map((f) => (f.id === id ? { ...f, ...updates } : f)));
-    try { await apiPost({ action: "update", id, feature: updates }); } catch { /* optimistic */ }
+    try { await apiPost({ action: "update", id, feature: updates }); } catch (err) { console.error(err); }
   }
 
   async function handleAddConn(aId: string, bId: string, type: "parent" | "related", note: string) {
     setConnections((p) => [...p, { a_id: aId, b_id: bId, type, note, created_at: new Date().toISOString() }]);
-    try { await apiPost({ action: "add-connection", a_id: aId, b_id: bId, type, note }); } catch { /* */ }
+    try { await apiPost({ action: "add-connection", a_id: aId, b_id: bId, type, note }); } catch (err) { console.error(err); }
   }
 
   async function handleRemoveConn(aId: string, bId: string) {
     setConnections((p) => p.filter((c) => !(c.a_id === aId && c.b_id === bId)));
-    try { await apiPost({ action: "remove-connection", a_id: aId, b_id: bId }); } catch { /* */ }
+    try { await apiPost({ action: "remove-connection", a_id: aId, b_id: bId }); } catch (err) { console.error(err); }
   }
 
   const treeNodes = mode === "list" ? buildTree(filtered, filteredConns) : [];

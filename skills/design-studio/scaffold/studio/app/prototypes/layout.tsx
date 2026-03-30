@@ -6,6 +6,9 @@ import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { DEVICE_PRESETS, DEVICE_ICONS, type DevicePreset } from "@/app/lib/constants";
 
+/** Height of the root layout header (px) — keeps calc() in sync with layout.tsx */
+const HEADER_HEIGHT = 57;
+
 export default function PrototypeLayout({
   children,
 }: {
@@ -42,13 +45,13 @@ export default function PrototypeLayout({
     };
   }, []);
 
-  const [captureMode] = useState<DevicePreset | null>(() => {
+  const captureMode: DevicePreset | null = (() => {
     if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
     if (params.get("capture") !== "true") return null;
     const device = params.get("device") as DevicePreset | null;
     return device && DEVICE_PRESETS[device] ? device : "desktop";
-  });
+  })();
   const [preset, setPreset] = useState<DevicePreset>("desktop");
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,7 +89,7 @@ export default function PrototypeLayout({
   }
 
   return (
-    <div className="flex h-[calc(100vh-57px)] flex-col bg-zinc-100 dark:bg-zinc-900">
+    <div className={`flex flex-col bg-zinc-100`} style={{ height: `calc(100vh - ${HEADER_HEIGHT}px)` }}>
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-border bg-surface-0 px-4 py-2">
         <Link

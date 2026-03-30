@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { COLOR_PALETTE } from "@/app/lib/types";
-import type { Thought, Revision, ThoughtKind, Conviction, ThoughtColor } from "@/app/lib/types";
+import type { Thought, Revision } from "@/app/lib/types";
 import type { Family } from "@/app/lib/manifest";
-import { KindBadge, ConvictionBadge } from "@/app/thoughts/thought-card";
+import { KindBadge, ImportanceBadge } from "@/app/components/badges";
+import { fetchApi } from "@/app/lib/fetch";
 
 // ---------------------------------------------------------------------------
 // Thought card (compact, expandable for revision history)
@@ -23,10 +24,9 @@ function ThoughtCard({ thought }: { thought: ThoughtWithRevisions }) {
 
   useEffect(() => {
     if (!expanded || revisions.length > 0) return;
-    fetch(`/api/thoughts?id=${thought.id}`)
-      .then(r => r.json())
+    fetchApi<{ revisions?: Revision[] }>(`/api/thoughts?id=${thought.id}`)
       .then(data => { if (data.revisions) setRevisions(data.revisions); })
-      .catch(() => {});
+      .catch(console.error);
   }, [expanded, thought.id, revisions.length]);
 
   return (
@@ -38,7 +38,7 @@ function ThoughtCard({ thought }: { thought: ThoughtWithRevisions }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 mb-1">
             <KindBadge kind={thought.kind} />
-            <ConvictionBadge conviction={thought.conviction} />
+            {thought.importance && <ImportanceBadge importance={thought.importance} />}
             {thought.family && (
               <span className="text-[10px] text-text-tertiary truncate">{thought.family}</span>
             )}
@@ -97,7 +97,6 @@ function QuickAdd({ familySlugs, onAdded }: { familySlugs: string[]; onAdded: ()
             body,
             family: familySlugs[0],
             tags: [],
-            conviction: "hunch",
             source: "gallery-sidebar",
           },
         }),
@@ -146,6 +145,7 @@ export function GallerySidebar({
 
   const familySlugs = selectedFamilies.map(f => f.slug);
   const familyNames = selectedFamilies.map(f => f.name);
+  const familyKey = useMemo(() => familySlugs.join(","), [familySlugs]);
 
   const fetchThoughts = useCallback(async () => {
     if (familySlugs.length === 0) return;
@@ -154,9 +154,8 @@ export function GallerySidebar({
       // Fetch linked thoughts (by family match)
       const linkedResults = await Promise.all(
         familySlugs.map(slug =>
-          fetch(`/api/thoughts?family=${encodeURIComponent(slug)}&limit=20`)
-            .then(r => r.json())
-            .catch(() => [])
+          fetchApi<ThoughtWithRevisions[]>(`/api/thoughts?family=${encodeURIComponent(slug)}&limit=20`)
+            .catch((err) => { console.error(err); return [] as ThoughtWithRevisions[]; })
         )
       );
       const allLinked: ThoughtWithRevisions[] = linkedResults.flat();
@@ -173,11 +172,9 @@ export function GallerySidebar({
       const firstFamily = selectedFamilies[0];
       if (firstFamily) {
         const searchText = `${firstFamily.name} ${firstFamily.description}`;
-        const related = await fetch(
+        const related = await fetchApi<ThoughtWithRevisions[]>(
           `/api/thoughts/search?q=${encodeURIComponent(searchText)}&limit=10`
-        )
-          .then(r => r.json())
-          .catch(() => []);
+        ).catch((err) => { console.error(err); return [] as ThoughtWithRevisions[]; });
         // Filter out already-linked thoughts
         const linkedIds = new Set(deduped.map(t => t.id));
         setRelatedThoughts(
@@ -189,12 +186,12 @@ export function GallerySidebar({
     } finally {
       setLoading(false);
     }
-  }, [familySlugs.join(","), refreshKey]);
+  }, [familyKey, refreshKey]);
 
   useEffect(() => { fetchThoughts(); }, [fetchThoughts]);
 
   return (
-    <div className="fixed right-0 top-0 z-40 flex h-full w-96 flex-col border-l border-border bg-surface-0 shadow-xl animate-in slide-in-from-right duration-200">
+    <div className="fixed right-0 top-0 z-40 flex h-full w-96 flex-col border-l border-border bg-surface-0 pt-12 shadow-xl animate-in slide-in-from-right duration-200">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">

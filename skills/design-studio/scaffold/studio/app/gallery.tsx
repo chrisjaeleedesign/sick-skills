@@ -36,6 +36,8 @@ import { COLOR_PALETTE } from "@/app/lib/types";
 import { parseDropId, applyDragResult } from "@/app/lib/grid";
 import { FamilyCard } from "./family-card";
 import { GallerySidebar } from "./gallery-sidebar";
+import { Separator } from "@/app/components/badges";
+import { useDragSelect } from "@/app/lib/use-drag-select";
 
 // ---------------------------------------------------------------------------
 // Inline-editable section name
@@ -206,10 +208,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
   const filterRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
-  // Drag-to-select state
-  const [selectionRect, setSelectionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
-  const isDragSelectingRef = useRef(false);
+  const { selectionRect, handleMouseDown: handleDragSelectMouseDown } = useDragSelect(mainRef, setSelectedSlugs);
 
   useEffect(() => setMounted(true), []);
 
@@ -253,7 +252,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
-      }).then(() => {})
+      }).then(() => {}).catch(console.error)
     );
   }, []);
 
@@ -391,64 +390,6 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
     lastSelectedRef.current = null;
   }
 
-  // -- Drag-to-select --
-
-  function handleMainMouseDown(e: React.MouseEvent) {
-    // Only start drag-select on left click on empty space (not on cards, buttons, inputs)
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement;
-    // Don't start if clicking on interactive elements or card content
-    if (target.closest("a, button, input, [data-drag-handle], .group\\/card")) return;
-
-    dragOriginRef.current = { x: e.clientX, y: e.clientY };
-    isDragSelectingRef.current = false;
-  }
-
-  useEffect(() => {
-    function handleMouseMove(e: MouseEvent) {
-      if (!dragOriginRef.current) return;
-      const dx = e.clientX - dragOriginRef.current.x;
-      const dy = e.clientY - dragOriginRef.current.y;
-      // Require minimum drag distance to start
-      if (!isDragSelectingRef.current && Math.abs(dx) + Math.abs(dy) < 10) return;
-      isDragSelectingRef.current = true;
-
-      const x = Math.min(e.clientX, dragOriginRef.current.x);
-      const y = Math.min(e.clientY, dragOriginRef.current.y);
-      const w = Math.abs(dx);
-      const h = Math.abs(dy);
-      setSelectionRect({ x, y, w, h });
-
-      // Find all card elements within the rectangle
-      if (!mainRef.current) return;
-      const cards = mainRef.current.querySelectorAll("[data-family-slug]");
-      const next = new Set<string>();
-      cards.forEach((card) => {
-        const rect = card.getBoundingClientRect();
-        const slug = card.getAttribute("data-family-slug");
-        if (!slug) return;
-        // Check intersection
-        if (rect.right >= x && rect.left <= x + w && rect.bottom >= y && rect.top <= y + h) {
-          next.add(slug);
-        }
-      });
-      setSelectedSlugs(next);
-    }
-
-    function handleMouseUp() {
-      dragOriginRef.current = null;
-      isDragSelectingRef.current = false;
-      setSelectionRect(null);
-    }
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, []);
-
   const selectedFamilies = Array.from(selectedSlugs)
     .map(s => families[s])
     .filter(Boolean);
@@ -558,7 +499,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
   return (
     <main
       ref={mainRef}
-      onMouseDown={handleMainMouseDown}
+      onMouseDown={handleDragSelectMouseDown}
       className={`mx-auto px-6 py-10 transition-all ${sidebarOpen ? "mr-96 max-w-5xl" : "max-w-6xl"}`}
     >
       {toolbar}
@@ -581,6 +522,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
           return (
             <SortableSection key={section.id} id={section.id}>
               {(dragHandleProps) => (
+            // 18px = 16px (pl-4) + 2px (border-l-2 on focused sections)
             <div
               className={`group/section mb-8 ${section.focus ? "border-l-2 border-accent-blue pl-4" : "pl-[18px]"}`}
             >
@@ -691,7 +633,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
                     >
                       <Minus className="h-3 w-3" /> Row
                     </button>
-                    <span className="mx-1 text-border">|</span>
+                    <Separator />
                     <button
                       onClick={() => updateSection(section.id, { columns: section.columns + 1 })}
                       title="Add column"
@@ -723,6 +665,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
 
         {/* Unsorted families */}
         {unsortedSlugs.length > 0 && (
+          /* 18px = 16px (pl-4) + 2px (border-l-2 on focused sections) */
           <div className="mb-8 pl-[18px]">
             <div className="mb-3 flex items-center gap-2 px-1">
               <span className="text-sm font-medium text-text-tertiary">Unsorted</span>
@@ -746,6 +689,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
 
         {/* Trash section */}
         {visibleSections.has("__trash") && trashedFamilies.length > 0 && (
+          /* 18px = 16px (pl-4) + 2px (border-l-2 on focused sections) */
           <div className="mb-8 pl-[18px]">
             <div className="mb-3 flex items-center gap-2 px-1">
               <span className="text-sm font-medium text-text-tertiary">Trash</span>

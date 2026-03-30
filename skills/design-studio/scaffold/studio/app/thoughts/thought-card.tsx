@@ -5,56 +5,10 @@ import {
   Star,
   ChevronDown,
   ChevronRight,
-  Eye,
-  HelpCircle,
-  Landmark,
-  BookMarked,
 } from "lucide-react";
-import type { Thought, Revision, ThoughtKind, Conviction } from "@/app/lib/types";
+import type { Thought, Revision } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
-import { TagPill, FamilyBadge } from "@/app/components/badges";
-
-// ---------------------------------------------------------------------------
-// Kind / conviction metadata
-// ---------------------------------------------------------------------------
-
-const KIND_META: Record<ThoughtKind, { label: string; icon: typeof Eye; color: string; bg: string }> = {
-  observation: { label: "Observation", icon: Eye,         color: "text-blue-600",    bg: "bg-blue-50" },
-  question:    { label: "Question",    icon: HelpCircle,  color: "text-purple-600",  bg: "bg-purple-50" },
-  principle:   { label: "Principle",   icon: Landmark,    color: "text-amber-600",   bg: "bg-amber-50" },
-  reference:   { label: "Reference",   icon: BookMarked,  color: "text-emerald-600", bg: "bg-emerald-50" },
-};
-
-const CONVICTION_META: Record<Conviction, { label: string; opacity: string }> = {
-  hunch:     { label: "Hunch",     opacity: "opacity-40" },
-  leaning:   { label: "Leaning",   opacity: "opacity-60" },
-  confident: { label: "Confident", opacity: "opacity-80" },
-  core:      { label: "Core",      opacity: "opacity-100" },
-};
-
-// ---------------------------------------------------------------------------
-// Badges
-// ---------------------------------------------------------------------------
-
-export function KindBadge({ kind }: { kind: ThoughtKind }) {
-  const meta = KIND_META[kind];
-  const Icon = meta.icon;
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.bg} ${meta.color}`}>
-      <Icon className="h-3 w-3" />
-      {meta.label}
-    </span>
-  );
-}
-
-export function ConvictionBadge({ conviction }: { conviction: Conviction }) {
-  const meta = CONVICTION_META[conviction];
-  return (
-    <span className={`rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-text-secondary ${meta.opacity}`}>
-      {meta.label}
-    </span>
-  );
-}
+import { TagPill, FamilyBadge, KindBadge, ImportanceBadge } from "@/app/components/badges";
 
 // ---------------------------------------------------------------------------
 // ThoughtCard
@@ -89,7 +43,7 @@ export function ThoughtCard({
       {/* Header row */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <KindBadge kind={thought.kind} />
-        <ConvictionBadge conviction={thought.conviction} />
+        {thought.importance && <ImportanceBadge importance={thought.importance} />}
         {thought.pinned && (
           <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
         )}

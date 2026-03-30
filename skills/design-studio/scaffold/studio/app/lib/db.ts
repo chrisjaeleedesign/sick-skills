@@ -1,9 +1,8 @@
 import Database from "better-sqlite3";
-import { readFileSync, readdirSync, existsSync, copyFileSync } from "fs";
-import { join, extname } from "path";
+import { readFileSync, readdirSync, existsSync, copyFileSync, unlinkSync } from "fs";
+import { join } from "path";
 import type { QueryParams } from "./types";
-import { seedFeaturesIfEmpty } from "./db-features";
-
+import { genId } from "./utils";
 // Resolve paths relative to the studio directory.
 // process.env.DESIGN_STUDIO_ROOT can override, otherwise we find the studio
 // root by looking for package.json walking up from cwd.
@@ -11,9 +10,9 @@ function findStudioRoot(): string {
   if (process.env.DESIGN_STUDIO_ROOT) return process.env.DESIGN_STUDIO_ROOT;
   // The Next.js dev server sets cwd to the studio directory
   const candidates = [
-    join(process.cwd(), ".."),           // cwd is .agents/design/studio/
-    join(process.cwd(), "../.."),         // cwd is .agents/design/studio/app/
-    join(process.cwd(), ".agents/design"),  // cwd is project root
+    join(process.cwd(), ".."),           // cwd is .design/studio/
+    join(process.cwd(), "../.."),         // cwd is .design/studio/app/
+    join(process.cwd(), ".design"),       // cwd is project root
   ];
   for (const dir of candidates) {
     if (existsSync(join(dir, "journal.db")) || existsSync(join(dir, "manifest.json"))) {
@@ -24,7 +23,7 @@ function findStudioRoot(): string {
   return join(process.cwd(), "..");
 }
 
-const DESIGN_ROOT = findStudioRoot();
+export const DESIGN_ROOT = findStudioRoot();
 const DB_PATH = join(DESIGN_ROOT, "journal.db");
 const JSONL_PATH = join(DESIGN_ROOT, "journal.jsonl");
 
@@ -108,14 +107,12 @@ CREATE TABLE IF NOT EXISTS thoughts (
   tags        TEXT NOT NULL DEFAULT '[]',
   color       TEXT,
   pinned      INTEGER NOT NULL DEFAULT 0,
-  conviction  TEXT NOT NULL DEFAULT 'hunch' CHECK (conviction IN ('hunch','leaning','confident','core')),
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_thoughts_kind       ON thoughts(kind);
 CREATE INDEX IF NOT EXISTS idx_thoughts_family      ON thoughts(family);
-CREATE INDEX IF NOT EXISTS idx_thoughts_conviction  ON thoughts(conviction);
 CREATE INDEX IF NOT EXISTS idx_thoughts_color       ON thoughts(color);
 CREATE INDEX IF NOT EXISTS idx_thoughts_created_at  ON thoughts(created_at);
 CREATE INDEX IF NOT EXISTS idx_thoughts_pinned      ON thoughts(pinned);
@@ -228,6 +225,152 @@ CREATE INDEX IF NOT EXISTS idx_fc_b ON feature_connections(b_id);
 `;
 
 // ---------------------------------------------------------------------------
+// Feature seed data (colocated here to avoid circular import with db-features)
+// ---------------------------------------------------------------------------
+
+interface SeedFeature {
+  name: string;
+  area: string;
+  parents: string[];
+  x: number;
+  y: number;
+  priority?: string;
+  status?: string;
+}
+
+interface SeedConnection {
+  a: string;
+  b: string;
+  note: string;
+}
+
+// Positions: center at (600, 450), categories in ring ~250px out, leaves ~100px from parent
+const SEED_FEATURES_LIST: SeedFeature[] = [
+  // Root
+  { name: "Assistants", area: "assistants", parents: [], x: 600, y: 450 },
+
+  // Categories (ring around center)
+  { name: "Lifecycle", area: "assistants", parents: ["Assistants"], x: 600, y: 200 },
+  { name: "Scope", area: "assistants", parents: ["Assistants"], x: 820, y: 260 },
+  { name: "Permissions", area: "assistants", parents: ["Assistants"], x: 870, y: 450 },
+  { name: "Conversation", area: "assistants", parents: ["Assistants"], x: 820, y: 640 },
+  { name: "Memory", area: "assistants", parents: ["Assistants"], x: 600, y: 700 },
+  { name: "Proactiveness", area: "assistants", parents: ["Assistants"], x: 380, y: 640 },
+  { name: "Discovery", area: "assistants", parents: ["Assistants"], x: 330, y: 450 },
+  { name: "Multiplayer", area: "assistants", parents: ["Assistants"], x: 380, y: 260 },
+
+  // Lifecycle leaves
+  { name: "Create from scratch", area: "assistants", parents: ["Lifecycle"], x: 520, y: 110, priority: "must-have" },
+  { name: "Edit instructions", area: "assistants", parents: ["Lifecycle"], x: 600, y: 100, priority: "must-have" },
+  { name: "Delete/archive", area: "assistants", parents: ["Lifecycle"], x: 680, y: 110, priority: "must-have" },
+  { name: "Duplicate", area: "assistants", parents: ["Lifecycle"], x: 550, y: 150, priority: "should-have" },
+  { name: "Templates", area: "assistants", parents: ["Lifecycle"], x: 650, y: 150, priority: "nice-to-have" },
+
+  // Scope leaves
+  { name: "Area-wide assignment", area: "assistants", parents: ["Scope"], x: 890, y: 190, priority: "must-have" },
+  { name: "Space-specific", area: "assistants", parents: ["Scope"], x: 920, y: 240, priority: "must-have" },
+  { name: "Personal assistants", area: "assistants", parents: ["Scope"], x: 780, y: 180, priority: "should-have" },
+  { name: "Shared assistants", area: "assistants", parents: ["Scope"], x: 830, y: 310, priority: "must-have" },
+
+  // Permissions leaves
+  { name: "Retrieval boundaries", area: "assistants", parents: ["Permissions", "Memory"], x: 960, y: 400, priority: "must-have" },
+  { name: "Read vs read+write", area: "assistants", parents: ["Permissions"], x: 970, y: 450, priority: "should-have" },
+  { name: "Admin controls", area: "assistants", parents: ["Permissions"], x: 960, y: 500, priority: "should-have" },
+
+  // Conversation leaves
+  { name: "@mention invoke", area: "assistants", parents: ["Conversation"], x: 900, y: 600, priority: "must-have", status: "shipped" },
+  { name: "Create items", area: "assistants", parents: ["Conversation"], x: 920, y: 660, priority: "must-have" },
+  { name: "Reference items", area: "assistants", parents: ["Conversation"], x: 830, y: 720, priority: "must-have" },
+  { name: "Multi-assistant", area: "assistants", parents: ["Conversation"], x: 770, y: 690, priority: "should-have", status: "exploring" },
+  { name: "Attributed messages", area: "assistants", parents: ["Conversation"], x: 900, y: 710, priority: "must-have", status: "shipped" },
+
+  // Memory leaves
+  { name: "View memories", area: "assistants", parents: ["Memory"], x: 530, y: 780, priority: "must-have" },
+  { name: "Edit/delete memories", area: "assistants", parents: ["Memory"], x: 600, y: 800, priority: "must-have" },
+  { name: "Scoped by area", area: "assistants", parents: ["Memory"], x: 670, y: 780, priority: "must-have" },
+  { name: "Accumulates over time", area: "assistants", parents: ["Memory"], x: 550, y: 750, priority: "must-have" },
+
+  // Proactiveness leaves
+  { name: "Self-initiated messages", area: "assistants", parents: ["Proactiveness"], x: 310, y: 710, priority: "should-have" },
+  { name: "Surface insights", area: "assistants", parents: ["Proactiveness"], x: 380, y: 740, priority: "should-have" },
+  { name: "Flag issues", area: "assistants", parents: ["Proactiveness"], x: 450, y: 700, priority: "should-have" },
+  { name: "Draft creation", area: "assistants", parents: ["Proactiveness"], x: 300, y: 660, priority: "nice-to-have" },
+  { name: "Mute controls", area: "assistants", parents: ["Proactiveness"], x: 440, y: 590, priority: "must-have" },
+
+  // Discovery leaves
+  { name: "Browse available", area: "assistants", parents: ["Discovery"], x: 240, y: 400, priority: "must-have" },
+  { name: "Descriptions", area: "assistants", parents: ["Discovery"], x: 230, y: 450, priority: "must-have" },
+  { name: "Recent activity", area: "assistants", parents: ["Discovery"], x: 240, y: 500, priority: "should-have" },
+
+  // Multiplayer leaves
+  { name: "See shared assistants", area: "assistants", parents: ["Multiplayer"], x: 310, y: 190, priority: "must-have" },
+  { name: "Bring personal to shared", area: "assistants", parents: ["Multiplayer"], x: 380, y: 180, priority: "should-have" },
+  { name: "See who created what", area: "assistants", parents: ["Multiplayer"], x: 450, y: 210, priority: "should-have" },
+];
+
+const SEED_CONNECTIONS: SeedConnection[] = [
+  { a: "Shared assistants", b: "See shared assistants", note: "Sharing model feeds discovery" },
+  { a: "Scoped by area", b: "Area-wide assignment", note: "Memory scope follows assignment scope" },
+  { a: "Admin controls", b: "Shared assistants", note: "Admins govern shared assistant access" },
+  { a: "@mention invoke", b: "Multi-assistant", note: "Mention is the entry point for multi-agent" },
+  { a: "Surface insights", b: "View memories", note: "Insights draw from accumulated memories" },
+  { a: "Mute controls", b: "Self-initiated messages", note: "Mute governs proactive messaging" },
+  { a: "Create items", b: "Reference items", note: "Created items become referenceable" },
+  { a: "Templates", b: "Duplicate", note: "Templates are a form of duplication" },
+  { a: "Attributed messages", b: "See who created what", note: "Attribution enables multiplayer provenance" },
+  { a: "Edit/delete memories", b: "Retrieval boundaries", note: "Memory editing respects retrieval boundaries" },
+];
+
+function seedFeaturesIfEmpty(db: Database.Database): void {
+  const count = db.prepare("SELECT COUNT(*) AS n FROM features").get() as { n: number };
+  if (count.n > 0) return;
+
+  const now = new Date().toISOString();
+  const insertStmt = db.prepare(`
+    INSERT INTO features (id, area, name, description, notes, priority, status, x, y, created_at, updated_at)
+    VALUES (@id, @area, @name, '', '', @priority, @status, @x, @y, @created_at, @updated_at)
+  `);
+  const insertConn = db.prepare(`
+    INSERT OR IGNORE INTO feature_connections (a_id, b_id, type, note, created_at)
+    VALUES (@a_id, @b_id, @type, @note, @created_at)
+  `);
+
+  const nameToId = new Map<string, string>();
+
+  const tx = db.transaction(() => {
+    for (const f of SEED_FEATURES_LIST) {
+      const id = genId("feat");
+      nameToId.set(f.name, id);
+      insertStmt.run({
+        id, area: f.area, name: f.name,
+        priority: f.priority ?? "", status: f.status ?? "",
+        x: f.x, y: f.y, created_at: now, updated_at: now,
+      });
+    }
+
+    for (const f of SEED_FEATURES_LIST) {
+      const childId = nameToId.get(f.name)!;
+      for (const parentName of f.parents) {
+        const parentId = nameToId.get(parentName);
+        if (parentId) {
+          insertConn.run({ a_id: childId, b_id: parentId, type: "parent", note: "", created_at: now });
+        }
+      }
+    }
+
+    for (const c of SEED_CONNECTIONS) {
+      const aId = nameToId.get(c.a);
+      const bId = nameToId.get(c.b);
+      if (aId && bId) {
+        const [normA, normB] = aId < bId ? [aId, bId] : [bId, aId];
+        insertConn.run({ a_id: normA, b_id: normB, type: "related", note: c.note, created_at: now });
+      }
+    }
+  });
+  tx();
+}
+
+// ---------------------------------------------------------------------------
 // Singleton
 // ---------------------------------------------------------------------------
 
@@ -245,9 +388,24 @@ let _db: Database.Database | undefined;
 export function getDb(): Database.Database {
   if (_db) return _db;
 
-  // Back up existing DB before any schema changes
+  // Timestamped backup before any schema changes (keep last 5)
   if (existsSync(DB_PATH)) {
-    try { copyFileSync(DB_PATH, DB_PATH + ".bak"); } catch { /* best effort */ }
+    try {
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      const backupPath = `${DB_PATH}.bak-${ts}`;
+      copyFileSync(DB_PATH, backupPath);
+
+      // Clean old backups, keep last 5
+      const dir = join(DB_PATH, "..");
+      const prefix = "journal.db.bak-";
+      const backups = readdirSync(dir)
+        .filter((f) => f.startsWith(prefix))
+        .sort()
+        .reverse();
+      for (const old of backups.slice(5)) {
+        try { unlinkSync(join(dir, old)); } catch { /* best effort */ }
+      }
+    } catch { /* best effort */ }
   }
 
   const db = new Database(DB_PATH);
@@ -290,8 +448,36 @@ const MIGRATIONS: Migration[] = [
       try { db.exec("ALTER TABLE features ADD COLUMN y REAL DEFAULT 0"); } catch { /* already exists */ }
     },
   },
-  // Future migrations go here:
-  // { id: 2, name: "description", run: (db) => { ... } },
+  {
+    id: 2,
+    name: "conviction-to-importance",
+    run: (db) => {
+      // Rename conviction column to importance and update values.
+      // SQLite doesn't support RENAME COLUMN in older versions, so we add
+      // the new column, migrate data, and keep conviction for backward compat.
+      try { db.exec("ALTER TABLE thoughts ADD COLUMN importance TEXT"); } catch { /* already exists */ }
+
+      // Map old conviction values to new importance values
+      db.exec(`UPDATE thoughts SET importance = CASE conviction
+        WHEN 'hunch' THEN 'signal'
+        WHEN 'leaning' THEN 'assumption'
+        WHEN 'confident' THEN 'guiding'
+        WHEN 'core' THEN 'foundational'
+        ELSE conviction
+      END WHERE importance IS NULL`);
+
+      // Clear importance for observations and references (it's optional for these)
+      // Actually keep it — user may want to filter by importance on any kind
+    },
+  },
+  {
+    id: 3,
+    name: "drop-conviction-column",
+    run: (db) => {
+      // SQLite 3.35+ supports DROP COLUMN
+      try { db.exec("ALTER TABLE thoughts DROP COLUMN conviction"); } catch { /* older SQLite or column already gone */ }
+    },
+  },
 ];
 
 function runMigrations(db: Database.Database): void {
@@ -325,7 +511,7 @@ function runMigrations(db: Database.Database): void {
  * Migrates existing journal entries from the JSONL file into the insights
  * table. Runs only when the JSONL file exists AND the insights table is empty.
  */
-export function migrateFromJsonl(db: Database.Database): void {
+function migrateFromJsonl(db: Database.Database): void {
   if (!existsSync(JSONL_PATH)) return;
 
   const count = db.prepare("SELECT COUNT(*) AS n FROM insights").get() as {

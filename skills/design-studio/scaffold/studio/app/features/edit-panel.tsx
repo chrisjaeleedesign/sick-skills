@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, X } from "lucide-react";
-import type { Feature, FeatureConnection } from "./features";
+import type { Feature, FeatureConnection } from "@/app/lib/types";
 import { getParentIds, getChildIds, areaColor } from "./features";
 
 // --- Chip helpers ---
@@ -37,6 +37,7 @@ export function EditPanel({ feature, features, connections, areas, onUpdate, onC
   onNavigate: (id: string) => void;
 }) {
   const [form, setForm] = useState({ ...feature });
+  useEffect(() => setForm({ ...feature }), [feature.id]);
   const [parentSearch, setParentSearch] = useState(""); const [relatedSearch, setRelatedSearch] = useState("");
   const [showPS, setShowPS] = useState(false); const [showRS, setShowRS] = useState(false);
   const fMap = new Map(features.map((f) => [f.id, f]));

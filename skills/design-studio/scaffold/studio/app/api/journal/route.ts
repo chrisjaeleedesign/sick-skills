@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import {
   queryEvents,
   queryInsights,
-  insertEvent,
-  insertInsight,
+  createEvent,
+  createInsight,
   updateInsight,
 } from "@/app/lib/db-journal";
 import type { QueryParams } from "@/app/lib/types";
@@ -39,14 +39,16 @@ export async function POST(request: Request) {
 
   switch (body.action) {
     case "append-event":
-      insertEvent(body.event);
+      createEvent(body.event);
       break;
     case "append-insight":
-      insertInsight(body.insight);
+      createInsight(body.insight);
       break;
     case "update-insight":
       updateInsight(body.id, body.patch);
       break;
+    default:
+      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
 
   return NextResponse.json({ ok: true });

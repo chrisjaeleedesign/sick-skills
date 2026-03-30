@@ -18,10 +18,10 @@ const EVENT_META: Record<
   EventType,
   { label: string; icon: typeof GitCommit; color: string }
 > = {
-  created: { label: "Created", icon: GitCommit, color: "text-emerald-500" },
-  iterated: { label: "Iterated", icon: RefreshCw, color: "text-blue-500" },
-  archived: { label: "Archived", icon: Archive, color: "text-zinc-400" },
-  moved: { label: "Moved", icon: MoveHorizontal, color: "text-amber-500" },
+  created: { label: "Created", icon: GitCommit, color: "text-accent-green" },
+  iterated: { label: "Iterated", icon: RefreshCw, color: "text-accent-blue" },
+  archived: { label: "Archived", icon: Archive, color: "text-text-tertiary" },
+  moved: { label: "Moved", icon: MoveHorizontal, color: "text-accent-amber" },
   feedback: { label: "Feedback", icon: MessageCircle, color: "text-purple-500" },
 };
 

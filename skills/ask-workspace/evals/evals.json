@@ -1,0 +1,23 @@
+{
+  "skill_name": "ask",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/ask is this function thread-safe? Here's the code:\n\ndef increment_counter(counters, key):\n    counters[key] = counters.get(key, 0) + 1\n    return counters[key]",
+      "expected_output": "Should make a direct model call without asking clarifying questions — this is a simple, focused question. Should call ask.py with --model and --content containing the code.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "/ask I'm trying to decide between Redis and Memcached for our caching layer. We have a Python/Django app with about 10k daily active users and we need session storage plus page fragment caching. What do you think?",
+      "expected_output": "Should recognize this as a design question that could benefit from multiple perspectives. Should either suggest a flow (wide) or ask if the user wants multiple takes. Should call ask.py with appropriate model and content.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "/ask --persona devils-advocate We decided to go with a microservices architecture for our 3-person team's MVP. Challenge this.",
+      "expected_output": "Should use the devils-advocate persona without asking questions (explicit flag). Should call ask.py with --persona devils-advocate and pass the content. Response should be contrarian/challenging.",
+      "files": []
+    }
+  ]
+}

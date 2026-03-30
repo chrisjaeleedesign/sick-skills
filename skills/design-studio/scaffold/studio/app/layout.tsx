@@ -3,6 +3,7 @@
 import "./globals.css";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Moon, Sun, ListChecks, Brain } from "lucide-react";
 import { Agentation } from "agentation";
 
@@ -11,10 +12,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [capture] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("capture") === "true"
-  );
+  const capture =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("capture") === "true";
   const [dark, setDark] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -26,12 +27,12 @@ export default function RootLayout({
     function handleKey(e: KeyboardEvent) {
       if (e.key === "t" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        window.location.href = "/thoughts";
+        router.push("/thoughts");
       }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+  }, [router]);
 
   return (
     <html lang="en" className={dark ? "dark" : ""}>

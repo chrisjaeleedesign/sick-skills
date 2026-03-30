@@ -151,6 +151,7 @@ export function FamilyCard({
               <img
                 src={`/api/screenshot/${family.slug}/${latest.number}`}
                 alt={family.name}
+                loading="lazy"
                 className="mt-1 w-full rounded border border-border"
                 onError={() => setThumbError(true)}
               />

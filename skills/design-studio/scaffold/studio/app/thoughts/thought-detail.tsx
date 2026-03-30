@@ -7,11 +7,11 @@ import type {
   Revision,
   Attachment,
   ThoughtRelation,
-  Conviction,
+  Importance,
 } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
-import { KindBadge, ConvictionBadge } from "./thought-card";
-import { TagPill, FamilyBadge } from "@/app/components/badges";
+import { TagPill, FamilyBadge, KindBadge, ImportanceBadge } from "@/app/components/badges";
+import { fetchApi } from "@/app/lib/fetch";
 
 // ---------------------------------------------------------------------------
 // ThoughtDetail — expanded view with revision stack, relations, edit controls
@@ -43,10 +43,9 @@ export function ThoughtDetail({
   const fetchDetail = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/thoughts?id=${thoughtId}`);
-      setData(await res.json());
-    } catch {
-      // fail silently
+      setData(await fetchApi<ThoughtDetailData>(`/api/thoughts?id=${thoughtId}`));
+    } catch (err) {
+      console.error(err);
     }
     setLoading(false);
   }, [thoughtId]);
@@ -86,11 +85,11 @@ export function ThoughtDetail({
     onUpdate();
   }
 
-  async function handleConvictionChange(conviction: Conviction) {
+  async function handleImportanceChange(importance: Importance) {
     await fetch("/api/thoughts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update-thought", id: thoughtId, patch: { conviction } }),
+      body: JSON.stringify({ action: "update-thought", id: thoughtId, patch: { importance } }),
     });
     fetchDetail();
     onUpdate();
@@ -103,6 +102,7 @@ export function ThoughtDetail({
       body: JSON.stringify({ action: "remove-relation", from_id: fromId, to_id: toId }),
     });
     fetchDetail();
+    onUpdate();
   }
 
   if (loading || !data) {
@@ -127,7 +127,7 @@ export function ThoughtDetail({
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <KindBadge kind={data.kind} />
-            <ConvictionBadge conviction={data.conviction} />
+            {data.importance && <ImportanceBadge importance={data.importance} />}
             {data.color && (
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${COLOR_PALETTE[data.color].dot}`} />
             )}
@@ -153,14 +153,14 @@ export function ThoughtDetail({
           )}
           {data.tags.map((tag) => <TagPill key={tag} tag={tag} />)}
         </div>
-        {/* Conviction selector */}
+        {/* Importance selector */}
         <div className="mt-2 flex items-center gap-1">
-          {(["hunch", "leaning", "confident", "core"] as const).map((c) => (
+          {(["invalidated", "signal", "assumption", "guiding", "foundational"] as const).map((c) => (
             <button
               key={c}
-              onClick={() => handleConvictionChange(c)}
+              onClick={() => handleImportanceChange(c)}
               className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
-                data.conviction === c
+                data.importance === c
                   ? "bg-primary text-white"
                   : "text-text-tertiary hover:bg-surface-2"
               }`}
@@ -205,7 +205,7 @@ export function ThoughtDetail({
               <button
                 disabled={!newRevisionBody.trim()}
                 onClick={handleAddRevision}
-                className="rounded-lg bg-zinc-800 px-3 py-1 text-xs text-white hover:bg-zinc-700 disabled:opacity-40"
+                className="rounded-lg bg-primary px-3 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
               >
                 Save
               </button>

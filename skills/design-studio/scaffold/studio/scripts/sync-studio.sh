@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# sync-studio.sh — bidirectional sync between .agents/design/studio/ and scaffold
+# sync-studio.sh — bidirectional sync between .design/studio/ and scaffold
 #
 # Usage:
 #   sync-studio.sh push [--apply] [--no-backup] [--scaffold-path PATH]
@@ -84,7 +84,7 @@ RSYNC_EXCLUDES=(
   --exclude='*.db-shm'
   --exclude='*.db-wal'
   # Nested .design artifacts (shouldn't exist but guard against it)
-  --exclude='.agents/'
+  --exclude='.design/'
   # Generated thumbnails
   --exclude='public/thumbs/'
   # TypeScript build info

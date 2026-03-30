@@ -1,6 +1,7 @@
-import { getDb } from "./db";
+import { getDb, buildQuery } from "./db";
+import { genId } from "./utils";
 import type {
-  ThoughtKind, SourceType, Conviction, RelationType,
+  ThoughtKind, SourceType, Importance, RelationType,
   AttachmentType, ThoughtColor,
   Thought, Revision, Attachment, ThoughtRelation,
   Board, BoardItem, ThoughtQueryParams,
@@ -9,10 +10,6 @@ import type {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function genId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-}
 
 function now(): string {
   return new Date().toISOString();
@@ -29,7 +26,7 @@ function deserializeThought(row: Record<string, unknown>): Thought {
     tags: JSON.parse((row.tags as string) || "[]"),
     color: (row.color as ThoughtColor) ?? undefined,
     pinned: (row.pinned as number) === 1,
-    conviction: row.conviction as Conviction,
+    importance: (row.importance as Importance) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -72,7 +69,7 @@ export function createThought(input: {
   tags?: string[];
   color?: ThoughtColor;
   pinned?: boolean;
-  conviction?: Conviction;
+  importance?: Importance;
   revision_source?: string;
 }): { thought: Thought; revision: Revision } {
 
@@ -83,8 +80,8 @@ export function createThought(input: {
 
   const tx = db.transaction(() => {
     db.prepare(`
-      INSERT INTO thoughts (id, kind, source_type, source_url, source_meta, family, tags, color, pinned, conviction, created_at, updated_at)
-      VALUES (@id, @kind, @source_type, @source_url, @source_meta, @family, @tags, @color, @pinned, @conviction, @created_at, @updated_at)
+      INSERT INTO thoughts (id, kind, source_type, source_url, source_meta, family, tags, color, pinned, importance, created_at, updated_at)
+      VALUES (@id, @kind, @source_type, @source_url, @source_meta, @family, @tags, @color, @pinned, @importance, @created_at, @updated_at)
     `).run({
       id: thoughtId,
       kind: input.kind,
@@ -95,7 +92,7 @@ export function createThought(input: {
       tags: JSON.stringify(input.tags ?? []),
       color: input.color ?? null,
       pinned: input.pinned ? 1 : 0,
-      conviction: input.conviction ?? "hunch",
+      importance: input.importance ?? null,
       created_at: ts,
       updated_at: ts,
     });
@@ -125,7 +122,7 @@ export function getThought(id: string): Thought | undefined {
   return row ? deserializeThought(row) : undefined;
 }
 
-export function updateThought(id: string, patch: Partial<Pick<Thought, "kind" | "source_type" | "source_url" | "source_meta" | "family" | "tags" | "color" | "pinned" | "conviction">>): void {
+export function updateThought(id: string, patch: Partial<Pick<Thought, "kind" | "source_type" | "source_url" | "source_meta" | "family" | "tags" | "color" | "pinned" | "importance">>): void {
 
   const db = getDb();
   const sets: string[] = [];
@@ -139,7 +136,7 @@ export function updateThought(id: string, patch: Partial<Pick<Thought, "kind" | 
   if (patch.tags !== undefined) { sets.push("tags = @tags"); values.tags = JSON.stringify(patch.tags); }
   if (patch.color !== undefined) { sets.push("color = @color"); values.color = patch.color; }
   if (patch.pinned !== undefined) { sets.push("pinned = @pinned"); values.pinned = patch.pinned ? 1 : 0; }
-  if (patch.conviction !== undefined) { sets.push("conviction = @conviction"); values.conviction = patch.conviction; }
+  if (patch.importance !== undefined) { sets.push("importance = @importance"); values.importance = patch.importance; }
 
   if (sets.length === 0) return;
   sets.push("updated_at = @updated_at");
@@ -160,44 +157,42 @@ export function deleteThought(id: string): void {
 export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevision?: boolean }): (Thought & { latest_revision_body?: string; latest_revision_seq?: number; latest_revision_created_at?: string })[] {
 
   const db = getDb();
-  const conditions: string[] = [];
-  const bindings: unknown[] = [];
-  let joinClause = "";
-  let orderBy = "thoughts.created_at DESC";
 
+  // Thought-specific extra filters for buildQuery
+  const extraConditions: string[] = [];
+  const extraBindings: unknown[] = [];
+
+  if (params.kind) { extraConditions.push("thoughts.kind = ?"); extraBindings.push(params.kind); }
+  if (params.importance) { extraConditions.push("thoughts.importance = ?"); extraBindings.push(params.importance); }
+  if (params.color) { extraConditions.push("thoughts.color = ?"); extraBindings.push(params.color); }
+  if (params.pinned !== undefined) { extraConditions.push("thoughts.pinned = ?"); extraBindings.push(params.pinned ? 1 : 0); }
+
+  // Search path: FTS goes through revisions (not directly on thoughts), so
+  // buildQuery's standard FTS join won't work. Handle manually.
+  let searchJoin = "";
+  const searchConditions: string[] = [];
+  const searchBindings: unknown[] = [];
   if (params.search) {
-    // Join through revisions to FTS
-    joinClause = `JOIN revisions ON revisions.thought_id = thoughts.id JOIN revisions_fts ON revisions_fts.rowid = revisions.rowid`;
-    conditions.push("revisions_fts MATCH ?");
-    bindings.push(params.search);
-    orderBy = "rank";
+    searchJoin = `JOIN revisions ON revisions.thought_id = thoughts.id JOIN revisions_fts ON revisions_fts.rowid = revisions.rowid`;
+    searchConditions.push("revisions_fts MATCH ?");
+    searchBindings.push(params.search);
   }
 
-  if (params.kind) { conditions.push("thoughts.kind = ?"); bindings.push(params.kind); }
-  if (params.conviction) { conditions.push("thoughts.conviction = ?"); bindings.push(params.conviction); }
-  if (params.color) { conditions.push("thoughts.color = ?"); bindings.push(params.color); }
-  if (params.family) { conditions.push("thoughts.family = ?"); bindings.push(params.family); }
-  if (params.pinned !== undefined) { conditions.push("thoughts.pinned = ?"); bindings.push(params.pinned ? 1 : 0); }
+  // Use buildQuery for the common filters (family, tags, limit, offset)
+  // but pass search=undefined so it doesn't try its own FTS join
+  const { sql: baseQuery, bindings } = buildQuery(
+    "thoughts",
+    "revisions_fts", // unused since we clear search
+    { ...params, search: undefined },
+    {
+      extraConditions: [...searchConditions, ...extraConditions],
+      extraBindings: [...searchBindings, ...extraBindings],
+      defaultOrder: params.search ? "rank" : "thoughts.created_at DESC",
+    },
+  );
 
-  if (params.tags && params.tags.length > 0) {
-    for (const tag of params.tags) {
-      conditions.push("EXISTS (SELECT 1 FROM json_each(thoughts.tags) WHERE json_each.value = ?)");
-      bindings.push(tag);
-    }
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  let limitClause = "";
-  if (params.limit != null) {
-    limitClause = "LIMIT ?";
-    bindings.push(params.limit);
-    if (params.offset != null) {
-      limitClause += " OFFSET ?";
-      bindings.push(params.offset);
-    }
-  }
-
+  // buildQuery produces: SELECT thoughts.* FROM thoughts [WHERE ...] ORDER BY ... LIMIT ...
+  // We need to inject the search join and optional revision join, plus DISTINCT for search
   const distinct = params.search ? "DISTINCT" : "";
   const revisionSelect = opts?.withRevision
     ? ", lr.body AS latest_revision_body, lr.seq AS latest_revision_seq, lr.created_at AS latest_revision_created_at"
@@ -206,14 +201,10 @@ export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevi
     ? "LEFT JOIN revisions lr ON lr.thought_id = thoughts.id AND lr.seq = (SELECT MAX(seq) FROM revisions WHERE thought_id = thoughts.id)"
     : "";
 
-  const sql = [
-    `SELECT ${distinct} thoughts.*${revisionSelect} FROM thoughts`,
-    joinClause,
-    revisionJoin,
-    whereClause,
-    `ORDER BY ${orderBy}`,
-    limitClause,
-  ].filter(Boolean).join(" ");
+  // Replace the SELECT clause to add DISTINCT and revision columns,
+  // and inject the search/revision joins after FROM thoughts
+  const sql = baseQuery
+    .replace("SELECT thoughts.* FROM thoughts", `SELECT ${distinct} thoughts.*${revisionSelect} FROM thoughts ${searchJoin} ${revisionJoin}`.trim());
 
   const rows = db.prepare(sql).all(...bindings) as Record<string, unknown>[];
   return rows.map((row) => {
@@ -390,7 +381,7 @@ export function getBoardItems(boardId: string): (BoardItem & { thought: Thought 
   const db = getDb();
   const rows = db.prepare(`
     SELECT bi.*, t.id AS t_id, t.kind, t.source_type, t.source_url, t.source_meta,
-           t.family, t.tags AS t_tags, t.color, t.pinned, t.conviction,
+           t.family, t.tags AS t_tags, t.color, t.pinned, t.importance,
            t.created_at AS t_created_at, t.updated_at AS t_updated_at
     FROM board_items bi
     JOIN thoughts t ON t.id = bi.thought_id
@@ -414,7 +405,7 @@ export function getBoardItems(boardId: string): (BoardItem & { thought: Thought 
       tags: row.t_tags,
       color: row.color,
       pinned: row.pinned,
-      conviction: row.conviction,
+      importance: row.importance,
       created_at: row.t_created_at,
       updated_at: row.t_updated_at,
     }),

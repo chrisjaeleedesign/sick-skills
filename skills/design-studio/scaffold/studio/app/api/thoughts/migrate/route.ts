@@ -7,28 +7,28 @@ import {
 } from "@/app/lib/db-thoughts";
 import { storeEmbedding } from "@/app/lib/db-embeddings";
 import { generateEmbedding } from "@/app/lib/embeddings";
-import type { ThoughtKind, Conviction, Insight } from "@/app/lib/types";
+import type { ThoughtKind, Importance, Insight } from "@/app/lib/types";
 
 // ---------------------------------------------------------------------------
 // Migration mapping
 // ---------------------------------------------------------------------------
 
-function mapInsight(insight: Insight): { kind: ThoughtKind; conviction: Conviction } {
+function mapInsight(insight: Insight): { kind: ThoughtKind; importance: Importance } {
   switch (insight.type) {
     case "preference":
-      return { kind: "principle", conviction: "confident" };
+      return { kind: "principle", importance: "guiding" };
     case "learning":
-      return { kind: "observation", conviction: "leaning" };
+      return { kind: "observation", importance: "assumption" };
     case "reaction":
-      return { kind: "observation", conviction: "hunch" };
+      return { kind: "observation", importance: "signal" };
     case "direction":
-      return { kind: "observation", conviction: "leaning" };
+      return { kind: "observation", importance: "assumption" };
     case "decision":
-      if (insight.status === "final") return { kind: "principle", conviction: "core" };
-      if (insight.status === "killed") return { kind: "principle", conviction: "confident" };
-      return { kind: "principle", conviction: "confident" };
+      if (insight.status === "final") return { kind: "principle", importance: "foundational" };
+      if (insight.status === "killed") return { kind: "principle", importance: "guiding" };
+      return { kind: "principle", importance: "guiding" };
     default:
-      return { kind: "observation", conviction: "hunch" };
+      return { kind: "observation", importance: "signal" };
   }
 }
 
@@ -64,14 +64,14 @@ export async function POST() {
   let embeddings = 0;
 
   for (const insight of insights) {
-    const { kind, conviction } = mapInsight(insight);
+    const { kind, importance } = mapInsight(insight);
 
     const { thought, revision } = createThought({
       kind,
       body: insight.body,
       family: insight.family,
       tags: insight.tags,
-      conviction,
+      importance,
       revision_source: "migration",
       source_type: "conversation",
       source_meta: {

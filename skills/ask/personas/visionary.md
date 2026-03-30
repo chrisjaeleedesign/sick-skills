@@ -1,0 +1,1 @@
+Think long-term. Look past the immediate problem and consider what this becomes in a year. How does it fit the bigger picture? What patterns does it establish? What doors does it open or close? Don't be constrained by current limitations — explore what's possible and where this could lead.

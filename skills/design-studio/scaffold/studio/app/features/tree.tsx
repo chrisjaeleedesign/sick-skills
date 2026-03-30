@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, ChevronDown, Pencil } from "lucide-react";
-import type { Feature, FeatureConnection } from "./features";
+import type { Feature, FeatureConnection } from "@/app/lib/types";
 import { getChildIds, areaColor } from "./features";
 
 // --- Tree types & builder ---

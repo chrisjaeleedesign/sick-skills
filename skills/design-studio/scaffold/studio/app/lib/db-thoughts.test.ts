@@ -50,14 +50,14 @@ describe("createThought / getThought", () => {
       body: "Color is state, not decoration",
       family: "pebble",
       tags: ["color", "philosophy"],
-      conviction: "leaning",
+      importance: "assumption",
     });
 
     expect(thought.id).toMatch(/^th-/);
     expect(thought.kind).toBe("observation");
     expect(thought.family).toBe("pebble");
     expect(thought.tags).toEqual(["color", "philosophy"]);
-    expect(thought.conviction).toBe("leaning");
+    expect(thought.importance).toBe("assumption");
     expect(thought.pinned).toBe(false);
 
     expect(revision.id).toMatch(/^rev-/);
@@ -83,10 +83,10 @@ describe("createThought / getThought", () => {
 describe("updateThought", () => {
   it("updates selected fields", () => {
     const { thought } = createThought({ kind: "observation", body: "test" });
-    updateThought(thought.id, { conviction: "confident", color: "blue", pinned: true });
+    updateThought(thought.id, { importance: "guiding", color: "blue", pinned: true });
 
     const updated = getThought(thought.id)!;
-    expect(updated.conviction).toBe("confident");
+    expect(updated.importance).toBe("guiding");
     expect(updated.color).toBe("blue");
     expect(updated.pinned).toBe(true);
   });
@@ -135,11 +135,11 @@ describe("queryThoughts", () => {
     expect(results[0].kind).toBe("question");
   });
 
-  it("filters by conviction", () => {
-    createThought({ kind: "observation", body: "a", conviction: "hunch" });
-    createThought({ kind: "observation", body: "b", conviction: "core" });
+  it("filters by importance", () => {
+    createThought({ kind: "observation", body: "a", importance: "signal" });
+    createThought({ kind: "observation", body: "b", importance: "foundational" });
 
-    expect(queryThoughts({ conviction: "core" })).toHaveLength(1);
+    expect(queryThoughts({ importance: "foundational" })).toHaveLength(1);
   });
 
   it("filters by color", () => {
