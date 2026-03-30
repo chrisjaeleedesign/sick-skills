@@ -48,7 +48,7 @@ PROVIDERS = {
 # Approximate token threshold for triggering summarization.
 # ~4 chars per token is a rough heuristic. When history exceeds this,
 # older exchanges get summarized to save tokens.
-SUMMARY_CHAR_THRESHOLD = 24000  # ~6000 tokens
+SUMMARY_CHAR_THRESHOLD = 80000  # ~20000 tokens
 RECENT_EXCHANGES_TO_KEEP = 4
 
 
