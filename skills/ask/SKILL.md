@@ -11,22 +11,35 @@ Get a perspective — from an external model, through a persona lens, or via a s
 
 When `/ask` is invoked, figure out what the user needs before acting:
 
-**Simple question, clear model preference** → just call the model and return the answer. No ceremony.
-- "ask gpt5 if this function is safe" → `--model gpt5 --content "..."`
+**Simple question, one right answer** → just call the model and return the answer. No ceremony.
+- "is this function thread-safe?"
+- "what does this error mean?"
+- "ask gpt5 if this regex is correct"
+- The signal: the question has a definitive answer, not a tradeoff.
+
+**Comparison or tradeoff question** → suggest going wide or checking in before just answering. These are questions where multiple valid answers exist and the best choice depends on context.
+- "should we use Redis or Memcached for caching?"
+- "I'm deciding between a monolith and microservices"
+- "what do you think about our approach to auth?"
+- "pros and cons of using GraphQL here?"
+- The signal: "deciding between", "X vs Y", "what do you think about our approach", "should we use A or B", or any question where a reasonable person could argue either side.
+- Suggest: "There are good arguments on both sides here. Want me to go wide and get a few different takes, or just give you my recommendation?"
 
 **Wants a specific perspective** → use a persona.
 - "get a devil's advocate take on this" → `--persona devils-advocate`
 - "what would a security engineer think" → `--persona "a senior security engineer focused on auth vulnerabilities"`
 
-**Broad exploration, wants multiple angles** → suggest or start a flow.
-- "let's think through how to handle auth" → suggest: "This feels like it'd benefit from multiple perspectives. Want me to go wide, or just give you my take first?"
+**Broad exploration, open-ended** → suggest or start a flow.
+- "let's think through how to handle auth" → suggest a flow
+- "how should we architect the notification system?" → suggest going wide
 - "DeepThink" or "UltraThink" → start a wide flow with parallel persona calls
+- The signal: no specific options on the table yet, the user wants to explore the space.
 
 **Ambiguous** → ask briefly. "Do you want me to call an external model for this, or just think through it? Any preference on which model or perspective?"
 
 **Explicit flags** → respect them, skip the routing. `--model gpt5 --persona devils-advocate` means the user knows what they want.
 
-**The principle: the simpler the ask, the less you bother the user.** Quick questions just go. Complex topics get a brief check-in before committing to a flow.
+**The principle: the simpler the ask, the less you bother the user.** Questions with one right answer just go. Questions with tradeoffs get a brief check-in. Open exploration gets a flow suggestion.
 
 ## Quick Reference
 
