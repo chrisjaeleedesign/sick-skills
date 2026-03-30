@@ -45,6 +45,12 @@ PROVIDERS = {
     "openrouter": "providers.openrouter",
 }
 
+# Approximate token threshold for triggering summarization.
+# ~4 chars per token is a rough heuristic. When history exceeds this,
+# older exchanges get summarized to save tokens.
+SUMMARY_CHAR_THRESHOLD = 24000  # ~6000 tokens
+RECENT_EXCHANGES_TO_KEEP = 4
+
 
 def load_config():
     """Load config.yaml from skill directory."""
@@ -146,7 +152,7 @@ def generate_id(content):
     return hashlib.sha256(content.encode()).hexdigest()[:8]
 
 
-def create_conversation(conv_id, model, provider, system_prompt, tags, flow=None, persona=None):
+def create_conversation(conv_id, tags, flow=None, title=None):
     """Create a new conversation file with metadata. Returns the path."""
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     filename = f"{date_str}_{conv_id}.jsonl"
@@ -162,17 +168,15 @@ def create_conversation(conv_id, model, provider, system_prompt, tags, flow=None
     meta = {
         "type": "meta",
         "id": conv_id,
-        "model": model,
-        "provider": provider,
+        "title": title,
+        "summary": None,
         "created": datetime.now(timezone.utc).isoformat(),
         "updated": datetime.now(timezone.utc).isoformat(),
         "parent": None,
         "branch_from": None,
         "exchanges": 0,
         "tags": tags or [],
-        "system_prompt": (system_prompt[:200] if system_prompt else None),
         "flow": flow,
-        "persona": persona,
     }
 
     with open(path, "w") as f:
@@ -212,10 +216,6 @@ def append_exchange(path, user_msg, assistant_msg, new_tags=None):
         existing.update(new_tags)
         meta["tags"] = sorted(existing)
 
-    # Update model/provider if different from original
-    if "model" in user_msg:
-        meta["model"] = user_msg.get("model", meta["model"])
-
     # Rewrite file: updated meta + existing messages + new exchange
     exchange_num = meta["exchanges"]
     user_msg["exchange"] = exchange_num
@@ -225,6 +225,16 @@ def append_exchange(path, user_msg, assistant_msg, new_tags=None):
     lines.append(json.dumps(user_msg))
     lines.append(json.dumps(assistant_msg))
 
+    path.write_text("\n".join(lines) + "\n")
+
+
+def update_summary(path, summary_text):
+    """Update the summary field in conversation metadata."""
+    path = Path(path)
+    lines = path.read_text().strip().split("\n")
+    meta = json.loads(lines[0])
+    meta["summary"] = summary_text
+    lines[0] = json.dumps(meta)
     path.write_text("\n".join(lines) + "\n")
 
 
@@ -245,6 +255,8 @@ def branch_conversation(source_path, from_exchange, new_id=None):
     # Update metadata for branch
     new_meta = dict(meta)
     new_meta["id"] = branch_id
+    new_meta["title"] = meta.get("title")
+    new_meta["summary"] = meta.get("summary")
     new_meta["created"] = datetime.now(timezone.utc).isoformat()
     new_meta["updated"] = datetime.now(timezone.utc).isoformat()
     new_meta["parent"] = f"{source_path.name}#exchange-{from_exchange}"
@@ -263,20 +275,19 @@ def show_conversation(path):
     """Pretty-print a conversation as readable markdown."""
     meta, messages = load_conversation(path)
 
-    print(f"# Conversation: {meta['id']}")
-    print(f"**Model:** {meta['model']} ({meta['provider']})")
+    title = meta.get("title") or meta["id"]
+    print(f"# {title}")
+    print(f"**ID:** {meta['id']}")
     print(f"**Created:** {meta['created']}")
     print(f"**Exchanges:** {meta['exchanges']}")
     if meta.get("tags"):
         print(f"**Tags:** {', '.join(meta['tags'])}")
     if meta.get("flow"):
         print(f"**Flow:** {meta['flow']}")
-    if meta.get("persona"):
-        print(f"**Persona:** {meta['persona']}")
     if meta.get("parent"):
         print(f"**Branched from:** {meta['parent']}")
-    if meta.get("system_prompt"):
-        print(f"\n**System prompt:** {meta['system_prompt']}")
+    if meta.get("summary"):
+        print(f"\n**Summary:** {meta['summary']}")
     print()
 
     current_exchange = 0
@@ -290,6 +301,7 @@ def show_conversation(path):
         content = msg.get("content", "")
         sender = msg.get("sender", role)
         persona = msg.get("persona")
+        model = msg.get("model")
 
         if role == "user":
             label = f"**{sender}:**" if sender != "user" else "**User:**"
@@ -301,22 +313,115 @@ def show_conversation(path):
                     print(f"  - {att['path']} ({att['mime']})")
                 print()
         elif role == "assistant":
-            label = sender or "Assistant"
+            label = model or sender or "Assistant"
             if persona:
                 label = f"{label} [{persona}]"
             print(f"**{label}:**\n{content}\n")
 
 
-def build_messages_for_api(messages, system_prompt, current_content, current_attachments):
-    """Convert stored messages + current input into provider-ready format."""
+# --- Context assembly ---
+
+
+def estimate_chars(messages):
+    """Rough character count of message content."""
+    total = 0
+    for msg in messages:
+        total += len(msg.get("content", ""))
+    return total
+
+
+def summarize_messages(messages, provider_name, config):
+    """Summarize a list of messages into a concise paragraph.
+
+    Calls the fastest available model to generate a summary.
+    """
+    # Build a text representation of the messages to summarize
+    text_parts = []
+    for msg in messages:
+        role = msg.get("type", "unknown")
+        sender = msg.get("sender", role)
+        persona = msg.get("persona")
+        label = sender
+        if persona:
+            label = f"{sender} [{persona}]"
+        text_parts.append(f"{label}: {msg.get('content', '')}")
+
+    conversation_text = "\n\n".join(text_parts)
+
+    summary_prompt = (
+        "Summarize this conversation concisely. Capture the key points, "
+        "decisions made, and any important context. Keep it under 200 words.\n\n"
+        f"{conversation_text}"
+    )
+
+    # Use spark if available (fastest), otherwise default model
+    try:
+        spark_provider, spark_model = resolve_model("spark", config)
+        provider_module = importlib.import_module(PROVIDERS[spark_provider])
+        summary = provider_module.call(
+            messages=[{"role": "user", "content": summary_prompt}],
+            model=spark_model,
+            thinking=None,
+        )
+        return summary.strip()
+    except Exception as e:
+        print(f"Warning: summarization failed: {e}", file=sys.stderr)
+        # Fallback: simple truncation
+        return conversation_text[:500] + "..."
+
+
+def build_messages_for_api(messages, system_prompt, current_content,
+                           current_attachments, config=None, conv_path=None):
+    """Convert stored messages + current input into provider-ready format.
+
+    Uses summarize + recent strategy for long conversations:
+    - If history is short, send everything
+    - If history is long, summarize older exchanges and keep recent ones verbatim
+
+    System prompt is per-message (from the current persona), not from history.
+    Historical messages are sent as clean user/assistant pairs — no metadata.
+    """
     api_messages = []
 
-    # System prompt as first message
+    # System prompt for THIS message only (persona + system-prompt)
     if system_prompt:
         api_messages.append({"role": "system", "content": system_prompt})
 
-    # Historical messages
-    for msg in messages:
+    # Check if we need to summarize
+    total_chars = estimate_chars(messages)
+
+    if total_chars > SUMMARY_CHAR_THRESHOLD and len(messages) > RECENT_EXCHANGES_TO_KEEP * 2:
+        # Split into old (to summarize) and recent (to keep verbatim)
+        recent_cutoff = len(messages) - (RECENT_EXCHANGES_TO_KEEP * 2)
+        old_messages = messages[:recent_cutoff]
+        recent_messages = messages[recent_cutoff:]
+
+        # Generate or reuse summary
+        if config and conv_path:
+            meta, _ = load_conversation(conv_path)
+            existing_summary = meta.get("summary")
+
+            if existing_summary:
+                summary = existing_summary
+            else:
+                summary = summarize_messages(old_messages, None, config)
+                update_summary(conv_path, summary)
+        else:
+            summary = summarize_messages(old_messages, None, config or load_config())
+
+        # Add summary as context
+        api_messages.append({
+            "role": "system",
+            "content": f"Summary of earlier conversation:\n{summary}",
+        })
+
+        # Add recent messages verbatim
+        history_to_send = recent_messages
+    else:
+        history_to_send = messages
+
+    # Add historical messages as clean user/assistant pairs
+    for msg in history_to_send:
         role = "user" if msg["type"] == "user" else "assistant"
         content_parts = []
 
@@ -399,7 +504,7 @@ def parse_args():
     parser.add_argument(
         "--model",
         default=None,
-        help="Model alias (gpt5, o3, sonnet, etc.) or provider/model-id.",
+        help="Model alias (gpt5, spark, sonnet, etc.) or provider/model-id.",
     )
     parser.add_argument(
         "--content",
@@ -421,6 +526,11 @@ def parse_args():
         "--id",
         default=None,
         help="Name for the conversation file.",
+    )
+    parser.add_argument(
+        "--title",
+        default=None,
+        help="Human-readable title for the conversation.",
     )
     parser.add_argument(
         "--tag",
@@ -456,7 +566,7 @@ def parse_args():
         "--thinking",
         default=None,
         choices=["none", "minimal", "low", "medium", "high", "xhigh"],
-        help="Reasoning effort level for models that support it (e.g. o3).",
+        help="Reasoning effort level for models that support it.",
     )
     parser.add_argument(
         "--persona",
@@ -515,7 +625,7 @@ def main():
             sys.exit(2)
         system_prompt = sp_path.read_text()
 
-    # Combine persona + system prompt
+    # Combine persona + system prompt for THIS message
     if persona_text and system_prompt:
         system_prompt = persona_text + "\n\n" + system_prompt
     elif persona_text:
@@ -531,31 +641,26 @@ def main():
     if args.continue_path:
         # Continue existing conversation
         conv_path = Path(args.continue_path)
-        meta, history_messages = load_conversation(conv_path)
-        # Use system prompt from original if not overridden
-        if system_prompt is None and meta.get("system_prompt"):
-            system_prompt = meta["system_prompt"]
+        _meta, history_messages = load_conversation(conv_path)
 
     elif args.branch:
         # Branch from existing conversation
         conv_path = branch_conversation(
             args.branch, args.from_exchange, args.id
         )
-        meta, history_messages = load_conversation(conv_path)
-        if system_prompt is None and meta.get("system_prompt"):
-            system_prompt = meta["system_prompt"]
+        _meta, history_messages = load_conversation(conv_path)
 
     else:
         # New conversation
         conv_id = args.id or generate_id(content)
         conv_path = create_conversation(
-            conv_id, model_id, provider_name, system_prompt, args.tag,
-            flow=args.flow, persona=persona_name,
+            conv_id, args.tag, flow=args.flow, title=args.title,
         )
 
     # --- Build API messages ---
     api_messages = build_messages_for_api(
-        history_messages, system_prompt, content, attachments
+        history_messages, system_prompt, content, attachments,
+        config=config, conv_path=conv_path,
     )
 
     # --- Call provider ---
@@ -573,6 +678,7 @@ def main():
         sys.exit(1)
 
     # --- Save exchange ---
+    # Per-message fields: each message tracks its own model, persona, system_prompt
     user_msg = {
         "type": "user",
         "sender": "user",
@@ -584,10 +690,15 @@ def main():
     assistant_msg = {
         "type": "assistant",
         "sender": model_id,
+        "model": model_id,
         "content": response_text,
     }
     if persona_name:
         assistant_msg["persona"] = persona_name
+    if system_prompt:
+        # Store truncated for reference — not sent to future messages
+        assistant_msg["system_prompt"] = system_prompt[:200]
+
     append_exchange(conv_path, user_msg, assistant_msg, args.tag)
 
     # --- Output ---
