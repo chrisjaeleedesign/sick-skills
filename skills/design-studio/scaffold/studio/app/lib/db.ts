@@ -11,9 +11,9 @@ function findStudioRoot(): string {
   if (process.env.DESIGN_STUDIO_ROOT) return process.env.DESIGN_STUDIO_ROOT;
   // The Next.js dev server sets cwd to the studio directory
   const candidates = [
-    join(process.cwd(), ".."),           // cwd is .design/studio/
-    join(process.cwd(), "../.."),         // cwd is .design/studio/app/
-    join(process.cwd(), ".design"),       // cwd is project root
+    join(process.cwd(), ".."),           // cwd is .agents/design/studio/
+    join(process.cwd(), "../.."),         // cwd is .agents/design/studio/app/
+    join(process.cwd(), ".agents/design"),  // cwd is project root
   ];
   for (const dir of candidates) {
     if (existsSync(join(dir, "journal.db")) || existsSync(join(dir, "manifest.json"))) {

@@ -1,29 +1,29 @@
 ---
 name: design-studio
-description: "Create, iterate, and compare interactive UI prototypes in a .design/ workspace with a visual gallery and Agentation feedback. Use for vibe designing, layout exploration, rapid UI iteration, and visual feedback loops. Invoke with /design-studio. Use this skill whenever the user mentions prototyping, UI exploration, design concepts, mockups, layout experiments, or wants to visually iterate on interface ideas."
+description: "Create, iterate, and compare interactive UI prototypes in a .agents/design/ workspace with a visual gallery and Agentation feedback. Use for vibe designing, layout exploration, rapid UI iteration, and visual feedback loops. Invoke with /design-studio. Use this skill whenever the user mentions prototyping, UI exploration, design concepts, mockups, layout experiments, or wants to visually iterate on interface ideas."
 ---
 
-Portable design prototyping workspace. Creates a `.design/` directory with a Next.js gallery, Agentation visual feedback, and a **feel → react → fork → feel** loop.
+Portable design prototyping workspace. Creates a `.agents/design/` directory with a Next.js gallery, Agentation visual feedback, and a **feel → react → fork → feel** loop.
 
 User's request: $ARGUMENTS
 
 ## Intent Detection & Routing
 
-### Step 1: Check for `.design/manifest.json`
+### Step 1: Check for `.agents/design/manifest.json`
 
-Use Glob to check for `.design/manifest.json` in the current working directory.
+Use Glob to check for `.agents/design/manifest.json` in the current working directory.
 
 ### Step 2: Route based on state
 
-**Regardless of `.design/` state:**
+**Regardless of `.agents/design/` state:**
 - If `$ARGUMENTS` is "help" → display **HELP** text below
 
-**If `.design/` does NOT exist:**
+**If `.agents/design/` does NOT exist:**
 - If `$ARGUMENTS` is empty or blank → route to **INIT** (setup only)
 - If `$ARGUMENTS` has content → route to **INIT**, then chain to **CREATE** with the arguments as design intent
 
-**If `.design/` exists:**
-1. Read `.design/manifest.json` to get current family and version context
+**If `.agents/design/` exists:**
+1. Read `.agents/design/manifest.json` to get current family and version context
 2. Parse `$ARGUMENTS` for intent signals using the table below
 3. Route to the matching prompt
 
@@ -55,7 +55,7 @@ When `$ARGUMENTS` is empty, show status. When it has content, default to iterate
 
 ### STATUS (inline — no separate prompt file)
 
-When `$ARGUMENTS` is empty and `.design/` exists, read the manifest and display a brief summary:
+When `$ARGUMENTS` is empty and `.agents/design/` exists, read the manifest and display a brief summary:
 
 > **Current:** {family name} v{N} — "{direction}"
 >
@@ -123,7 +123,7 @@ Display when routed to HELP:
 
 > **Design Studio** — interactive UI prototyping workspace
 >
-> Design Studio creates a `.design/` folder in your project with a visual gallery and version-tracked prototypes. Describe what you want, react to what you see, fork and evolve.
+> Design Studio creates a `.agents/design/` folder in your project with a visual gallery and version-tracked prototypes. Describe what you want, react to what you see, fork and evolve.
 >
 > ### Gallery Features
 >

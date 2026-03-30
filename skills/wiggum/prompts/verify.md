@@ -8,9 +8,9 @@ User's request: $ARGUMENTS
 
 Determine which mode to run:
 
-1. Read `.wiggum/SPECS/` — get the spec content
+1. Read `.agents/wiggum/SPECS/` — get the spec content
 2. Check for meaningful source code in the project root (beyond config/setup files)
-   - If only `.wiggum/` exists with no real source code → **PRE-LOOP** mode
+   - If only `.agents/wiggum/` exists with no real source code → **PRE-LOOP** mode
    - If meaningful source code exists → **POST-LOOP** mode
 3. If `$ARGUMENTS` explicitly says "pre" or "post", respect that override
 
@@ -18,7 +18,7 @@ Determine which mode to run:
 
 ## PRE-LOOP Mode: Spec Quality Verification
 
-Read all files in `.wiggum/SPECS/` and `.wiggum/IMPLEMENTATION_PLAN.md`.
+Read all files in `.agents/wiggum/SPECS/` and `.agents/wiggum/IMPLEMENTATION_PLAN.md`.
 
 Check for the following:
 
@@ -94,7 +94,7 @@ After presenting the report, offer to auto-fix issues or ask the user which to a
 
 ## POST-LOOP Mode: Implementation Verification
 
-Read all files in `.wiggum/SPECS/`, `.wiggum/IMPLEMENTATION_PLAN.md`, and the project source code.
+Read all files in `.agents/wiggum/SPECS/`, `.agents/wiggum/IMPLEMENTATION_PLAN.md`, and the project source code.
 
 For each spec requirement:
 1. Identify the corresponding source files and code
@@ -128,9 +128,9 @@ For each spec requirement:
 
 If the project has UI components, additionally evaluate:
 
-1. **Component library usage**: Read `.wiggum/AGENTS.md` for the Component Library section. Scan source files for hand-rolled components that duplicate library primitives. Flag as `Drift` if custom components were built when library ones exist.
+1. **Component library usage**: Read `.agents/wiggum/AGENTS.md` for the Component Library section. Scan source files for hand-rolled components that duplicate library primitives. Flag as `Drift` if custom components were built when library ones exist.
 2. **Conventional patterns**: Check that user-facing interactions use standard patterns (tabs, modals, dropdowns, forms, lists). Flag custom or novel interaction patterns as `Drift` with the standard alternative.
-3. **Reference alignment**: If `.wiggum/SPECS/project_spec.md` has a UI Reference section, evaluate whether the implementation's patterns match those apps. Flag significant departures as `Drift`.
+3. **Reference alignment**: If `.agents/wiggum/SPECS/project_spec.md` has a UI Reference section, evaluate whether the implementation's patterns match those apps. Flag significant departures as `Drift`.
 ```
 
 After presenting the report, suggest next steps:

@@ -46,7 +46,7 @@ Present each persona's perspective clearly labeled, then synthesize.
 
 ## Session Management
 
-Discussions are stored at **project-level** in `<workspace>/.claude/discussions/`.
+Discussions are stored at **project-level** in `<workspace>/.agents/discussions/`.
 
 ### Session Lifecycle
 
@@ -62,14 +62,14 @@ Discussions are stored at **project-level** in `<workspace>/.claude/discussions/
 ### Auto-Resume Detection
 
 When starting a discussion:
-1. Check `<workspace>/.claude/discussions/active/` for similar topics
+1. Check `<workspace>/.agents/discussions/active/` for similar topics
 2. If match found within last 7 days, prompt: "Found an active session on '{title}'. Resume or start fresh?"
 3. If no match, create new session
 
 ### Directory Structure
 
 ```
-<workspace>/.claude/discussions/
+<workspace>/.agents/discussions/
 ├── active/      # In-progress sessions
 └── archive/     # Completed sessions
 ```
@@ -78,7 +78,7 @@ On first use in a project, create these directories if they don't exist.
 
 ## Discussion Document
 
-On session start, create a document at `<workspace>/.claude/discussions/active/{timestamp}_{slug}.md` using [the template](templates/discussion-doc.md).
+On session start, create a document at `<workspace>/.agents/discussions/active/{timestamp}_{slug}.md` using [the template](templates/discussion-doc.md).
 
 **Update the document throughout the conversation:**
 - After each significant exchange, append to relevant sections
@@ -159,7 +159,7 @@ Current: Pattern={pattern} | Phase={phase if diamond} | Doc={path}
 User: /discussion how should we handle real-time notifications?
 
 [System detects "how should we" → double-diamond pattern]
-[Creates .claude/discussions/active/2026-01-10_realtime-notifications.md]
+[Creates .agents/discussions/active/2026-01-10_realtime-notifications.md]
 [Enters Phase 1: DISCOVER]
 
 ```

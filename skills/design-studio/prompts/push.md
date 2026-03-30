@@ -5,11 +5,11 @@ description: Push design studio improvements back to the scaffold template
 
 # Push Studio to Scaffold
 
-Push infrastructure improvements from the current project's `.design/studio/` back to the skill scaffold, so other projects get the updates.
+Push infrastructure improvements from the current project's `.agents/design/studio/` back to the skill scaffold, so other projects get the updates.
 
 ## Steps
 
-1. **Verify** `.design/studio/` exists. If not, abort: "No design studio found."
+1. **Verify** `.agents/design/studio/` exists. If not, abort: "No design studio found."
 
 2. **Resolve scaffold path:**
    ```bash
@@ -19,7 +19,7 @@ Push infrastructure improvements from the current project's `.design/studio/` ba
 
 3. **Dry run first** — show what would change:
    ```bash
-   cd .design/studio && bash scripts/sync-studio.sh push
+   cd .agents/design/studio && bash scripts/sync-studio.sh push
    ```
    This defaults to dry-run. Review the output with the user.
 
@@ -27,7 +27,7 @@ Push infrastructure improvements from the current project's `.design/studio/` ba
 
 5. **Apply:**
    ```bash
-   cd .design/studio && bash scripts/sync-studio.sh push --apply
+   cd .agents/design/studio && bash scripts/sync-studio.sh push --apply
    ```
 
 6. **Report** — show the user what was synced and remind them to commit:

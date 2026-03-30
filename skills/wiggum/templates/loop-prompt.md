@@ -1,6 +1,6 @@
 # Headless Worker Prompt Template
 
-This is the reference for generating `.wiggum/prompts/loop.md`. The create flow writes this to the project's `.wiggum/prompts/loop.md`.
+This is the reference for generating `.agents/wiggum/prompts/loop.md`. The create flow writes this to the project's `.agents/wiggum/prompts/loop.md`.
 
 ## Prompt
 
@@ -9,9 +9,9 @@ You are running in a Wiggum loop (fresh context each run). Each iteration comple
 
 ## Required Reading (do this first, every iteration)
 
-1. Read all files in `.wiggum/SPECS/` fully.
-2. Read `.wiggum/IMPLEMENTATION_PLAN.md` fully.
-3. Read `.wiggum/AGENTS.md` fully (commands + repo conventions).
+1. Read all files in `.agents/wiggum/SPECS/` fully.
+2. Read `.agents/wiggum/IMPLEMENTATION_PLAN.md` fully.
+3. Read `.agents/wiggum/AGENTS.md` fully (commands + repo conventions).
 
 ## Rules
 
@@ -24,16 +24,16 @@ You are running in a Wiggum loop (fresh context each run). Each iteration comple
 - If combining, state what you're combining and why at the top of your output before starting work.
 - Work through tasks in order (they're dependency-ordered within each phase).
 - For each task:
-  1. Implement it following repo conventions in `.wiggum/AGENTS.md`
-  2. All source code changes happen in the project root (NOT inside `.wiggum/`)
+  1. Implement it following repo conventions in `.agents/wiggum/AGENTS.md`
+  2. All source code changes happen in the project root (NOT inside `.agents/wiggum/`)
   3. Run the relevant validation (see Quality Gates below)
-  4. Check it off: change `- [ ]` to `- [x]` in `.wiggum/IMPLEMENTATION_PLAN.md`
-  5. Add a brief changelog entry at the bottom of `.wiggum/IMPLEMENTATION_PLAN.md`
+  4. Check it off: change `- [ ]` to `- [x]` in `.agents/wiggum/IMPLEMENTATION_PLAN.md`
+  5. Add a brief changelog entry at the bottom of `.agents/wiggum/IMPLEMENTATION_PLAN.md`
 - After completing your work, follow **Stop Condition** exactly.
 
 ## Design Principles
 
-Follow the Code Philosophy in `.wiggum/AGENTS.md`. Additionally:
+Follow the Code Philosophy in `.agents/wiggum/AGENTS.md`. Additionally:
 
 - Use the project's component library for all UI elements — don't hand-roll when a library primitive exists (check AGENTS.md).
 - Before writing new code, read how similar things are already done in the project. Match style, structure, and approach.
@@ -46,7 +46,7 @@ Follow the Code Philosophy in `.wiggum/AGENTS.md`. Additionally:
 **Phase 0 (setup tasks):** Validation = the setup step works (e.g., build succeeds, test runner works).
 
 **Phase 1+ (feature tasks):** Before marking a task complete:
-- Code follows conventions in `.wiggum/AGENTS.md`
+- Code follows conventions in `.agents/wiggum/AGENTS.md`
 - Lint passes (if configured)
 - Build succeeds (if configured)
 - Add a test if the task involves logic (state, interaction, data processing)

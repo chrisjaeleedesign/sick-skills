@@ -36,7 +36,7 @@ Actions:
 
 ## When the user asks to view/explore features
 
-Direct them to `localhost:<port>/features` where <port> is from `.design/manifest.json` settings.
+Direct them to `localhost:<port>/features` where <port> is from `.agents/design/manifest.json` settings.
 
 ## Feature hierarchy pattern
 

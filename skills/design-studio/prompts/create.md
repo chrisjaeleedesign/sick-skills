@@ -5,23 +5,23 @@ You are creating a new prototype family from a design description.
 ## Context
 
 - Design intent from user: `$ARGUMENTS`
-- Manifest location: `.design/manifest.json`
-- Prototypes live at: `.design/studio/app/prototypes/<slug>/v<N>/page.tsx`
+- Manifest location: `.agents/design/manifest.json`
+- Prototypes live at: `.agents/design/studio/app/prototypes/<slug>/v<N>/page.tsx`
 
 ## Steps
 
 1. **Derive slug** from the description (e.g., "mobile chat layout" → `mobile-chat-layout`). Keep it short, lowercase, hyphenated.
 
-2. **Create the directory:** `.design/studio/app/prototypes/<slug>/v1/`
+2. **Create the directory:** `.agents/design/studio/app/prototypes/<slug>/v1/`
 
 3. **Generate the prototype** by spawning a subagent (general-purpose) with this task:
 
-   > Write a self-contained Next.js page component at `.design/studio/app/prototypes/<slug>/v1/page.tsx`.
+   > Write a self-contained Next.js page component at `.agents/design/studio/app/prototypes/<slug>/v1/page.tsx`.
    >
    > Requirements:
    > - `"use client"` directive at top
    > - Self-contained — all data inline, realistic content (no lorem ipsum)
-   > - Imports allowed: `react`, `next/link`, `lucide-react` only. If `.design/studio/app/lib/seed-data.ts` exists, import from `@/app/lib/seed-data` instead of inlining data.
+   > - Imports allowed: `react`, `next/link`, `lucide-react` only. If `.agents/design/studio/app/lib/seed-data.ts` exists, import from `@/app/lib/seed-data` instead of inlining data.
    > - Use CSS variable tokens from the design system (e.g., `bg-surface-1`, `text-text-primary`, `border-border`)
    > - **Sizing: The prototype renders inside a scaled 1440×900 container. Root element MUST use `w-full h-full` — NEVER use viewport units (`100vh`, `h-screen`, `100dvh`, `100vw`, `min-h-screen`). Use `flex-1 overflow-y-auto` for scrollable regions.**
    > - Do NOT include a back-to-gallery link — the parent layout provides navigation
@@ -31,7 +31,7 @@ You are creating a new prototype family from a design description.
    >
    > This is a design exploration — be creative, opinionated, and bold. This is NOT production code. Prioritize visual impact and feel over engineering correctness.
 
-4. **Update manifest:** Read `.design/manifest.json`, add the new family and v1:
+4. **Update manifest:** Read `.agents/design/manifest.json`, add the new family and v1:
    ```json
    {
      "name": "Human-readable name",
@@ -56,17 +56,17 @@ You are creating a new prototype family from a design description.
 
    **Section ordering:** Sections are rendered in array order (newest first). When creating a new section, prepend it to the `sections` array (or use `{"action": "add-section", "section": {...}}` which prepends automatically).
 
-5. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new prototype. Save to `.design/references/<slug>-v1.png` and add to the version's `references` array.
+5. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new prototype. Save to `.agents/design/references/<slug>-v1.png` and add to the version's `references` array.
 
-6. **Log to journal:** Run from `.design/studio/`:
+6. **Log to journal:** Run from `.agents/design/studio/`:
    ```bash
-   cd .design/studio && npx tsx scripts/journal-log.ts --table event --type created \
+   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table event --type created \
      --body "Created <family name> v1 — <direction>" \
      --family <slug> --tags "created,v1"
    ```
    Also log the design direction as an insight:
    ```bash
-   cd .design/studio && npx tsx scripts/journal-log.ts --table insight --type direction \
+   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table insight --type direction \
      --body "<user's design intent / description>" \
      --family <slug> --tags "<relevant comma-separated tags>" --status active
    ```

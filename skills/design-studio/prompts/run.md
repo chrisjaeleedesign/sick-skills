@@ -8,7 +8,7 @@ You are starting the design studio dev server so the user can browse prototypes.
 2. If in use → tell the user the studio is already running at `http://localhost:3001`
 3. If not → start the dev server:
    ```bash
-   cd .design/studio && bun run dev
+   cd .agents/design/studio && bun run dev
    ```
    Run this in the background.
 4. Report: "Studio running at http://localhost:3001"

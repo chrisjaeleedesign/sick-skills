@@ -6,10 +6,10 @@ User's request: $ARGUMENTS
 
 ## Step 1: Context & Understanding
 
-1. Read `.wiggum/IMPLEMENTATION_PLAN.md` to see existing phases and the last phase number
-2. Read all files in `.wiggum/SPECS/` to understand the current project
-3. Read `.wiggum/AGENTS.md` to understand the tech stack and conventions
-4. Read `.wiggum/ROADMAP.md` for version context
+1. Read `.agents/wiggum/IMPLEMENTATION_PLAN.md` to see existing phases and the last phase number
+2. Read all files in `.agents/wiggum/SPECS/` to understand the current project
+3. Read `.agents/wiggum/AGENTS.md` to understand the tech stack and conventions
+4. Read `.agents/wiggum/ROADMAP.md` for version context
 5. Identify what specific changes translate the user's request into actionable engineering tasks
 
 If `$ARGUMENTS` is empty, ask the user what they want to add. Do not proceed without a clear feature description.
@@ -24,7 +24,7 @@ If `$ARGUMENTS` is empty, ask the user what they want to add. Do not proceed wit
 
 ## Step 3: Update Implementation Plan
 
-Edit `.wiggum/IMPLEMENTATION_PLAN.md`:
+Edit `.agents/wiggum/IMPLEMENTATION_PLAN.md`:
 
 - **NEVER DELETE** existing phases or tasks — the plan is an append-only history during execution
 - Determine the next phase number by finding the highest existing phase number and incrementing
@@ -53,10 +53,10 @@ Requirements:
 
 ## Step 4: Sync Specifications
 
-- Update `.wiggum/SPECS/project_spec.md` to include the new features under Core Features
-- Or create a new spec file in `.wiggum/SPECS/` if the feature is a distinct capability
+- Update `.agents/wiggum/SPECS/project_spec.md` to include the new features under Core Features
+- Or create a new spec file in `.agents/wiggum/SPECS/` if the feature is a distinct capability
 - Ensure the spec has enough detail for the new tasks (behavior, edge cases, acceptance criteria)
-- Update `.wiggum/ROADMAP.md` if the scope of the current version has meaningfully changed
+- Update `.agents/wiggum/ROADMAP.md` if the scope of the current version has meaningfully changed
 
 ## Step 5: Handover
 

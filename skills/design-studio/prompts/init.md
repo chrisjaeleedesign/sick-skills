@@ -1,12 +1,12 @@
 # Init — First-Time Setup
 
-You are setting up a `.design/` workspace in the user's project.
+You are setting up a `.agents/design/` workspace in the user's project.
 
 ## Steps
 
-1. **Copy scaffold** from this skill's `scaffold/` directory into `.design/`:
-   - The scaffold mirrors the full `.design/` directory structure
-   - Read each file from the scaffold and write it to the corresponding path under `.design/`
+1. **Copy scaffold** from this skill's `scaffold/` directory into `.agents/design/`:
+   - The scaffold mirrors the full `.agents/design/` directory structure
+   - Read each file from the scaffold and write it to the corresponding path under `.agents/design/`
    - Top-level files: `manifest.json`, `journal-conventions.md`
    - Top-level directories: `references/` (with `.gitkeep`), `studio/`
    - Studio config files: `studio/package.json`, `studio/next.config.ts`, `studio/postcss.config.mjs`, `studio/tsconfig.json`
@@ -20,10 +20,10 @@ You are setting up a `.design/` workspace in the user's project.
 
 2. **Install dependencies:**
    ```bash
-   cd .design/studio && bun install
+   cd .agents/design/studio && bun install
    ```
 
-3. **Update .gitignore:** Append `.design/` to the project's `.gitignore` if not already present.
+3. **Update .gitignore:** Append `.agents/design/` to the project's `.gitignore` if not already present.
 
 4. **Report:** Tell the user their design workspace is ready. Mention `/design-studio run` to start the server at localhost:3001.
 

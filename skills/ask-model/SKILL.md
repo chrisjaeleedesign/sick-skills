@@ -36,18 +36,18 @@ python3 ~/.claude/skills/ask-model/scripts/ask.py \
 
 # Continue a conversation
 python3 ~/.claude/skills/ask-model/scripts/ask.py \
-  --continue .claude/model-calls/2026-03-27_ui-review.jsonl \
+  --continue .agents/model-calls/2026-03-27_ui-review.jsonl \
   --content "What about mobile responsiveness?"
 
 # Branch from exchange 2 to explore a different direction
 python3 ~/.claude/skills/ask-model/scripts/ask.py \
-  --branch .claude/model-calls/2026-03-27_ui-review.jsonl \
+  --branch .agents/model-calls/2026-03-27_ui-review.jsonl \
   --from 2 \
   --content "What if we used a card layout instead?"
 
 # Show a conversation
 python3 ~/.claude/skills/ask-model/scripts/ask.py \
-  --show .claude/model-calls/2026-03-27_ui-review.jsonl
+  --show .agents/model-calls/2026-03-27_ui-review.jsonl
 ```
 
 ## Models
@@ -78,7 +78,7 @@ You can also pass full model IDs: `--model openrouter/meta-llama/llama-3.3-70b`
 | `--branch` | No | Path to conversation file to branch from |
 | `--from` | With `--branch` | Exchange number to branch from |
 | `--show` | No | Pretty-print a conversation file |
-| `--thinking` | No | Reasoning effort: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`. For models like o3. |
+| `--thinking` | No | Reasoning effort: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`. See Thinking Mode below. |
 
 ## Output
 
@@ -88,10 +88,29 @@ The response prints directly to stdout. After the response, a separator line sho
 [model response here]
 
 ---
-conversation: .claude/model-calls/2026-03-27_ui-review.jsonl
+conversation: .agents/model-calls/2026-03-27_ui-review.jsonl
 ```
 
 **Always capture the conversation file path** — you'll need it for `--continue` or `--branch`.
+
+## Images and Attachments
+
+When the user pastes or references an image in the chat (screenshot, diagram, photo), you can pass it to ask-model. The image arrives as a temp file path in your context. To use it:
+
+1. **Copy the image to a stable location first.** Temp file paths (e.g. `/var/folders/...`) may be cleaned up. Copy to `.agents/media/` or `/tmp/` before calling the script.
+2. **Pass it with `--attach`.**
+
+```bash
+# User pasted a screenshot — save it, then send it
+cp /var/folders/.../paste-image.png .agents/media/screenshot.png
+python3 ~/.claude/skills/ask-model/scripts/ask.py \
+  --model gpt5 \
+  --content "What do you think of this UI design? What would you improve?" \
+  --attach .agents/media/screenshot.png \
+  --id ui-feedback --tag design
+```
+
+Do this automatically whenever the user asks you to send an image to another model — don't ask them to provide the path manually. You already have it in your context.
 
 ## Important
 
@@ -105,9 +124,19 @@ conversation: .claude/model-calls/2026-03-27_ui-review.jsonl
 
 5. **Use `--tag` to categorize.** Tags make it easy to find past conversations later via grep.
 
+## Thinking Mode
+
+`--thinking high` or `--thinking xhigh` enables deep reasoning on models that support it (gpt5, codex). This is powerful for complex analysis but comes with tradeoffs:
+
+- **Reasoning progress streams to stderr.** When thinking is enabled, the script prints `[thinking] ...` lines to stderr showing the model's reasoning summary in real time. This lets you confirm the model is actively working — not stalled.
+- **Calls can take a long time.** This is normal. The script has no internal read timeout; it waits as long as the model needs.
+- **Set a generous Bash timeout.** The Bash tool's default 2-minute timeout will cut off thinking-mode calls. Use `timeout=600000` (10 minutes) as a minimum when calling with `--thinking`. There is no harm in setting it even higher.
+- **Tell the user it may take a moment.** Before running a thinking-mode call, let the user know you're about to make a call that may take a while.
+- **Use thinking mode intentionally.** Reserve `high`/`xhigh` for problems that genuinely benefit from extended reasoning — complex architecture decisions, tricky debugging, nuanced analysis. For straightforward questions, skip `--thinking` entirely or use `--model spark` for speed.
+
 ## Conversation Files
 
-Stored as JSONL in `.claude/model-calls/`. Each file has a metadata header with id, model, timestamps, tags, and exchange count. Use `--show` to read them in a friendly format.
+Stored as JSONL in `.agents/model-calls/`. Each file has a metadata header with id, model, timestamps, tags, and exchange count. Use `--show` to read them in a friendly format.
 
 ## First-Time OpenAI Setup
 

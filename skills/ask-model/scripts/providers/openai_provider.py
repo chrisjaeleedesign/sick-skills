@@ -111,8 +111,14 @@ def _get_valid_tokens():
 
 
 def _collect_stream_response(response):
-    """Collect text from an SSE stream response."""
+    """Collect text from an SSE stream response.
+
+    Prints reasoning summary progress to stderr so the agent/user can see
+    the model is actively thinking. Final output text goes to the return value.
+    """
     text_parts = []
+    reasoning_active = False
+
     for raw_line in response.iter_lines():
         line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
         if not line or not line.startswith("data: "):
@@ -127,12 +133,28 @@ def _collect_stream_response(response):
 
         event_type = event.get("type", "")
 
-        # Responses API streaming: output_text.delta events contain text chunks
-        if event_type == "response.output_text.delta":
+        # --- Reasoning progress (printed to stderr) ---
+        if event_type == "response.reasoning_summary_text.delta":
+            delta = event.get("delta", "")
+            if delta:
+                if not reasoning_active:
+                    print("[thinking] ", end="", file=sys.stderr, flush=True)
+                    reasoning_active = True
+                print(delta, end="", file=sys.stderr, flush=True)
+        elif event_type == "response.reasoning_summary_part.done":
+            if reasoning_active:
+                print(file=sys.stderr, flush=True)  # newline after summary
+                reasoning_active = False
+        elif event_type == "response.reasoning_summary_text.done":
+            if reasoning_active:
+                print(file=sys.stderr, flush=True)
+                reasoning_active = False
+
+        # --- Output text (collected for return) ---
+        elif event_type == "response.output_text.delta":
             delta = event.get("delta", "")
             if delta:
                 text_parts.append(delta)
-        # Also handle content_part delta format
         elif event_type == "response.content_part.delta":
             delta = event.get("delta", {})
             if isinstance(delta, dict) and delta.get("type") == "output_text":
@@ -148,9 +170,12 @@ def _collect_stream_response(response):
             resp = event.get("response", {})
             extracted = _extract_response_text(resp)
             if extracted:
-                # If we already have streaming parts, prefer those
                 if not text_parts:
                     text_parts.append(extracted)
+
+    # Close any open reasoning line
+    if reasoning_active:
+        print(file=sys.stderr, flush=True)
 
     if not text_parts:
         raise RuntimeError("No text received from streaming response")
@@ -181,8 +206,15 @@ def _messages_to_responses_format(messages):
 
 
 def _make_request(headers, payload):
-    """Make a streaming request to the Codex API, collect and return full response."""
-    return requests.post(API_URL, headers=headers, json=payload, timeout=120, stream=True)
+    """Make a streaming request to the Codex API.
+
+    No hard timeout — streaming keeps the connection alive as SSE events flow.
+    For thinking models, the initial response may take minutes before the first
+    event arrives, so we use a generous connect timeout with no read timeout.
+    """
+    return requests.post(
+        API_URL, headers=headers, json=payload, timeout=(30, None), stream=True
+    )
 
 
 def _extract_response_text(data):
@@ -254,7 +286,7 @@ def call(messages, model, system_prompt=None, attachments=None, thinking=None):
     }
 
     if thinking:
-        payload["reasoning"] = {"effort": thinking}
+        payload["reasoning"] = {"effort": thinking, "summary": "auto"}
 
     response = _make_request(headers, payload)
 

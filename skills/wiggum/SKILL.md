@@ -11,22 +11,22 @@ User's request: $ARGUMENTS
 
 Follow this decision tree exactly:
 
-### Step 1: Check for `.wiggum/` directory
+### Step 1: Check for `.agents/wiggum/` directory
 
-Use Glob to check for `.wiggum/IMPLEMENTATION_PLAN.md` in the current working directory.
+Use Glob to check for `.agents/wiggum/IMPLEMENTATION_PLAN.md` in the current working directory.
 
 ### Step 2: Route based on state
 
-**Regardless of `.wiggum/` state:**
+**Regardless of `.agents/wiggum/` state:**
 - If `$ARGUMENTS` is "help" → route to **HELP**
 
-**If `.wiggum/` does NOT exist:**
+**If `.agents/wiggum/` does NOT exist:**
 - If `$ARGUMENTS` is empty or blank → show **HELP** (below)
 - If `$ARGUMENTS` has content → route to **CREATE**
 
-**If `.wiggum/` exists:**
+**If `.agents/wiggum/` exists:**
 1. Parse `$ARGUMENTS` for intent signals — check for UPDATE first (regardless of task state)
-2. Read `.wiggum/IMPLEMENTATION_PLAN.md`
+2. Read `.agents/wiggum/IMPLEMENTATION_PLAN.md`
 3. Check if any unchecked tasks remain (lines matching `- [ ]`)
 
 | Condition | Arguments | Route |
@@ -70,7 +70,7 @@ Display when routed to HELP:
 > ```
 > /wiggum build a todo app with React and shadcn
 > ```
-> Wiggum will ask a few questions (tech stack, scope, UI references), then generate everything in a `.wiggum/` directory.
+> Wiggum will ask a few questions (tech stack, scope, UI references), then generate everything in a `.agents/wiggum/` directory.
 >
 > ### Commands
 >
@@ -96,7 +96,7 @@ Display when routed to HELP:
 > ### What Gets Created
 >
 > ```
-> .wiggum/
+> .agents/wiggum/
 >   SPECS/project_spec.md    — What to build (features, edge cases, acceptance criteria)
 >   IMPLEMENTATION_PLAN.md   — How to build it (phased task checklist)
 >   AGENTS.md                — Project conventions (commands, code style, component library)

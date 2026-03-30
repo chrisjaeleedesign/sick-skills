@@ -5,7 +5,7 @@ You are forking a prototype version with a new design direction.
 ## Context
 
 - User's direction: `$ARGUMENTS`
-- Manifest: `.design/manifest.json`
+- Manifest: `.agents/design/manifest.json`
 
 ## Steps
 
@@ -16,15 +16,15 @@ You are forking a prototype version with a new design direction.
    - Update `current` to point to the family being forked (it may have changed)
    - **Read `manifest.sections`** for context: sections with `"focus": true` represent the concepts the user is actively exploring. Mention what other focused concepts exist when generating the fork — this gives the subagent awareness of the broader design space.
 
-2. **Read the source prototype** at `.design/studio/app/prototypes/<family>/v<N>/page.tsx`.
+2. **Read the source prototype** at `.agents/design/studio/app/prototypes/<family>/v<N>/page.tsx`.
 
 3. **Gather feedback from Agentation** — if the agentation MCP tools are available (`agentation_get_all_pending`, `agentation_get_session`, etc.), check for pending annotations. These contain element-specific visual feedback the user left in-browser (selectors, bounding boxes, notes). Include them as context for the subagent.
 
-4. **Create directory:** `.design/studio/app/prototypes/<family>/v<N+1>/`
+4. **Create directory:** `.agents/design/studio/app/prototypes/<family>/v<N+1>/`
 
 5. **Generate v(N+1)** by spawning a subagent (general-purpose) with this task:
 
-   > Fork this prototype into a new version at `.design/studio/app/prototypes/<family>/v<N+1>/page.tsx`.
+   > Fork this prototype into a new version at `.agents/design/studio/app/prototypes/<family>/v<N+1>/page.tsx`.
    >
    > Current code (v<N>):
    > [include full current page.tsx]
@@ -62,15 +62,15 @@ You are forking a prototype version with a new design direction.
 
 8. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new version.
 
-9. **Log to journal:** Run from `.design/studio/`:
+9. **Log to journal:** Run from `.agents/design/studio/`:
    ```bash
-   cd .design/studio && npx tsx scripts/journal-log.ts --table event --type iterated \
+   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table event --type iterated \
      --body "Iterated <family name> v<source> → v<new> — <direction>" \
      --family <slug> --tags "iterated,v<new>"
    ```
    If the user provided explicit feedback that prompted this iteration (e.g., "too busy", "I prefer the sidebar approach"), also log a reaction insight:
    ```bash
-   cd .design/studio && npx tsx scripts/journal-log.ts --table insight --type reaction \
+   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table insight --type reaction \
      --body "<user's feedback that prompted this change>" \
      --family <slug> --tags "feedback" --status active
    ```
@@ -84,7 +84,7 @@ You are forking a prototype version with a new design direction.
 
     Skip for purely mechanical feedback ("make the font bigger", "swap these two elements").
 
-11. **Report:** Always end with a clickable link to every page that was created or changed. Read the port from `.design/manifest.json` settings. Format:
+11. **Report:** Always end with a clickable link to every page that was created or changed. Read the port from `.agents/design/manifest.json` settings. Format:
 
    > **New version:** [<family name> v<N+1>](http://localhost:<port>/prototypes/<family>/v<N+1>)
    > **Forked from:** [v<N>](http://localhost:<port>/prototypes/<family>/v<N>)

@@ -50,7 +50,10 @@ def call(messages, model, system_prompt=None, attachments=None, thinking=None):
     if thinking:
         payload["reasoning"] = {"effort": thinking}
 
-    response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
+    # No hard read timeout — thinking models can take arbitrarily long
+    response = requests.post(
+        API_URL, headers=headers, json=payload, timeout=(30, None)
+    )
 
     if response.status_code != 200:
         error_detail = response.text[:500]

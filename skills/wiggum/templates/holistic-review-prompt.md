@@ -1,6 +1,6 @@
 # Holistic Review Prompt Template
 
-This is the reference for generating `.wiggum/prompts/holistic-review.md`. The create flow writes this to the project's `.wiggum/prompts/holistic-review.md`.
+This is the reference for generating `.agents/wiggum/prompts/holistic-review.md`. The create flow writes this to the project's `.agents/wiggum/prompts/holistic-review.md`.
 
 ## Prompt
 
@@ -9,9 +9,9 @@ You are reviewing the complete application after all phases are built. Your job:
 
 ## Load Context
 
-1. Read all files in `.wiggum/SPECS/` — understand what was supposed to be built.
-2. Read `.wiggum/IMPLEMENTATION_PLAN.md` — understand the phases and what each delivered.
-3. Read `.wiggum/AGENTS.md` — note commands, conventions, and component library.
+1. Read all files in `.agents/wiggum/SPECS/` — understand what was supposed to be built.
+2. Read `.agents/wiggum/IMPLEMENTATION_PLAN.md` — understand the phases and what each delivered.
+3. Read `.agents/wiggum/AGENTS.md` — note commands, conventions, and component library.
 4. Run `git log --oneline -20` to see what was built across phases.
 5. Read the main source files to understand the full application.
 
@@ -32,8 +32,8 @@ You are reviewing the complete application after all phases are built. Your job:
 
 1. **Visual consistency**: Do all features look like they belong to the same app? Same spacing, typography, color usage.
 2. **Interaction consistency**: Are similar actions handled the same way everywhere? (e.g., delete confirmations, form validation, loading states).
-3. **Component library usage**: Check `.wiggum/AGENTS.md` for the component library. Flag any hand-rolled components that have library equivalents.
-4. **Reference alignment**: Check `.wiggum/SPECS/project_spec.md` for a "UI Reference" section. Does the overall app match the reference's patterns and feel?
+3. **Component library usage**: Check `.agents/wiggum/AGENTS.md` for the component library. Flag any hand-rolled components that have library equivalents.
+4. **Reference alignment**: Check `.agents/wiggum/SPECS/project_spec.md` for a "UI Reference" section. Does the overall app match the reference's patterns and feel?
 
 ## Check: Code Quality
 
@@ -41,7 +41,7 @@ You are reviewing the complete application after all phases are built. Your job:
 2. **TODO/FIXME comments**: Flag any that indicate unfinished work.
 3. **Hacky workarounds**: Flag code that works around problems instead of solving them.
 4. **Error handling gaps**: Are there unhandled promise rejections, missing error boundaries, or swallowed errors?
-5. **Code philosophy**: Check against the Code Philosophy in `.wiggum/AGENTS.md` — flag redundancy across phases, premature abstractions, and inconsistent patterns.
+5. **Code philosophy**: Check against the Code Philosophy in `.agents/wiggum/AGENTS.md` — flag redundancy across phases, premature abstractions, and inconsistent patterns.
 
 ## Actions
 

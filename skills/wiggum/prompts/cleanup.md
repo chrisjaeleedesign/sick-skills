@@ -6,7 +6,7 @@ User's request: $ARGUMENTS
 
 ## Step 1: Determine Version Number
 
-1. Check if `.wiggum/archive/` exists and list any version directories (v1, v2, v3...)
+1. Check if `.agents/wiggum/archive/` exists and list any version directories (v1, v2, v3...)
 2. If no archive directory exists, this is v1 completing
 3. Current version number = count of existing archive versions + 1
 
@@ -15,7 +15,7 @@ Let `NEXT_V` = the next version (e.g., "v2")
 
 ## Step 2: Verify All Tasks Complete
 
-Read `.wiggum/IMPLEMENTATION_PLAN.md` and confirm all tasks are checked (`[x]`).
+Read `.agents/wiggum/IMPLEMENTATION_PLAN.md` and confirm all tasks are checked (`[x]`).
 If unchecked tasks remain, tell the user:
 > There are still N unchecked tasks. Complete them first with `/wiggum run`, or manually check them off if they're no longer needed.
 
@@ -23,13 +23,13 @@ Then stop.
 
 ## Step 3: Archive Current Version
 
-Create `.wiggum/archive/$CURRENT_V/` with these contents:
+Create `.agents/wiggum/archive/$CURRENT_V/` with these contents:
 
-1. **Copy specs**: Copy the entire `.wiggum/SPECS/` directory → `.wiggum/archive/$CURRENT_V/SPECS/`
-2. **Copy plan**: Copy `.wiggum/IMPLEMENTATION_PLAN.md` → `.wiggum/archive/$CURRENT_V/IMPLEMENTATION_PLAN.md`
-3. **Copy completed**: Copy `.wiggum/COMPLETED.md` → `.wiggum/archive/$CURRENT_V/COMPLETED.md`
-4. **Copy logs**: Copy all `.wiggum/logs/*.md` files → `.wiggum/archive/$CURRENT_V/logs/` (skip if no logs exist)
-5. **Generate summary**: Create `.wiggum/archive/$CURRENT_V/summary.md`:
+1. **Copy specs**: Copy the entire `.agents/wiggum/SPECS/` directory → `.agents/wiggum/archive/$CURRENT_V/SPECS/`
+2. **Copy plan**: Copy `.agents/wiggum/IMPLEMENTATION_PLAN.md` → `.agents/wiggum/archive/$CURRENT_V/IMPLEMENTATION_PLAN.md`
+3. **Copy completed**: Copy `.agents/wiggum/COMPLETED.md` → `.agents/wiggum/archive/$CURRENT_V/COMPLETED.md`
+4. **Copy logs**: Copy all `.agents/wiggum/logs/*.md` files → `.agents/wiggum/archive/$CURRENT_V/logs/` (skip if no logs exist)
+5. **Generate summary**: Create `.agents/wiggum/archive/$CURRENT_V/summary.md`:
 
 ```markdown
 # $CURRENT_V Summary — [Version Name from ROADMAP.md]
@@ -51,7 +51,7 @@ Create `.wiggum/archive/$CURRENT_V/` with these contents:
 
 ## Step 4: Update ROADMAP.md
 
-Edit `.wiggum/ROADMAP.md`:
+Edit `.agents/wiggum/ROADMAP.md`:
 
 1. Read the current version name from the `## Current:` section
 2. Add or update a `## Completed` section with the archived version:
@@ -64,7 +64,7 @@ Edit `.wiggum/ROADMAP.md`:
 
 ## Step 5: Reset Working Files
 
-1. **Reset `.wiggum/IMPLEMENTATION_PLAN.md`**:
+1. **Reset `.agents/wiggum/IMPLEMENTATION_PLAN.md`**:
    ```markdown
    # Implementation Plan
 
@@ -81,22 +81,22 @@ Edit `.wiggum/ROADMAP.md`:
    _Updated by Wiggum loop iterations._
    ```
 
-2. **Reset `.wiggum/COMPLETED.md`**:
+2. **Reset `.agents/wiggum/COMPLETED.md`**:
    ```markdown
    # Completed Phases
 
    _Phases are archived here as they complete during loop execution._
    ```
 
-3. **Clear `.wiggum/logs/`**: Remove all log files from `.wiggum/logs/` (they're preserved in the archive)
+3. **Clear `.agents/wiggum/logs/`**: Remove all log files from `.agents/wiggum/logs/` (they're preserved in the archive)
 
-4. **Keep unchanged**: `.wiggum/AGENTS.md`, `.wiggum/loop.sh`, `.wiggum/prompts/` — these carry forward
+4. **Keep unchanged**: `.agents/wiggum/AGENTS.md`, `.agents/wiggum/loop.sh`, `.agents/wiggum/prompts/` — these carry forward
 
 ## Step 6: Commit the Archive
 
 Stage and commit all changes:
 ```
-git add .wiggum/
+git add .agents/wiggum/
 git commit -m "Archive $CURRENT_V — [version name]"
 ```
 
@@ -104,7 +104,7 @@ git commit -m "Archive $CURRENT_V — [version name]"
 
 If `$ARGUMENTS` describes the next version (contains feature descriptions, or starts with "v2:", "v3:", "next:"):
 
-> **$CURRENT_V archived!** Summary at `.wiggum/archive/$CURRENT_V/summary.md`.
+> **$CURRENT_V archived!** Summary at `.agents/wiggum/archive/$CURRENT_V/summary.md`.
 >
 > Now scaffolding $NEXT_V...
 
@@ -112,7 +112,7 @@ Then hand off to the CREATE flow — the calling SKILL.md will route to `prompts
 
 If `$ARGUMENTS` is empty or doesn't describe the next version:
 
-> **$CURRENT_V archived!** Summary at `.wiggum/archive/$CURRENT_V/summary.md`.
+> **$CURRENT_V archived!** Summary at `.agents/wiggum/archive/$CURRENT_V/summary.md`.
 >
 > What would you like to build for $NEXT_V? Describe the next version and I'll scaffold it:
 > `/wiggum v2: [describe what's next]`

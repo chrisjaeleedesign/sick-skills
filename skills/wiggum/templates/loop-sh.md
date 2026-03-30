@@ -1,15 +1,15 @@
 # loop.sh Template
 
-This is the reference template for generating `.wiggum/loop.sh`. The create flow should write this script to the project's `.wiggum/loop.sh` and make it executable.
+This is the reference template for generating `.agents/wiggum/loop.sh`. The create flow should write this script to the project's `.agents/wiggum/loop.sh` and make it executable.
 
 ## Script
 
 ```bash
 #!/bin/bash
 # Wiggum Loop — Headless worker execution
-# Usage: .wiggum/loop.sh [max_iterations]
+# Usage: .agents/wiggum/loop.sh [max_iterations]
 #
-# Runs from .wiggum/ directory, executes a configurable worker in PROJECT_ROOT.
+# Runs from .agents/wiggum/ directory, executes a configurable worker in PROJECT_ROOT.
 # Worker options:
 #   - Default: Claude CLI (`claude` command)
 #   - Override: set WIGGUM_WORKER_CMD to a command that accepts one argument: prompt file path
@@ -311,10 +311,10 @@ exit 1
 
 ## Key Adaptations from Original
 
-1. **Path resolution**: `SCRIPT_DIR` is `.wiggum/`, `PROJECT_ROOT` is its parent
+1. **Path resolution**: `SCRIPT_DIR` is `.agents/wiggum/`, `PROJECT_ROOT` is its parent
 2. **Worker runs from PROJECT_ROOT**: `cd "$PROJECT_ROOT"` before running `run_worker`
-3. **Logs to `.wiggum/logs/`**: Each run saved as `run-NNN.md`
-4. **Progress file**: Updated after each iteration at `.wiggum/logs/progress.md`
+3. **Logs to `.agents/wiggum/logs/`**: Each run saved as `run-NNN.md`
+4. **Progress file**: Updated after each iteration at `.agents/wiggum/logs/progress.md`
 5. **Phase-level commits**: Detects phase boundaries instead of committing per task
 6. **Git init**: Checks and initializes git if needed
 7. **Worker-agnostic execution**: `WIGGUM_WORKER_CMD` supports commands beyond Claude

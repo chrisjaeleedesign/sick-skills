@@ -121,7 +121,7 @@ def collect_attachments(attach_paths):
 
 def conversation_dir():
     """Get the model-calls directory in the current workspace."""
-    d = Path.cwd() / ".claude" / "model-calls"
+    d = Path.cwd() / ".agents" / "model-calls"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

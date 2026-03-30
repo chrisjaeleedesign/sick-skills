@@ -17,7 +17,7 @@ You are capturing a screenshot of the current prototype to use as a visual refer
 
 3. **Run capture script:**
    ```bash
-   cd .design/studio && npx tsx scripts/capture.ts --family <slug> --version <N> [--device <preset>]
+   cd .agents/design/studio && npx tsx scripts/capture.ts --family <slug> --version <N> [--device <preset>]
    ```
    This launches headless Chromium, navigates to the prototype in bare capture mode (no Design Studio chrome), and saves a clean screenshot.
 
@@ -33,7 +33,7 @@ You are capturing a screenshot of the current prototype to use as a visual refer
 
 If the capture script fails (e.g., Playwright not installed), fall back to manual browser automation:
 - Navigate to `http://localhost:3001/prototypes/<family>/v<N>?capture=true`
-- Take a screenshot and save to `.design/references/<family>-v<N>.png`
+- Take a screenshot and save to `.agents/design/references/<family>-v<N>.png`
 
 ## Constraints
 

@@ -5,7 +5,7 @@ You are trashing a prototype family the user is done exploring. Trashing hides i
 ## Context
 
 - User's input: `$ARGUMENTS`
-- Manifest: `.design/manifest.json`
+- Manifest: `.agents/design/manifest.json`
 
 ## Steps
 
@@ -21,15 +21,15 @@ You are trashing a prototype family the user is done exploring. Trashing hides i
 
 6. **Write updated manifest.**
 
-7. **Log to journal:** Run from `.design/studio/`:
+7. **Log to journal:** Run from `.agents/design/studio/`:
    ```bash
-   cd .design/studio && npx tsx scripts/journal-log.ts --table event --type archived \
+   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table event --type archived \
      --body "Archived <family name>" \
      --family <slug> --tags "archived"
    ```
    If the user explicitly killed a direction with reasoning, also log a decision:
    ```bash
-   cd .design/studio && npx tsx scripts/journal-log.ts --table insight --type decision \
+   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table insight --type decision \
      --body "<reason for killing the direction>" \
      --family <slug> --tags "killed" --status killed
    ```

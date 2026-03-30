@@ -1,7 +1,7 @@
 # Design Journal Conventions
 
 ## File
-`.design/journal.jsonl` — one JSON object per line, append-only.
+`.agents/design/journal.jsonl` — one JSON object per line, append-only.
 
 ## Entry Types
 - `preference` — design taste / hard constraint. Shapes all future work.

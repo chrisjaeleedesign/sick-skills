@@ -1,6 +1,6 @@
 # Create — Scaffold a Wiggum Loop
 
-Set up a `.wiggum/` development loop from the user's idea.
+Set up a `.agents/wiggum/` development loop from the user's idea.
 
 User's request: $ARGUMENTS
 
@@ -8,9 +8,9 @@ Follow this workflow exactly:
 
 ## Step 1: Detect Context
 
-**Check for existing `.wiggum/` directory:**
-- Use Glob to check for `.wiggum/IMPLEMENTATION_PLAN.md` in the current working directory
-- If `.wiggum/` already exists, STOP. Tell the user: "A `.wiggum/` loop already exists in this project. Use `/wiggum run` to continue, `/wiggum add ...` to extend the plan, or delete `.wiggum/` to start fresh."
+**Check for existing `.agents/wiggum/` directory:**
+- Use Glob to check for `.agents/wiggum/IMPLEMENTATION_PLAN.md` in the current working directory
+- If `.agents/wiggum/` already exists, STOP. Tell the user: "A `.agents/wiggum/` loop already exists in this project. Use `/wiggum run` to continue, `/wiggum add ...` to extend the plan, or delete `.agents/wiggum/` to start fresh."
 
 **Check for existing source code:**
 - Look for non-template source files (e.g., `src/`, `app/`, `lib/`, `*.py`, `*.ts`, `package.json` with real deps, `*.html`, `*.css`, `*.go`, `Cargo.toml`, `*.rs`, `*.java`)
@@ -33,8 +33,8 @@ Follow this workflow exactly:
 - Store the detected library for use in AGENTS.md
 
 **Check for version context:**
-- If `.wiggum/archive/` exists, this is scaffolding a new version after archival
-- Read `.wiggum/ROADMAP.md` and the latest archive's `summary.md` for context from previous versions
+- If `.agents/wiggum/archive/` exists, this is scaffolding a new version after archival
+- Read `.agents/wiggum/ROADMAP.md` and the latest archive's `summary.md` for context from previous versions
 
 ## Step 2: Gather Requirements
 
@@ -53,11 +53,11 @@ Be **opinionated** — suggest defaults and let the user override. Bias toward a
 
 **Skip questions entirely if $ARGUMENTS provides enough context.** The user can always refine after seeing the scaffold.
 
-## Step 3: Generate `.wiggum/` Directory
+## Step 3: Generate `.agents/wiggum/` Directory
 
 Create ALL of the following files. Write them completely — no placeholders or TODOs.
 
-### 3a. `.wiggum/ROADMAP.md`
+### 3a. `.agents/wiggum/ROADMAP.md`
 
 ```markdown
 # Product Roadmap
@@ -79,7 +79,7 @@ If this is a new version (v2+), adjust the structure:
 - Add a `## Completed` section with previous version summaries linking to their archive
 - Reference v1 context where relevant in the new specs (e.g., "building on the counter app from v1")
 
-### 3b. `.wiggum/SPECS/project_spec.md`
+### 3b. `.agents/wiggum/SPECS/project_spec.md`
 
 ```markdown
 # [Project Name] — Specification
@@ -119,7 +119,7 @@ Features MUST be detailed enough for a headless worker agent to implement withou
 - Edge cases (empty states, error conditions, boundary values)
 - Acceptance criteria (how to verify it works)
 
-### 3c. `.wiggum/IMPLEMENTATION_PLAN.md`
+### 3c. `.agents/wiggum/IMPLEMENTATION_PLAN.md`
 
 ```markdown
 # Implementation Plan
@@ -167,7 +167,7 @@ Phase design principles:
 - A phase is too big if it touches more than ~3 unrelated concerns
 - A phase is too small if its output can't be meaningfully tested in isolation
 
-### 3d. `.wiggum/COMPLETED.md`
+### 3d. `.agents/wiggum/COMPLETED.md`
 
 ```markdown
 # Completed Phases
@@ -175,7 +175,7 @@ Phase design principles:
 _Phases are archived here as they complete during loop execution._
 ```
 
-### 3e. `.wiggum/AGENTS.md`
+### 3e. `.agents/wiggum/AGENTS.md`
 
 ```markdown
 # Agent Conventions
@@ -203,14 +203,14 @@ _Phases are archived here as they complete during loop execution._
 
 ## Paths
 
-- All specs and plans live in `.wiggum/`
+- All specs and plans live in `.agents/wiggum/`
 - Source code lives in the project root
 - Tests live in [test directory]
 
 ## File Structure
 
 - `[directory]`: [Description]
-- `.wiggum/`: Loop infrastructure (specs, plan, logs)
+- `.agents/wiggum/`: Loop infrastructure (specs, plan, logs)
 
 ## Code Philosophy
 
@@ -235,46 +235,46 @@ Resolve the templates directory from the loaded Wiggum skill bundle:
 
 Set `TEMPLATE_DIR` to that resolved path before generating template-derived files.
 
-### 3g. `.wiggum/loop.sh`
+### 3g. `.agents/wiggum/loop.sh`
 
-Read the template at `${TEMPLATE_DIR}/loop-sh.md`. Extract the bash script from the code block and write it to `.wiggum/loop.sh`. Then make it executable:
+Read the template at `${TEMPLATE_DIR}/loop-sh.md`. Extract the bash script from the code block and write it to `.agents/wiggum/loop.sh`. Then make it executable:
 
 ```bash
-chmod +x .wiggum/loop.sh
+chmod +x .agents/wiggum/loop.sh
 ```
 
-### 3h. `.wiggum/prompts/loop.md`
+### 3h. `.agents/wiggum/prompts/loop.md`
 
-Read the template at `${TEMPLATE_DIR}/loop-prompt.md`. Extract the prompt from the code block and write it to `.wiggum/prompts/loop.md`.
+Read the template at `${TEMPLATE_DIR}/loop-prompt.md`. Extract the prompt from the code block and write it to `.agents/wiggum/prompts/loop.md`.
 
-### 3i. `.wiggum/prompts/cleanup.md`
+### 3i. `.agents/wiggum/prompts/cleanup.md`
 
-Read the template at `${TEMPLATE_DIR}/cleanup-prompt.md`. Extract the prompt and write it to `.wiggum/prompts/cleanup.md`.
+Read the template at `${TEMPLATE_DIR}/cleanup-prompt.md`. Extract the prompt and write it to `.agents/wiggum/prompts/cleanup.md`.
 
-### 3j. `.wiggum/prompts/review.md`
+### 3j. `.agents/wiggum/prompts/review.md`
 
-Read the template at `${TEMPLATE_DIR}/review-prompt.md`. Extract the prompt and write it to `.wiggum/prompts/review.md`.
+Read the template at `${TEMPLATE_DIR}/review-prompt.md`. Extract the prompt and write it to `.agents/wiggum/prompts/review.md`.
 
-### 3k. `.wiggum/prompts/holistic-review.md`
+### 3k. `.agents/wiggum/prompts/holistic-review.md`
 
-Read the template at `${TEMPLATE_DIR}/holistic-review-prompt.md`. Extract the prompt from the code block and write it to `.wiggum/prompts/holistic-review.md`.
+Read the template at `${TEMPLATE_DIR}/holistic-review-prompt.md`. Extract the prompt from the code block and write it to `.agents/wiggum/prompts/holistic-review.md`.
 
-### 3l. `.wiggum/logs/` directory and `.wiggum/.gitignore`
+### 3l. `.agents/wiggum/logs/` directory and `.agents/wiggum/.gitignore`
 
-Create the logs directory (an empty directory). Write `.wiggum/.gitignore`:
+Create the logs directory (an empty directory). Write `.agents/wiggum/.gitignore`:
 
 ```
 logs/
 ```
 
-This ensures log files are not committed to git but everything else in `.wiggum/` is tracked.
+This ensures log files are not committed to git but everything else in `.agents/wiggum/` is tracked.
 
 ## Step 4: Pre-loop Spec Verification
 
 After generating all files, perform an inline spec quality check:
 
-1. Read `.wiggum/SPECS/project_spec.md`
-2. Read `.wiggum/IMPLEMENTATION_PLAN.md`
+1. Read `.agents/wiggum/SPECS/project_spec.md`
+2. Read `.agents/wiggum/IMPLEMENTATION_PLAN.md`
 3. Check for:
    - **Completeness**: Are all features described with enough detail to implement headlessly?
    - **Ambiguity**: Are there requirements that could be interpreted multiple ways?
@@ -291,10 +291,10 @@ Present a summary:
 
 > **Wiggum loop scaffolded!** Here's what was created:
 >
-> - **Spec**: `.wiggum/SPECS/project_spec.md` — [brief summary]
-> - **Plan**: `.wiggum/IMPLEMENTATION_PLAN.md` — [N phases, M total tasks]
-> - **Conventions**: `.wiggum/AGENTS.md` — [stack summary]
-> - **Roadmap**: `.wiggum/ROADMAP.md` — v1 scoped
+> - **Spec**: `.agents/wiggum/SPECS/project_spec.md` — [brief summary]
+> - **Plan**: `.agents/wiggum/IMPLEMENTATION_PLAN.md` — [N phases, M total tasks]
+> - **Conventions**: `.agents/wiggum/AGENTS.md` — [stack summary]
+> - **Roadmap**: `.agents/wiggum/ROADMAP.md` — v1 scoped
 >
 > **Spec quality report**:
 > [List any concerns with severity, or "Specs look solid — ready to build."]

@@ -14,7 +14,7 @@ Open-ended exploration to understand a topic, codebase area, or concept before m
 ### Phase 1: Frame
 1. Clarify the topic with user
 2. Identify what we're trying to understand
-3. Create discussion file in `.claude/discussions/active/`
+3. Create discussion file in `.agents/discussions/active/`
 4. **Gate:** "I understand the topic. Ready to start exploring?"
 
 ### Phase 2: Explore
