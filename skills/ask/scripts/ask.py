@@ -16,96 +16,33 @@ Usage:
 """
 
 import argparse
-import base64
 import hashlib
-import importlib
 import json
-import mimetypes
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-
-import yaml
-from dotenv import load_dotenv
 
 # Resolve real path (through symlinks) to find repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
 REPO_ROOT = SKILL_DIR.parent.parent  # skills/ask -> skills -> repo root
 
+# Add shared scripts to path for imports
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from core import (
+    call_model,
+    collect_attachments,
+    load_config,
+    load_env,
+    resolve_content,
+    resolve_model,
+    PROVIDERS,
+)
+from messages import build_messages_for_api
+
 # Load .env from repo root
-load_dotenv(REPO_ROOT / ".env")
-
-# Add scripts dir to path for provider imports
-sys.path.insert(0, str(SCRIPT_DIR))
-
-PROVIDERS = {
-    "openai": "providers.openai_provider",
-    "openrouter": "providers.openrouter",
-}
-
-# Approximate token threshold for triggering summarization.
-# ~4 chars per token is a rough heuristic. When history exceeds this,
-# older exchanges get summarized to save tokens.
-SUMMARY_CHAR_THRESHOLD = 80000  # ~20000 tokens
-RECENT_EXCHANGES_TO_KEEP = 4
-
-
-def load_config():
-    """Load config.yaml from skill directory."""
-    config_path = SKILL_DIR / "config.yaml"
-    if not config_path.exists():
-        print(f"Error: config not found at {config_path}", file=sys.stderr)
-        sys.exit(2)
-    with open(config_path) as f:
-        return yaml.safe_load(f)
-
-
-def resolve_model(model_str, config):
-    """Resolve a model alias or full ID to (provider, model_id)."""
-    aliases = config.get("aliases", {})
-
-    # Check aliases first
-    if model_str in aliases:
-        full_id = aliases[model_str]
-    else:
-        full_id = model_str
-
-    # Split provider/model
-    if "/" not in full_id:
-        print(
-            f"Error: cannot resolve model '{model_str}'. "
-            f"Use an alias ({', '.join(aliases.keys())}) or provider/model format.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    parts = full_id.split("/", 1)
-    provider = parts[0]
-    model_id = parts[1]
-
-    if provider not in PROVIDERS:
-        print(
-            f"Error: unknown provider '{provider}'. Known: {', '.join(PROVIDERS.keys())}",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    return provider, model_id
-
-
-def resolve_content(content_arg):
-    """Resolve --content value: stdin, file path, or literal string."""
-    if content_arg == "-":
-        return sys.stdin.read()
-
-    content_path = Path(content_arg)
-    if content_path.exists() and content_path.is_file():
-        return content_path.read_text()
-
-    # Treat as literal string
-    return content_arg
+load_env(REPO_ROOT)
 
 
 def resolve_persona(persona_arg):
@@ -120,21 +57,6 @@ def resolve_persona(persona_arg):
 
     # Treat as inline persona description
     return persona_arg
-
-
-def collect_attachments(attach_paths):
-    """Validate attachment paths and detect mime types."""
-    attachments = []
-    for path_str in (attach_paths or []):
-        path = Path(path_str)
-        if not path.exists():
-            print(f"Warning: attachment not found: {path_str}", file=sys.stderr)
-            continue
-        mime, _ = mimetypes.guess_type(str(path))
-        if mime is None:
-            mime = "application/octet-stream"
-        attachments.append({"path": str(path.resolve()), "mime": mime})
-    return attachments
 
 
 # --- Conversation file management ---
@@ -319,183 +241,6 @@ def show_conversation(path):
             print(f"**{label}:**\n{content}\n")
 
 
-# --- Context assembly ---
-
-
-def estimate_chars(messages):
-    """Rough character count of message content."""
-    total = 0
-    for msg in messages:
-        total += len(msg.get("content", ""))
-    return total
-
-
-def summarize_messages(messages, provider_name, config):
-    """Summarize a list of messages into a concise paragraph.
-
-    Calls the fastest available model to generate a summary.
-    """
-    # Build a text representation of the messages to summarize
-    text_parts = []
-    for msg in messages:
-        role = msg.get("type", "unknown")
-        sender = msg.get("sender", role)
-        persona = msg.get("persona")
-        label = sender
-        if persona:
-            label = f"{sender} [{persona}]"
-        text_parts.append(f"{label}: {msg.get('content', '')}")
-
-    conversation_text = "\n\n".join(text_parts)
-
-    summary_prompt = (
-        "Summarize this conversation concisely. Capture the key points, "
-        "decisions made, and any important context. Keep it under 200 words.\n\n"
-        f"{conversation_text}"
-    )
-
-    # Use spark if available (fastest), otherwise default model
-    try:
-        spark_provider, spark_model = resolve_model("spark", config)
-        provider_module = importlib.import_module(PROVIDERS[spark_provider])
-        summary = provider_module.call(
-            messages=[{"role": "user", "content": summary_prompt}],
-            model=spark_model,
-            thinking=None,
-        )
-        return summary.strip()
-    except Exception as e:
-        print(f"Warning: summarization failed: {e}", file=sys.stderr)
-        # Fallback: simple truncation
-        return conversation_text[:500] + "..."
-
-
-def build_messages_for_api(messages, system_prompt, current_content,
-                           current_attachments, config=None, conv_path=None):
-    """Convert stored messages + current input into provider-ready format.
-
-    Uses summarize + recent strategy for long conversations:
-    - If history is short, send everything
-    - If history is long, summarize older exchanges and keep recent ones verbatim
-
-    System prompt is per-message (from the current persona), not from history.
-    Historical messages are sent as clean user/assistant pairs — no metadata.
-    """
-    api_messages = []
-
-    # System prompt for THIS message only (persona + system-prompt)
-    if system_prompt:
-        api_messages.append({"role": "system", "content": system_prompt})
-
-    # Check if we need to summarize
-    total_chars = estimate_chars(messages)
-
-    if total_chars > SUMMARY_CHAR_THRESHOLD and len(messages) > RECENT_EXCHANGES_TO_KEEP * 2:
-        # Split into old (to summarize) and recent (to keep verbatim)
-        recent_cutoff = len(messages) - (RECENT_EXCHANGES_TO_KEEP * 2)
-        old_messages = messages[:recent_cutoff]
-        recent_messages = messages[recent_cutoff:]
-
-        # Generate or reuse summary
-        if config and conv_path:
-            meta, _ = load_conversation(conv_path)
-            existing_summary = meta.get("summary")
-
-            if existing_summary:
-                summary = existing_summary
-            else:
-                summary = summarize_messages(old_messages, None, config)
-                update_summary(conv_path, summary)
-        else:
-            summary = summarize_messages(old_messages, None, config or load_config())
-
-        # Add summary as context
-        api_messages.append({
-            "role": "system",
-            "content": f"Summary of earlier conversation:\n{summary}",
-        })
-
-        # Add recent messages verbatim
-        history_to_send = recent_messages
-    else:
-        history_to_send = messages
-
-    # Add historical messages as clean user/assistant pairs
-    for msg in history_to_send:
-        role = "user" if msg["type"] == "user" else "assistant"
-        content_parts = []
-
-        # Text content
-        if msg.get("content"):
-            content_parts.append({"type": "text", "text": msg["content"]})
-
-        # Re-encode historical attachments
-        for att in msg.get("attachments", []):
-            att_path = Path(att["path"])
-            if not att_path.exists():
-                print(
-                    f"Warning: historical attachment missing: {att['path']}",
-                    file=sys.stderr,
-                )
-                continue
-            encoded = encode_attachment(att["path"], att["mime"])
-            if encoded:
-                content_parts.append(encoded)
-
-        # If only text and no attachments, use simple string format
-        if len(content_parts) == 1 and content_parts[0]["type"] == "text":
-            api_messages.append({"role": role, "content": content_parts[0]["text"]})
-        elif content_parts:
-            api_messages.append({"role": role, "content": content_parts})
-
-    # Current user message
-    current_parts = []
-    if current_content:
-        current_parts.append({"type": "text", "text": current_content})
-    for att in current_attachments:
-        encoded = encode_attachment(att["path"], att["mime"])
-        if encoded:
-            current_parts.append(encoded)
-
-    if len(current_parts) == 1 and current_parts[0]["type"] == "text":
-        api_messages.append({"role": "user", "content": current_parts[0]["text"]})
-    elif current_parts:
-        api_messages.append({"role": "user", "content": current_parts})
-
-    return api_messages
-
-
-def encode_attachment(file_path, mime_type):
-    """Encode a file as a base64 content part for the API."""
-    path = Path(file_path)
-    if not path.exists():
-        return None
-
-    if mime_type.startswith("image/"):
-        data = base64.b64encode(path.read_bytes()).decode("utf-8")
-        return {
-            "type": "image_url",
-            "image_url": {"url": f"data:{mime_type};base64,{data}"},
-        }
-    elif mime_type.startswith("video/"):
-        data = base64.b64encode(path.read_bytes()).decode("utf-8")
-        return {
-            "type": "video_url",
-            "video_url": {"url": f"data:{mime_type};base64,{data}"},
-        }
-    else:
-        # For other file types, include as text if possible
-        try:
-            text = path.read_text()
-            return {"type": "text", "text": f"[File: {path.name}]\n{text}"}
-        except (UnicodeDecodeError, ValueError):
-            print(
-                f"Warning: cannot encode non-media attachment: {file_path}",
-                file=sys.stderr,
-            )
-            return None
-
-
 def parse_args():
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
@@ -583,7 +328,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    config = load_config()
+    config = load_config(SKILL_DIR / "config.yaml")
 
     # --- Handle --show ---
     if args.show:
@@ -658,21 +403,22 @@ def main():
         )
 
     # --- Build API messages ---
+    # For continuing conversations, pass summary cache and call_model for summarization
+    summary_cache = None
+    if args.continue_path or args.branch:
+        meta, _ = load_conversation(conv_path)
+        summary_cache = {"summary": meta.get("summary")}
+
     api_messages = build_messages_for_api(
         history_messages, system_prompt, content, attachments,
-        config=config, conv_path=conv_path,
+        config=config,
+        summary_cache=summary_cache,
+        call_model_fn=call_model,
     )
 
     # --- Call provider ---
     try:
-        provider_module = importlib.import_module(PROVIDERS[provider_name])
-        response_text = provider_module.call(
-            messages=api_messages,
-            model=model_id,
-            system_prompt=None,  # Already included in api_messages
-            attachments=[],  # Already encoded in api_messages
-            thinking=args.thinking,
-        )
+        response_text = call_model(model_str, config, api_messages, thinking=args.thinking)
     except Exception as e:
         print(f"Error calling {provider_name}/{model_id}: {e}", file=sys.stderr)
         sys.exit(1)
