@@ -2,3 +2,5 @@ requests
 python-dotenv
 PyJWT
 pyyaml
+flask
+flask-cors

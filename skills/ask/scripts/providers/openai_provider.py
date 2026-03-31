@@ -316,3 +316,106 @@ def call(messages, model, system_prompt=None, attachments=None, thinking=None):
 
     # Parse SSE stream and collect text
     return _collect_stream_response(response)
+
+
+def call_streaming(messages, model, thinking=None):
+    """
+    Call OpenAI via Codex auth tokens with streaming. Yields dicts:
+      {"type": "reasoning", "content": "..."}
+      {"type": "text", "content": "..."}
+      {"type": "done"}
+
+    Args:
+        messages: List of message dicts in OpenAI chat format.
+        model: OpenAI model ID.
+        thinking: Reasoning effort level.
+    """
+    tokens = _get_valid_tokens()
+    access_token = tokens["access_token"]
+    account_id = tokens.get("account_id") or _extract_account_id(access_token)
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "responses=experimental",
+    }
+    if account_id:
+        headers["chatgpt-account-id"] = account_id
+
+    instructions, input_items = _messages_to_responses_format(messages)
+
+    payload = {
+        "model": model,
+        "instructions": instructions,
+        "input": input_items,
+        "store": False,
+        "stream": True,
+    }
+
+    if thinking:
+        payload["reasoning"] = {"effort": thinking, "summary": "auto"}
+
+    response = _make_request(headers, payload)
+
+    if response.status_code == 401:
+        tokens = _run_codex_login()
+        if tokens is None:
+            raise RuntimeError("Re-authentication failed.")
+        headers["Authorization"] = f"Bearer {tokens['access_token']}"
+        account_id = tokens.get("account_id") or _extract_account_id(
+            tokens["access_token"]
+        )
+        if account_id:
+            headers["chatgpt-account-id"] = account_id
+        response = _make_request(headers, payload)
+
+    if response.status_code != 200:
+        error_detail = response.text[:500]
+        raise RuntimeError(
+            f"OpenAI API error {response.status_code}: {error_detail}"
+        )
+
+    for raw_line in response.iter_lines():
+        line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+        if not line or not line.startswith("data: "):
+            continue
+        data_str = line[6:]
+        if data_str == "[DONE]":
+            break
+        try:
+            event = json.loads(data_str)
+        except json.JSONDecodeError:
+            continue
+
+        event_type = event.get("type", "")
+
+        # Reasoning summary events
+        if event_type == "response.reasoning_summary_text.delta":
+            delta = event.get("delta", "")
+            if delta:
+                yield {"type": "reasoning", "content": delta}
+
+        # Output text events
+        elif event_type == "response.output_text.delta":
+            delta = event.get("delta", "")
+            if delta:
+                yield {"type": "text", "content": delta}
+        elif event_type == "response.content_part.delta":
+            delta = event.get("delta", {})
+            if isinstance(delta, dict) and delta.get("type") == "output_text":
+                text = delta.get("text", "")
+                if text:
+                    yield {"type": "text", "content": text}
+
+        # Chat completions streaming fallback
+        elif "choices" in event:
+            for choice in event.get("choices", []):
+                delta = choice.get("delta", {})
+                if "content" in delta and delta["content"]:
+                    yield {"type": "text", "content": delta["content"]}
+
+        # Response completed — only extract if we got no streaming deltas
+        elif event_type == "response.completed":
+            pass  # Text already yielded via delta events
+
+    yield {"type": "done"}

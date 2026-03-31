@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface-0: #0f1117;
+  --color-surface-1: #16181f;
+  --color-surface-2: #1e2028;
+  --color-surface-3: #262830;
+  --color-surface-4: #2e3038;
+  --color-border: #2e3038;
+  --color-border-subtle: #23252d;
+  --color-text-primary: #e8eaed;
+  --color-text-secondary: #9aa0a8;
+  --color-text-muted: #636970;
+  --color-accent: #4f8ff7;
+  --color-accent-hover: #6ba0f8;
+  --color-accent-dim: #1a2a4a;
+  --color-user-bubble: #1c3a6e;
+  --color-user-bubble-text: #d0e0ff;
+  --color-assistant-bubble: #1e2028;
+  --color-assistant-bubble-text: #e0e2e6;
+  --color-badge-persona: #2d3a2d;
+  --color-badge-persona-text: #7ec87e;
+  --color-badge-model: #2a2d3a;
+  --color-badge-model-text: #8a9dcc;
+  --color-badge-tag: #2d2a2a;
+  --color-badge-tag-text: #cc9a8a;
+  --color-danger: #e5534b;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--color-surface-0);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-4);
+}
+
+/* Markdown content inside messages */
+.markdown-body {
+  line-height: 1.65;
+  font-size: 0.9375rem;
+}
+.markdown-body p {
+  margin: 0 0 0.75em;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.markdown-body pre {
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  margin: 0.75em 0;
+}
+.markdown-body code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+.markdown-body :not(pre) > code {
+  background: var(--color-surface-3);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.markdown-body li {
+  margin: 0.25em 0;
+}
+.markdown-body blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 0.75em 0;
+  padding: 0.25em 1em;
+  color: var(--color-text-secondary);
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 1em 0 0.5em;
+  font-weight: 600;
+}
+.markdown-body h1 { font-size: 1.25em; }
+.markdown-body h2 { font-size: 1.125em; }
+.markdown-body h3 { font-size: 1em; }
+.markdown-body a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1em 0;
+}
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75em 0;
+  font-size: 0.875em;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--color-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.markdown-body th {
+  background: var(--color-surface-2);
+  font-weight: 600;
+}
+
+/* Textarea reset */
+textarea {
+  font-family: inherit;
+}
+
+/* Pulse animation for streaming cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.streaming-cursor::after {
+  content: "\25AE";
+  animation: blink 1s ease-in-out infinite;
+  color: var(--color-accent);
+  margin-left: 2px;
+}
