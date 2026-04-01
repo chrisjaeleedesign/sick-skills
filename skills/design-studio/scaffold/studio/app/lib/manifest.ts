@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "fs";
+import { join, basename } from "path";
 import { DESIGN_ROOT } from "./db";
 import type { ThoughtColor } from "./types";
 
@@ -51,9 +51,56 @@ export interface Manifest {
   settings: Settings;
 }
 
-const MANIFEST_PATH = join(DESIGN_ROOT, "manifest.json");
+// ---------------------------------------------------------------------------
+// Paths
+// ---------------------------------------------------------------------------
 
+const PROJECTS_DIR = join(DESIGN_ROOT, "projects");
+const LEGACY_MANIFEST_PATH = join(DESIGN_ROOT, "manifest.json");
 const DEFAULT_SETTINGS: Settings = { port: 3001, showThumbnails: false };
+
+function projectPath(project: string): string {
+  return join(PROJECTS_DIR, `${project}.json`);
+}
+
+// ---------------------------------------------------------------------------
+// Project management
+// ---------------------------------------------------------------------------
+
+export function listProjects(): string[] {
+  ensureProjectsDir();
+  return readdirSync(PROJECTS_DIR)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => basename(f, ".json"))
+    .sort();
+}
+
+export function createProject(name: string): Manifest {
+  ensureProjectsDir();
+  const manifest: Manifest = {
+    current: null,
+    sections: [],
+    families: {},
+    settings: DEFAULT_SETTINGS,
+  };
+  writeFileSync(projectPath(name), JSON.stringify(manifest, null, 2) + "\n");
+  return manifest;
+}
+
+function ensureProjectsDir(): void {
+  if (!existsSync(PROJECTS_DIR)) {
+    mkdirSync(PROJECTS_DIR, { recursive: true });
+  }
+  // Migrate legacy manifest.json → projects/default.json
+  if (existsSync(LEGACY_MANIFEST_PATH) && !existsSync(projectPath("default"))) {
+    const raw = readFileSync(LEGACY_MANIFEST_PATH, "utf-8");
+    writeFileSync(projectPath("default"), raw);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Read / Write
+// ---------------------------------------------------------------------------
 
 /** Raw JSON shape before validation/migration */
 interface RawManifest {
@@ -93,9 +140,11 @@ function migrateSections(raw: RawManifest): Section[] {
   });
 }
 
-export function readManifest(): Manifest {
+export function readManifest(project: string = "default"): Manifest {
+  ensureProjectsDir();
+  const path = projectPath(project);
   try {
-    const raw: RawManifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
+    const raw: RawManifest = JSON.parse(readFileSync(path, "utf-8"));
     const needsMigration = raw.sections?.some((s) => s.familySlugs && !s.grid);
     const manifest: Manifest = {
       current: raw.current ?? null,
@@ -103,13 +152,14 @@ export function readManifest(): Manifest {
       families: raw.families ?? {},
       settings: { ...DEFAULT_SETTINGS, ...raw.settings },
     };
-    if (needsMigration) writeManifest(manifest);
+    if (needsMigration) writeManifest(manifest, project);
     return manifest;
   } catch {
     return { current: null, sections: [], families: {}, settings: DEFAULT_SETTINGS };
   }
 }
 
-export function writeManifest(manifest: Manifest): void {
-  writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n");
+export function writeManifest(manifest: Manifest, project: string = "default"): void {
+  ensureProjectsDir();
+  writeFileSync(projectPath(project), JSON.stringify(manifest, null, 2) + "\n");
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -9,16 +10,11 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  useDraggable,
-  useDroppable,
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
-  Check,
-  Pencil,
   Target,
   Plus,
   Minus,
@@ -38,161 +34,22 @@ import { FamilyCard } from "./family-card";
 import { GallerySidebar } from "./gallery-sidebar";
 import { Separator } from "@/app/components/badges";
 import { useDragSelect } from "@/app/lib/use-drag-select";
-
-// ---------------------------------------------------------------------------
-// Inline-editable section name
-// ---------------------------------------------------------------------------
-
-function SectionName({
-  name,
-  onRename,
-  autoEdit,
-}: {
-  name: string;
-  onRename: (next: string) => void;
-  autoEdit?: boolean;
-}) {
-  const [editing, setEditing] = useState(autoEdit ?? false);
-  const [value, setValue] = useState(name);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { if (autoEdit) setEditing(true); }, [autoEdit]);
-  useEffect(() => { if (!editing) setValue(name); }, [name, editing]);
-  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
-
-  if (editing) {
-    return (
-      <form
-        className="flex items-center gap-1"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const trimmed = value.trim();
-          if (trimmed) onRename(trimmed);
-          setEditing(false);
-        }}
-      >
-        <input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={() => {
-            const trimmed = value.trim();
-            if (trimmed) onRename(trimmed);
-            setEditing(false);
-          }}
-          className="rounded border border-border bg-surface-2 px-2 py-0.5 text-sm font-medium text-text-primary outline-none focus:ring-1 focus:ring-primary"
-        />
-        <button type="submit" className="text-text-tertiary hover:text-primary">
-          <Check className="h-3.5 w-3.5" />
-        </button>
-      </form>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-sm font-medium text-text-secondary">{name}</span>
-      <button
-        onClick={() => { setValue(name); setEditing(true); }}
-        className="text-text-tertiary opacity-0 transition-opacity group-hover/section:opacity-100 hover:text-text-secondary"
-      >
-        <Pencil className="h-3 w-3" />
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sortable section wrapper
-// ---------------------------------------------------------------------------
-
-function SortableSection({ id, children }: { id: string; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isOver } = useSortable({ id: `section:${id}` });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-  return (
-    <div ref={setNodeRef} style={style} className={isOver ? "border-t-2 border-accent-blue" : "border-t-2 border-transparent"}>
-      {children({ ...attributes, ...listeners })}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Grid primitives
-// ---------------------------------------------------------------------------
-
-function DroppableCell({ id, children }: { id: string; children?: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`min-h-[120px] rounded-lg border transition-colors ${
-        isOver ? "border-primary/40 bg-primary/5"
-          : children ? "border-transparent" : "border-dashed border-border"
-      }`}
-    >
-      {children}
-    </div>
-  );
-}
-
-function DraggableCard({ slug, children }: { slug: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: slug });
-  return (
-    <div ref={setNodeRef} {...attributes} {...listeners} data-family-slug={slug}
-      className={`cursor-grab touch-none active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}>
-      {children}
-    </div>
-  );
-}
-
-function GutterRight({ sectionId, row }: { sectionId: string; row: number }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `${sectionId}:gutter-right:${row}` });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`min-h-[120px] flex items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
-        isOver
-          ? "border-primary/40 bg-primary/5"
-          : "border-transparent hover:border-border"
-      }`}
-    >
-      <Plus className="h-3 w-3 text-text-tertiary opacity-0 transition-opacity group-hover/section:opacity-100" />
-    </div>
-  );
-}
-
-function GutterBottom({ sectionId, col }: { sectionId: string; col: number }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `${sectionId}:gutter-bottom:${col}` });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`h-8 rounded-lg border-2 border-dashed transition-colors ${
-        isOver ? "border-primary/40 bg-primary/5" : "border-transparent"
-      }`}
-    />
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Grid helpers
-// ---------------------------------------------------------------------------
-
-function canRemoveDimension(section: Section, axis: "row" | "col"): { allowed: boolean; reason: string } {
-  const size = axis === "row" ? section.rows : section.columns;
-  if (size <= 1) return { allowed: false, reason: `Minimum 1 ${axis}` };
-  const last = size - 1;
-  for (let i = 0; i < (axis === "row" ? section.columns : section.rows); i++) {
-    const key = axis === "row" ? `${last}:${i}` : `${i}:${last}`;
-    if (section.grid[key]) return { allowed: false, reason: `Last ${axis} has cards — move them first` };
-  }
-  return { allowed: true, reason: "" };
-}
+import {
+  SectionName,
+  SortableSection,
+  DroppableCell,
+  DraggableCard,
+  GutterRight,
+  GutterBottom,
+  canRemoveDimension,
+} from "./gallery-primitives";
 
 // ---------------------------------------------------------------------------
 // Gallery (main export)
 // ---------------------------------------------------------------------------
 
-export function Gallery({ manifest }: { manifest: Manifest }) {
+export function Gallery({ manifest, project = "default", projects = [] }: { manifest: Manifest; project?: string; projects?: string[] }) {
+  const router = useRouter();
   const [sections, setSections] = useState<Section[]>(manifest.sections);
   const [families, setFamilies] = useState<Record<string, Family>>(manifest.families);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -211,6 +68,17 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
   const { selectionRect, handleMouseDown: handleDragSelectMouseDown } = useDragSelect(mainRef, setSelectedSlugs);
 
   useEffect(() => setMounted(true), []);
+
+  // Reset all state when project changes (manifest prop updates from server)
+  useEffect(() => {
+    setSections(manifest.sections);
+    setFamilies(manifest.families);
+    setShowThumbnails(manifest.settings.showThumbnails);
+    setVisibleSections(new Set(manifest.sections.map((s) => s.id)));
+    setSelectedSlugs(new Set());
+    setEditingSectionId(null);
+    lastSelectedRef.current = null;
+  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close filter dropdown on outside click
   useEffect(() => {
@@ -248,7 +116,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
     if (updates.settings?.showThumbnails !== undefined)
       setShowThumbnails(updates.settings.showThumbnails);
     pendingRef.current = pendingRef.current.then(() =>
-      fetch("/api/manifest", {
+      fetch(`/api/manifest?project=${encodeURIComponent(project)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
@@ -397,27 +265,28 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
   // -- Render --
 
   const activeFamily = activeId ? families[activeId] : null;
-
-  if (Object.keys(families).length === 0 || Object.values(families).every((f) => f.archived)) {
-    return (
-      <main className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <p className="text-sm text-text-tertiary">
-          No prototypes yet. Use{" "}
-          <code className="rounded bg-surface-2 px-1.5 py-0.5 text-xs font-mono">/design-studio</code>{" "}
-          to create one.
-        </p>
-      </main>
-    );
-  }
+  const isEmpty = Object.keys(families).length === 0 || Object.values(families).every((f) => f.archived);
 
   // DndContext and createPortal require the DOM — guard until after hydration.
-  // The portal target (#header-toolbar) is rendered by layout.tsx (client component).
   if (!mounted) return <main className="mx-auto max-w-6xl px-6 py-10" />;
 
   // Toolbar portaled into the header
   const toolbarTarget = document.getElementById("header-toolbar");
   const toolbar = toolbarTarget && createPortal(
     <>
+      {/* Project switcher */}
+      {projects.length > 0 && (
+        <select
+          value={project}
+          onChange={(e) => router.push(`/?project=${encodeURIComponent(e.target.value)}`)}
+          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-text-primary outline-none"
+        >
+          {projects.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      )}
+
       <button
         onClick={addSection}
         className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-2"
@@ -503,6 +372,15 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
       className={`mx-auto px-6 py-10 transition-all ${sidebarOpen ? "mr-96 max-w-5xl" : "max-w-6xl"}`}
     >
       {toolbar}
+      {isEmpty ? (
+        <div className="py-24 text-center">
+          <p className="text-sm text-text-tertiary">
+            No prototypes yet. Use{" "}
+            <code className="rounded bg-surface-2 px-1.5 py-0.5 text-xs font-mono">/design-studio {project}</code>{" "}
+            to create one.
+          </p>
+        </div>
+      ) : (
       <DndContext
         id="gallery-dnd"
         sensors={sensors}
@@ -714,6 +592,7 @@ export function Gallery({ manifest }: { manifest: Manifest }) {
           ) : null}
         </DragOverlay>
       </DndContext>
+      )}
       {sidebarOpen && (
         <GallerySidebar
           selectedFamilies={selectedFamilies}

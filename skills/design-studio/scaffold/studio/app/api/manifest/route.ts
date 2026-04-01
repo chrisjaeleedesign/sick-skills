@@ -22,20 +22,29 @@ function assignToFocusedSection(manifest: { sections: Section[] }, slug: string)
       }
     }
   }
-  // Grid is full — add a row
   focused.grid[`${focused.rows}:0`] = slug;
   focused.rows += 1;
 }
 
+function getProject(request: Request): string {
+  const { searchParams } = new URL(request.url);
+  return searchParams.get("project") || "default";
+}
+
+export async function GET(request: Request) {
+  const project = getProject(request);
+  return NextResponse.json(readManifest(project));
+}
+
 export async function POST(request: Request) {
+  const project = getProject(request);
   const body = (await request.json()) as ManifestAction;
-  const manifest = readManifest();
+  const manifest = readManifest(project);
 
   if (body.action === "add-family") {
     manifest.families[body.family.slug] = body.family;
     assignToFocusedSection(manifest, body.family.slug);
   } else if (body.action === "add-section") {
-    // New sections prepend — newest first in the gallery
     manifest.sections.unshift(body.section);
   } else if (body.action === "set-current") {
     manifest.current = { family: body.family, version: body.version };
@@ -45,6 +54,6 @@ export async function POST(request: Request) {
     if (body.settings) manifest.settings = { ...manifest.settings, ...body.settings };
   }
 
-  writeManifest(manifest);
+  writeManifest(manifest, project);
   return NextResponse.json({ ok: true });
 }

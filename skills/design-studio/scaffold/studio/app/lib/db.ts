@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { readFileSync, readdirSync, existsSync, copyFileSync, unlinkSync } from "fs";
+import { readdirSync, existsSync, copyFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import type { QueryParams } from "./types";
 import { genId } from "./utils";
@@ -25,7 +25,6 @@ function findStudioRoot(): string {
 
 export const DESIGN_ROOT = findStudioRoot();
 const DB_PATH = join(DESIGN_ROOT, "journal.db");
-const JSONL_PATH = join(DESIGN_ROOT, "journal.jsonl");
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -413,7 +412,6 @@ export function getDb(): Database.Database {
   db.exec(SCHEMA_SQL);
 
   runMigrations(db);
-  migrateFromJsonl(db);
   seedFeaturesIfEmpty(db);
 
   _db = db;
@@ -503,54 +501,6 @@ function runMigrations(db: Database.Database): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// JSONL migration
-// ---------------------------------------------------------------------------
-
-/**
- * Migrates existing journal entries from the JSONL file into the insights
- * table. Runs only when the JSONL file exists AND the insights table is empty.
- */
-function migrateFromJsonl(db: Database.Database): void {
-  if (!existsSync(JSONL_PATH)) return;
-
-  const count = db.prepare("SELECT COUNT(*) AS n FROM insights").get() as {
-    n: number;
-  };
-  if (count.n > 0) return;
-
-  const raw = readFileSync(JSONL_PATH, "utf-8").trim();
-  if (!raw) return;
-
-  const insert = db.prepare(`
-    INSERT OR IGNORE INTO insights (id, ts, type, body, family, tags, status, refs, superseded_by)
-    VALUES (@id, @ts, @type, @body, @family, @tags, @status, @refs, @superseded_by)
-  `);
-
-  const runMigration = db.transaction(() => {
-    for (const line of raw.split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const entry = JSON.parse(line);
-        insert.run({
-          id: entry.id,
-          ts: entry.ts,
-          type: entry.type,
-          body: entry.body,
-          family: entry.family ?? null,
-          tags: JSON.stringify(entry.tags ?? []),
-          status: entry.status ?? "active",
-          refs: JSON.stringify(entry.refs ?? []),
-          superseded_by: entry.superseded_by ?? null,
-        });
-      } catch {
-        // Skip corrupt lines gracefully
-      }
-    }
-  });
-
-  runMigration();
-}
 
 // ---------------------------------------------------------------------------
 // Query builder (shared by domain modules)

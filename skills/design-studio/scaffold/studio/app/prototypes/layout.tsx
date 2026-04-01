@@ -22,12 +22,21 @@ export default function PrototypeLayout({
     const match = pathname?.match(/\/prototypes\/([^/]+)\/v(\d+)/);
     if (!match) return;
     const [, slug, ver] = match;
-    fetch("/api/manifest")
+    // Find this family across all projects
+    fetch("/api/manifest/projects")
       .then((r) => r.json())
-      .then((data) => {
-        const family = data.families?.[slug];
-        if (family) {
-          setFamilyInfo({ name: family.name, description: family.description, version: parseInt(ver) });
+      .then((projects: string[]) =>
+        Promise.all(projects.map((p) =>
+          fetch(`/api/manifest?project=${p}`).then((r) => r.json()).then((data) => ({ project: p, data }))
+        ))
+      )
+      .then((results) => {
+        for (const { data } of results) {
+          const family = data.families?.[slug];
+          if (family) {
+            setFamilyInfo({ name: family.name, description: family.description, version: parseInt(ver) });
+            return;
+          }
         }
       })
       .catch(() => {});

@@ -1,0 +1,36 @@
+[
+  {
+    "scenario_id": "ef9722f3",
+    "scenario_title": "User feeling stuck",
+    "input": "I feel like I am not making any progress in my career. What should I do?",
+    "output": "Feeling stuck is usually a signal to make your progress *measurable* instead of waiting for a title change to happen. This week, write down exactly where you want to be in 12 months, then set 2\u20133 concrete goals (skills, projects, networking, income/role milestones) and ask your manager for specific feedback on what\u2019s needed for the next step. Do one deliberate growth move now\u2014like a stretch project or training\u2014and review your progress every month; if growth still isn\u2019t happening after consistent effort, it may be time to explore a role or team with clearer advancement paths.",
+    "scores": {
+      "instruction_following": {
+        "score": 3,
+        "explanation": "The response is supportive and constructive with actionable advice in a coaching tone, but it likely violates the strict sentence limit by using 3 sentences instead of under 3."
+      },
+      "eval_rules": {
+        "score": 2,
+        "explanation": "One of the two required rules appears unmet, so overall compliance is partial.",
+        "details": [
+          {
+            "rule": "Response must be under 3 sentences.",
+            "passed": false
+          },
+          {
+            "rule": "Must acknowledge the feeling before giving advice.",
+            "passed": true
+          }
+        ]
+      },
+      "quality": {
+        "score": 4,
+        "explanation": "Helpful and practical guidance with measurable steps and a realistic progression plan, though stronger empathy and concise wording could improve the coaching tone."
+      }
+    },
+    "eval_rules": [
+      "response must be under 3 sentences",
+      "must acknowledge the feeling before giving advice"
+    ]
+  }
+]
