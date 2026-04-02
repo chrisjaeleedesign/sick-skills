@@ -400,7 +400,13 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           label="Time"
           activeCount={timeRange ? 1 : 0}
           compact={compact}
-          onClear={() => { setTimeRange(""); setCustomSince(""); setCustomUntil(""); }}
+          onClear={() => { setTimeRange(""); setCustomSince(""); setCustomUntil(""); prevTimeRangeRef.current = ""; }}
+          onClose={() => {
+            // Revert if custom was selected but no dates were filled
+            if (timeRange === "custom" && !customSince && !customUntil) {
+              setTimeRange(prevTimeRangeRef.current);
+            }
+          }}
         >
           {TIME_PRESETS.map((preset) => (
             <RadioItem

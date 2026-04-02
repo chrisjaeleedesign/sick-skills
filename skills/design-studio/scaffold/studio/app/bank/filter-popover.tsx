@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // FilterPopover
@@ -13,18 +13,24 @@ interface FilterPopoverProps {
   children: React.ReactNode;
   compact?: boolean;
   onClear?: () => void;
+  onClose?: () => void;
 }
 
-export function FilterPopover({ label, activeCount, children, compact, onClear }: FilterPopoverProps) {
+export function FilterPopover({ label, activeCount, children, compact, onClear, onClose }: FilterPopoverProps) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  function handleClose() {
+    setOpen(false);
+    onClose?.();
+  }
 
   // Close on click-outside
   useEffect(() => {
     if (!open) return;
     function handleMouseDown(e: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        handleClose();
       }
     }
     document.addEventListener("mousedown", handleMouseDown);
@@ -35,7 +41,7 @@ export function FilterPopover({ label, activeCount, children, compact, onClear }
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") handleClose();
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -62,15 +68,19 @@ export function FilterPopover({ label, activeCount, children, compact, onClear }
 
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg p-2 min-w-[180px] max-h-[280px] overflow-y-auto">
-          {children}
           {onClear && isActive && (
-            <button
-              onClick={() => { onClear(); setOpen(false); }}
-              className="mt-1 w-full rounded-md px-2 py-1 text-[11px] text-text-tertiary hover:bg-surface-2 hover:text-text-secondary transition border-t border-border pt-1.5"
-            >
-              Clear selection
-            </button>
+            <>
+              <button
+                onClick={() => { onClear(); setOpen(false); }}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-text-tertiary hover:bg-surface-2 hover:text-text-secondary transition"
+              >
+                <X className="h-3 w-3" />
+                <span>Clear selection</span>
+              </button>
+              <div className="my-1 h-px bg-border" />
+            </>
           )}
+          {children}
         </div>
       )}
     </div>
