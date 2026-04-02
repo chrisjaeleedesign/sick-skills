@@ -12,13 +12,16 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const capture =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("capture") === "true";
+  const [capture, setCapture] = useState(false);
   const [dark, setDark] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const project = searchParams.get("project");
   const projectSuffix = project ? `?project=${encodeURIComponent(project)}` : "";
+
+  useEffect(() => {
+    setCapture(new URLSearchParams(window.location.search).get("capture") === "true");
+  }, []);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) {

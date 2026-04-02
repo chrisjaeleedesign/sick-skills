@@ -11,8 +11,6 @@ import type {
 } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
 import { TagPill, FamilyBadge, KindBadge, ImportanceBadge } from "@/app/components/badges";
-import { fetchApi } from "@/app/lib/fetch";
-
 // ---------------------------------------------------------------------------
 // ThoughtDetail — expanded view with revision stack, relations, edit controls
 // ---------------------------------------------------------------------------
@@ -39,11 +37,17 @@ export function ThoughtDetail({
   const [newRevisionBody, setNewRevisionBody] = useState("");
   const [addingRevision, setAddingRevision] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  // Keep the ref current on every render so the stable handler always calls the latest onClose
+  onCloseRef.current = onClose;
 
   const fetchDetail = useCallback(async () => {
     setLoading(true);
     try {
-      setData(await fetchApi<ThoughtDetailData>(`/api/thoughts?id=${thoughtId}`));
+      const res = await fetch(`/api/thoughts?id=${thoughtId}`);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      setData(await res.json());
     } catch (err) {
       console.error(err);
     }
@@ -58,14 +62,14 @@ export function ThoughtDetail({
     if (addingRevision) textareaRef.current?.focus();
   }, [addingRevision]);
 
-  // Escape to close
+  // Escape to close — stable handler reads latest onClose via ref to avoid re-registering
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  }, []);
 
   async function handleAddRevision() {
     if (!newRevisionBody.trim()) return;

@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { DEVICE_PRESETS, DEVICE_ICONS, type DevicePreset } from "@/app/lib/constants";
 
 /** Height of the root layout header (px) — keeps calc() in sync with layout.tsx */
@@ -15,28 +16,33 @@ export default function PrototypeLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [familyInfo, setFamilyInfo] = useState<{ name: string; description: string; version: number; project: string } | null>(null);
+  const router = useRouter();
+  const [familyInfo, setFamilyInfo] = useState<{
+    name: string;
+    description: string;
+    version: number;
+    versions: { number: number; direction: string; parentVersion?: number; starred: boolean; createdAt: string }[];
+    project: string;
+  } | null>(null);
 
-  // Extract family slug and version from pathname
+  // Extract family slug from pathname for navigation
+  const slugMatch = pathname?.match(/\/prototypes\/([^/]+)\/v(\d+)/);
+  const familySlug = slugMatch?.[1];
+
   useEffect(() => {
-    const match = pathname?.match(/\/prototypes\/([^/]+)\/v(\d+)/);
-    if (!match) return;
-    const [, slug, ver] = match;
-    // Find this family across all projects
-    fetch("/api/manifest/projects")
-      .then((r) => r.json())
-      .then((projects: string[]) =>
-        Promise.all(projects.map((p) =>
-          fetch(`/api/manifest?project=${p}`).then((r) => r.json()).then((data) => ({ project: p, data }))
-        ))
-      )
-      .then((results) => {
-        for (const { project, data } of results) {
-          const family = data.families?.[slug];
-          if (family) {
-            setFamilyInfo({ name: family.name, description: family.description, version: parseInt(ver), project });
-            return;
-          }
+    if (!slugMatch) return;
+    const [, slug, ver] = slugMatch;
+    fetch(`/api/manifest/family/${slug}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data) {
+          setFamilyInfo({
+            name: data.name,
+            description: data.description,
+            version: parseInt(ver),
+            versions: data.versions,
+            project: data.project,
+          });
         }
       })
       .catch(() => {});
@@ -54,13 +60,13 @@ export default function PrototypeLayout({
     };
   }, []);
 
-  const captureMode: DevicePreset | null = (() => {
-    if (typeof window === "undefined") return null;
+  const [captureMode, setCaptureMode] = useState<DevicePreset | null>(null);
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("capture") !== "true") return null;
+    if (params.get("capture") !== "true") return;
     const device = params.get("device") as DevicePreset | null;
-    return device && DEVICE_PRESETS[device] ? device : "desktop";
-  })();
+    setCaptureMode(device && DEVICE_PRESETS[device] ? device : "desktop");
+  }, []);
   const [preset, setPreset] = useState<DevicePreset>("desktop");
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,10 +119,39 @@ export default function PrototypeLayout({
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xs font-medium text-text-primary truncate">{familyInfo.name}</span>
-              <span className="text-[10px] text-text-tertiary font-mono shrink-0">v{familyInfo.version}</span>
             </div>
             <div className="h-4 w-px bg-border" />
-            <span className="text-[11px] text-text-secondary truncate max-w-[400px]">{familyInfo.description}</span>
+            {/* Version navigation */}
+            <div className="flex items-center gap-1">
+              <button
+                disabled={familyInfo.version <= 1}
+                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version - 1}`)}
+                className="rounded p-1 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <select
+                value={familyInfo.version}
+                onChange={(e) => familySlug && router.push(`/prototypes/${familySlug}/v${e.target.value}`)}
+                className="appearance-none rounded bg-surface-2 px-2 py-0.5 text-[11px] font-mono text-text-primary outline-none cursor-pointer"
+              >
+                {familyInfo.versions.map((v) => (
+                  <option key={v.number} value={v.number}>
+                    v{v.number} — {v.direction.length > 30 ? v.direction.slice(0, 30) + "…" : v.direction}
+                  </option>
+                ))}
+              </select>
+              <button
+                disabled={familyInfo.version >= familyInfo.versions.length}
+                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version + 1}`)}
+                className="rounded p-1 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+              <span className="text-[10px] text-text-tertiary font-mono ml-1">
+                {familyInfo.version} of {familyInfo.versions.length}
+              </span>
+            </div>
           </>
         )}
         <div className="h-4 w-px bg-border" />

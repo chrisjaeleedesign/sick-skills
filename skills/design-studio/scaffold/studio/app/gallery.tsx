@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
@@ -78,7 +78,7 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
     setSelectedSlugs(new Set());
     setEditingSectionId(null);
     lastSelectedRef.current = null;
-  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project, manifest]);
 
   // Close filter dropdown on outside click
   useEffect(() => {
@@ -215,7 +215,7 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
   // -- Selection --
 
   /** Build an ordered list of all visible (non-archived) slugs for shift-click range. */
-  function allVisibleSlugs(): string[] {
+  const allVisibleSlugs = useMemo(() => {
     const slugs: string[] = [];
     for (const section of sections) {
       if (!visibleSections.has(section.id)) continue;
@@ -228,7 +228,7 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
     }
     for (const slug of unsortedSlugs) slugs.push(slug);
     return slugs;
-  }
+  }, [sections, visibleSections, families, unsortedSlugs]);
 
   function handleSelect(slug: string, e: React.MouseEvent) {
     setSelectedSlugs(prev => {
@@ -236,7 +236,7 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
 
       if (e.shiftKey && lastSelectedRef.current) {
         // Range select
-        const ordered = allVisibleSlugs();
+        const ordered = allVisibleSlugs;
         const a = ordered.indexOf(lastSelectedRef.current);
         const b = ordered.indexOf(slug);
         if (a !== -1 && b !== -1) {

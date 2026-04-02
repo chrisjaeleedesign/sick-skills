@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Plus, Search, ZoomIn, ZoomOut, RotateCcw,
   LayoutGrid, List,
@@ -224,6 +224,9 @@ export function Features({ initialFeatures, initialConnections, initialAreas }: 
   }
 
   const searchMatches = searchQuery ? new Set(filtered.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase())).map((f) => f.id)) : new Set<string>();
+
+  // Clear any pending save timer on unmount to prevent post-unmount callbacks
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   const scheduleSave = useCallback((updates: { id: string; x: number; y: number }[]) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
