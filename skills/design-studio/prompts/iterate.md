@@ -37,11 +37,7 @@ You are forking a prototype version with a new design direction.
    > Requirements:
    > - Address specific element feedback from Agentation annotations (they include CSS selectors and bounding boxes pointing to exact elements)
    > - Apply the user's new direction
-   > - Same constraints: `"use client"`, self-contained, react + next/link + lucide-react only. If `@/app/lib/seed-data` exists, import from there.
-   > - Use CSS variable tokens (bg-surface-1, text-text-primary, etc.)
-   > - **Sizing: The prototype renders inside a scaled 1440×900 container. Root element MUST use `w-full h-full` — NEVER use viewport units (`100vh`, `h-screen`, `100dvh`, `100vw`, `min-h-screen`). Use `flex-1 overflow-y-auto` for scrollable regions.**
-   > - Do NOT include a back-to-gallery link — the parent layout provides navigation
-   > - Target 500-800 lines
+   > [Include all requirements from [_prototype-constraints.md](_prototype-constraints.md)]
    >
    > Be bold with the direction. This is iteration — the user wants to see meaningful change, not subtle tweaks.
 
@@ -61,6 +57,23 @@ You are forking a prototype version with a new design direction.
    Update `current` to `{ "family": "<family>", "version": N+1 }`.
 
 8. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new version.
+
+   After capturing, save the screenshot to the bank:
+   ```bash
+   # Create a bank item for the screenshot
+   RESPONSE=$(curl -s -X POST http://localhost:<port>/api/thoughts \
+     -H "Content-Type: application/json" \
+     -d "{\"action\":\"create-thought\",\"thought\":{\"kind\":\"reference\",\"source_type\":\"prototype\",\"family\":\"<family>\",\"body\":\"<Family Name> v<N+1> screenshot\",\"tags\":[\"screenshot\",\"auto-captured\"]}}")
+   THOUGHT_ID=$(echo $RESPONSE | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+   # Add screenshot as attachment
+   curl -s -X POST http://localhost:<port>/api/thoughts \
+     -H "Content-Type: application/json" \
+     -d "{\"action\":\"add-attachment\",\"thought_id\":\"${THOUGHT_ID}\",\"attachment\":{\"kind\":\"image\",\"url\":\"references/<family>-v<N+1>.png\",\"label\":\"<Family Name> v<N+1> screenshot\"}}"
+   # Trigger vision analysis (non-blocking)
+   curl -s -X POST http://localhost:<port>/api/thoughts/analyze-image \
+     -H "Content-Type: application/json" \
+     -d "{\"thought_id\":\"${THOUGHT_ID}\"}" &
+   ```
 
 9. **Log to journal:** Run from `.agents/design/studio/`:
    ```bash

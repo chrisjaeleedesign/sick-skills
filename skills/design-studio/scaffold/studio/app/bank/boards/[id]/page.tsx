@@ -9,7 +9,7 @@ import { BentoGrid } from "@/app/bank/bento-grid";
 import type { BentoItem } from "@/app/bank/bento-grid";
 import { BankItem } from "@/app/bank/bank-item";
 import type { BankItemData } from "@/app/bank/bank-item";
-import { ThoughtDetail } from "@/app/thoughts/thought-detail";
+import { ThoughtDetail } from "@/app/components/thought-detail";
 import { BankDrawer } from "../bank-drawer";
 
 // ---------------------------------------------------------------------------

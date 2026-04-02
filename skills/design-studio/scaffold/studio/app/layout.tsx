@@ -4,7 +4,7 @@ import "./globals.css";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Moon, Sun, ListChecks, Brain, LayoutGrid } from "lucide-react";
+import { Moon, Sun, ListChecks, LayoutGrid } from "lucide-react";
 import { Agentation } from "agentation";
 
 export default function RootLayout({
@@ -33,12 +33,12 @@ export default function RootLayout({
     function handleKey(e: KeyboardEvent) {
       if (e.key === "t" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        router.push(`/thoughts${projectSuffix}`);
+        router.push(`/bank${projectSuffix}`);
       }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [router]);
+  }, [router, projectSuffix]);
 
   return (
     <html lang="en" className={dark ? "dark" : ""}>
@@ -56,17 +56,10 @@ export default function RootLayout({
               <Link
                 href={`/bank${projectSuffix}`}
                 className="flex h-8 items-center gap-1.5 rounded-md px-2.5 hover:bg-surface-2 transition-colors"
+                title="Bank (⌘T)"
               >
                 <LayoutGrid className="h-4 w-4 text-text-secondary" />
                 <span className="text-xs text-text-secondary">Bank</span>
-              </Link>
-              <Link
-                href={`/thoughts${projectSuffix}`}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 hover:bg-surface-2 transition-colors"
-                title="Thoughts (⌘T)"
-              >
-                <Brain className="h-4 w-4 text-text-secondary" />
-                <span className="text-xs text-text-secondary">Thoughts</span>
               </Link>
               <Link
                 href={`/features${projectSuffix}`}

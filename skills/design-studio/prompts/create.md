@@ -18,15 +18,7 @@ You are creating a new prototype family from a design description.
 
    > Write a self-contained Next.js page component at `.agents/design/studio/app/prototypes/<slug>/v1/page.tsx`.
    >
-   > Requirements:
-   > - `"use client"` directive at top
-   > - Self-contained — all data inline, realistic content (no lorem ipsum)
-   > - Imports allowed: `react`, `next/link`, `lucide-react` only. If `.agents/design/studio/app/lib/seed-data.ts` exists, import from `@/app/lib/seed-data` instead of inlining data.
-   > - Use CSS variable tokens from the design system (e.g., `bg-surface-1`, `text-text-primary`, `border-border`)
-   > - **Sizing: The prototype renders inside a scaled 1440×900 container. Root element MUST use `w-full h-full` — NEVER use viewport units (`100vh`, `h-screen`, `100dvh`, `100vw`, `min-h-screen`). Use `flex-1 overflow-y-auto` for scrollable regions.**
-   > - Do NOT include a back-to-gallery link — the parent layout provides navigation
-   > - Full interactivity: hover states, toggles, animations where appropriate
-   > - Target 500-800 lines, rich and complete
+   > [Include all requirements from [_prototype-constraints.md](_prototype-constraints.md)]
    > - Design direction: [insert user's description]
    >
    > This is a design exploration — be creative, opinionated, and bold. This is NOT production code. Prioritize visual impact and feel over engineering correctness.
@@ -57,6 +49,23 @@ You are creating a new prototype family from a design description.
    **Section ordering:** Sections are rendered in array order (newest first). When creating a new section, prepend it to the `sections` array (or use `{"action": "add-section", "section": {...}}` which prepends automatically).
 
 5. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new prototype. Save to `.agents/design/references/<slug>-v1.png` and add to the version's `references` array.
+
+   After capturing, save the screenshot to the bank:
+   ```bash
+   # Create a bank item for the screenshot
+   RESPONSE=$(curl -s -X POST http://localhost:<port>/api/thoughts \
+     -H "Content-Type: application/json" \
+     -d "{\"action\":\"create-thought\",\"thought\":{\"kind\":\"reference\",\"source_type\":\"prototype\",\"family\":\"<slug>\",\"body\":\"<Family Name> v1 screenshot\",\"tags\":[\"screenshot\",\"auto-captured\"]}}")
+   THOUGHT_ID=$(echo $RESPONSE | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+   # Add screenshot as attachment
+   curl -s -X POST http://localhost:<port>/api/thoughts \
+     -H "Content-Type: application/json" \
+     -d "{\"action\":\"add-attachment\",\"thought_id\":\"${THOUGHT_ID}\",\"attachment\":{\"kind\":\"image\",\"url\":\"references/<slug>-v1.png\",\"label\":\"<Family Name> v1 screenshot\"}}"
+   # Trigger vision analysis (non-blocking)
+   curl -s -X POST http://localhost:<port>/api/thoughts/analyze-image \
+     -H "Content-Type: application/json" \
+     -d "{\"thought_id\":\"${THOUGHT_ID}\"}" &
+   ```
 
 6. **Log to journal:** Run from `.agents/design/studio/`:
    ```bash

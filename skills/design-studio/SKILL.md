@@ -13,7 +13,7 @@ User's request: $ARGUMENTS
 
 Use Glob to check for `.agents/design/manifest.json` in the current working directory.
 
-### Step 2: Route based on state
+### Step 2: Route based on intent
 
 **Regardless of `.agents/design/` state:**
 - If `$ARGUMENTS` is "help" → display **HELP** text below
@@ -23,22 +23,20 @@ Use Glob to check for `.agents/design/manifest.json` in the current working dire
 - If `$ARGUMENTS` has content → route to **INIT**, then chain to **CREATE** with the arguments as design intent
 
 **If `.agents/design/` exists:**
-1. Read `.agents/design/manifest.json` to get current family and version context
-2. Parse `$ARGUMENTS` for intent signals using the table below
-3. Route to the matching prompt
 
-| Signal words in `$ARGUMENTS` | Route |
-|-------------------------------|-------|
-| "new", "fresh", "concept", "start over" | **CREATE** |
-| "archive", "trash", "done with", "shelve", "hide", "remove" | **ARCHIVE** |
-| "run", "start", "serve", "dev" | **RUN** |
-| "update", "upgrade", "refresh" | **UPDATE** |
-| "features", "feature map", "feature table", "map features" | **FEATURES** |
-| "push", "sync back", "update scaffold", "push to scaffold" | **PUSH** |
-| _(empty)_ | **STATUS** |
-| _(anything else — a design direction)_ | **ITERATE** |
+Read `.agents/design/manifest.json` to get current family and version context. Then read `$ARGUMENTS` naturally and determine which route matches:
 
-When `$ARGUMENTS` is empty, show status. When it has content, default to iterate — the most common action is evolving the current design.
+- **CREATE** — User wants to build something new from scratch. ("new concept", "make me a dashboard", "start a different approach", "fresh take on navigation")
+- **ARCHIVE** — User wants to hide, remove, or discard a concept. ("get rid of the sidebar one", "kill that direction", "I'm done with this", "trash it")
+- **RUN** — User wants to see the gallery or start the dev server. ("show me the gallery", "open the studio", "launch it", "let me browse")
+- **UPDATE** — User wants to refresh the studio scaffold to the latest version. ("update the studio", "get latest version", "refresh the scaffold")
+- **FEATURES** — User wants to work with the feature map. ("map out the features", "show the feature tree", "what features do we have")
+- **BANK** — User wants to save inspiration, paste an image, add a reference, manage boards, or interact with the mood/reference bank. ("save this", "add to bank", "paste this image", "mood board", "add to board", "show boards", "inspiration", "reference image")
+- **PUSH** — User wants to sync local studio changes back to the skill scaffold. ("push changes to scaffold", "sync back", "save these studio improvements")
+- **STATUS** — The input is empty. Show current state.
+- **ITERATE** — Default. If the input doesn't clearly match another route, treat it as a design direction for the current prototype. This is the most common action — users describe what they want changed.
+
+When ambiguous between CREATE and ITERATE: if the user references or implies evolving what exists ("try", "change", "make it", "what about"), route to ITERATE. If they imply starting fresh with no reference to current state ("build me a", "new concept for"), route to CREATE.
 
 ### Step 3: Execute route
 
@@ -51,25 +49,9 @@ When `$ARGUMENTS` is empty, show status. When it has content, default to iterate
 | RUN | Read and follow [prompts/run.md](prompts/run.md) |
 | UPDATE | Read and follow [prompts/update.md](prompts/update.md) |
 | FEATURES | Read and follow [prompts/features.md](prompts/features.md) |
+| BANK | Read and follow [prompts/bank.md](prompts/bank.md) |
 | PUSH | Read and follow [prompts/push.md](prompts/push.md) |
-
-### STATUS (inline — no separate prompt file)
-
-When `$ARGUMENTS` is empty and `.agents/design/` exists, read the manifest and display a brief summary:
-
-> **Current:** {family name} v{N} — "{direction}"
->
-> **Sections:**
-> - **{section name}** {🎯 if focused} — {family1}, {family2}
-> - {section name} — {family1}
->
-> **Unsorted:** {family1}, {family2} _(or "none")_
->
-> **Archived:** _{name}_, _{name}_ _(or "none")_
->
-> What would you like to do? Describe a direction to iterate, or say "new" to start a fresh concept.
-
-Also check Agentation for pending annotations — if any exist, mention: "You have {N} pending annotations from the browser."
+| STATUS | Read and follow [prompts/status.md](prompts/status.md) |
 
 ### Proactive Thought Capture
 

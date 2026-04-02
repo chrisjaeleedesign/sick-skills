@@ -8,7 +8,7 @@ import type { BentoItem } from "./bento-grid";
 import { BankItem } from "./bank-item";
 import type { BankItemData } from "./bank-item";
 import { FilterBar } from "./filter-bar";
-import { ThoughtDetail } from "@/app/thoughts/thought-detail";
+import { ThoughtDetail } from "@/app/components/thought-detail";
 
 // ---------------------------------------------------------------------------
 // All Items page — main bank view
