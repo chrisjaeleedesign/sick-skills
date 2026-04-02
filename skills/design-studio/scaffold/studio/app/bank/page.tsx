@@ -63,7 +63,10 @@ export default function BankPage() {
             action: "bulk-update-layout",
             items: layouts.map((l) => ({
               id: l.id,
-              layout: { x: l.x, y: l.y, w: l.w, h: l.h },
+              layout_x: l.x,
+              layout_y: l.y,
+              layout_w: l.w,
+              layout_h: l.h,
             })),
           }),
         });

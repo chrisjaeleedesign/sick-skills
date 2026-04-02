@@ -112,7 +112,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
   useEffect(() => {
     fetch("/api/saved-filters")
       .then((r) => r.json())
-      .then((data: SavedFilter[]) => setSavedFilters(Array.isArray(data) ? data : []))
+      .then((data) => setSavedFilters(data.filters ?? []))
       .catch(console.error);
   }, []);
 
@@ -200,7 +200,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
       const res = await fetch("/api/saved-filters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: filterName, filter_json: state }),
+        body: JSON.stringify({ action: "create", name: filterName, filter_json: state }),
       });
       if (res.ok) {
         const saved = await res.json();
