@@ -4,7 +4,7 @@ import "./globals.css";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Moon, Sun, ListChecks, Brain } from "lucide-react";
+import { Moon, Sun, ListChecks, Brain, LayoutGrid } from "lucide-react";
 import { Agentation } from "agentation";
 
 export default function RootLayout({
@@ -53,6 +53,13 @@ export default function RootLayout({
                 </span>
               </Link>
               <div id="header-toolbar" className="flex flex-1 items-center justify-end gap-2" />
+              <Link
+                href={`/bank${projectSuffix}`}
+                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 hover:bg-surface-2 transition-colors"
+              >
+                <LayoutGrid className="h-4 w-4 text-text-secondary" />
+                <span className="text-xs text-text-secondary">Bank</span>
+              </Link>
               <Link
                 href={`/thoughts${projectSuffix}`}
                 className="flex h-8 items-center gap-1.5 rounded-md px-2.5 hover:bg-surface-2 transition-colors"
