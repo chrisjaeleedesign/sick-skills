@@ -287,20 +287,187 @@ def read_doc(doc_id: str) -> dict:
     return {"ok": True, "data": {"title": "", "content": str(result["data"])}}
 
 
-def add_comment(file_id: str, content: str, quoted_text: str | None = None) -> dict:
-    """Add a comment to a Drive file. Optionally anchor to quoted text."""
-    comment_body: dict = {"content": content}
-    if quoted_text:
-        comment_body["quotedFileContent"] = {
-            "mimeType": "text/plain",
-            "value": quoted_text,
-        }
+AI_COMMENT_PREFIX = "<<AI: "
+AI_COMMENT_SUFFIX = ">>"
+
+# Purple styling for inline AI comments
+AI_COMMENT_STYLE = {
+    "backgroundColor": {
+        "color": {"rgbColor": {"red": 0.9, "green": 0.82, "blue": 1.0}}
+    },
+    "foregroundColor": {
+        "color": {"rgbColor": {"red": 0.4, "green": 0.2, "blue": 0.6}}
+    },
+    "italic": True,
+    "fontSize": {"magnitude": 9, "unit": "PT"},
+}
+AI_COMMENT_STYLE_FIELDS = "backgroundColor,foregroundColor,italic,fontSize"
+
+
+def _get_doc_raw(doc_id: str) -> dict:
+    """Get the raw Docs API JSON for a document (with element indexes)."""
+    result = _run_gws([
+        "docs", "documents", "get",
+        "--params", json.dumps({"documentId": doc_id}),
+    ])
+    return result
+
+
+def _find_text_index(doc_json: dict, search_text: str) -> int | None:
+    """Find the end index of a text passage in a doc. Returns insertion point."""
+    body = doc_json.get("body", {})
+    # Build full text with index mapping
+    full_text = ""
+    index_map = []  # (text_offset, doc_index) pairs
+    for element in body.get("content", []):
+        if "paragraph" in element:
+            for pe in element["paragraph"].get("elements", []):
+                tr = pe.get("textRun", {})
+                content = tr.get("content", "")
+                if content:
+                    start_idx = pe.get("startIndex", 0)
+                    text_offset = len(full_text)
+                    index_map.append((text_offset, start_idx))
+                    full_text += content
+
+    # Find the search text
+    pos = full_text.find(search_text)
+    if pos == -1:
+        return None
+
+    # Map text position back to doc index
+    target_pos = pos + len(search_text)
+    doc_index = 0
+    for text_offset, di in index_map:
+        if text_offset <= target_pos:
+            doc_index = di + (target_pos - text_offset)
+    return doc_index
+
+
+def add_inline_comment(doc_id: str, comment: str, after_text: str | None = None) -> dict:
+    """Insert an inline <<AI: comment>> into a Google Doc.
+
+    If after_text is provided, inserts after that text passage.
+    Otherwise inserts at the end of the document.
+    """
+    # Get the raw doc to find indexes
+    doc_result = _get_doc_raw(doc_id)
+    if not doc_result["ok"]:
+        return doc_result
+
+    doc_json = doc_result["data"]
+    if not isinstance(doc_json, dict):
+        return {"ok": False, "error": "invalid_doc", "message": "Could not parse document"}
+
+    # Find insertion point
+    if after_text:
+        insert_at = _find_text_index(doc_json, after_text)
+        if insert_at is None:
+            return {
+                "ok": False,
+                "error": "text_not_found",
+                "message": f"Could not find text: {after_text[:100]}",
+            }
+    else:
+        # Insert at end of doc
+        body = doc_json.get("body", {})
+        content = body.get("content", [])
+        if content:
+            insert_at = content[-1].get("endIndex", 1) - 1
+        else:
+            insert_at = 1
+
+    # Build the comment text
+    comment_text = f"\n{AI_COMMENT_PREFIX}{comment}{AI_COMMENT_SUFFIX}\n"
+
+    # Insert text then style it
+    requests = [
+        {
+            "insertText": {
+                "location": {"index": insert_at},
+                "text": comment_text,
+            }
+        },
+        {
+            "updateTextStyle": {
+                "range": {
+                    "startIndex": insert_at,
+                    "endIndex": insert_at + len(comment_text),
+                },
+                "textStyle": AI_COMMENT_STYLE,
+                "fields": AI_COMMENT_STYLE_FIELDS,
+            }
+        },
+    ]
 
     result = _run_gws([
-        "drive", "comments", "create",
-        "--params", json.dumps({"fileId": file_id, "fields": "id,content,createdTime"}),
-        "--json", json.dumps(comment_body),
+        "docs", "documents", "batchUpdate",
+        "--params", json.dumps({"documentId": doc_id}),
+        "--json", json.dumps({"requests": requests}),
     ])
+    return result
+
+
+def cleanup_doc(doc_id: str) -> dict:
+    """Remove all <<AI: ...>> inline comments from a Google Doc."""
+    import re
+
+    doc_result = _get_doc_raw(doc_id)
+    if not doc_result["ok"]:
+        return doc_result
+
+    doc_json = doc_result["data"]
+    if not isinstance(doc_json, dict):
+        return {"ok": False, "error": "invalid_doc", "message": "Could not parse document"}
+
+    # Build full text with index mapping
+    body = doc_json.get("body", {})
+    full_text = ""
+    index_map = []
+    for element in body.get("content", []):
+        if "paragraph" in element:
+            for pe in element["paragraph"].get("elements", []):
+                tr = pe.get("textRun", {})
+                content = tr.get("content", "")
+                if content:
+                    start_idx = pe.get("startIndex", 0)
+                    text_offset = len(full_text)
+                    index_map.append((text_offset, start_idx))
+                    full_text += content
+
+    # Find all <<AI: ...>> blocks with surrounding newlines
+    pattern = r"\n?" + re.escape(AI_COMMENT_PREFIX) + r".*?" + re.escape(AI_COMMENT_SUFFIX) + r"\n?"
+    matches = list(re.finditer(pattern, full_text, re.DOTALL))
+    if not matches:
+        return {"ok": True, "data": {"removed": 0}}
+
+    # Convert text positions to doc indexes
+    def text_pos_to_doc_index(pos):
+        doc_idx = 0
+        for text_offset, di in index_map:
+            if text_offset <= pos:
+                doc_idx = di + (pos - text_offset)
+        return doc_idx
+
+    # Build delete requests in reverse order (so indexes don't shift)
+    requests = []
+    for m in reversed(matches):
+        start = text_pos_to_doc_index(m.start())
+        end = text_pos_to_doc_index(m.end())
+        requests.append({
+            "deleteContentRange": {
+                "range": {"startIndex": start, "endIndex": end}
+            }
+        })
+
+    result = _run_gws([
+        "docs", "documents", "batchUpdate",
+        "--params", json.dumps({"documentId": doc_id}),
+        "--json", json.dumps({"requests": requests}),
+    ])
+
+    if result["ok"]:
+        return {"ok": True, "data": {"removed": len(matches)}}
     return result
 
 
@@ -511,11 +678,15 @@ def main():
     rd = sub.add_parser("read-doc", help="Read a Google Doc")
     rd.add_argument("--doc-id", required=True, help="Document ID")
 
-    # comment
-    cm = sub.add_parser("comment", help="Add a comment to a file")
-    cm.add_argument("--file-id", required=True, help="File ID")
-    cm.add_argument("--content", required=True, help="Comment text")
-    cm.add_argument("--quote", help="Text to anchor comment to")
+    # inline-comment
+    ic = sub.add_parser("inline-comment", help="Add an inline <<AI: >> comment to a doc")
+    ic.add_argument("--doc-id", required=True, help="Document ID")
+    ic.add_argument("--content", required=True, help="Comment text")
+    ic.add_argument("--after", help="Insert after this text passage (otherwise appends to end)")
+
+    # cleanup
+    cl = sub.add_parser("cleanup", help="Remove all <<AI: >> comments from a doc")
+    cl.add_argument("--doc-id", required=True, help="Document ID")
 
     # generate-summary
     gs = sub.add_parser("generate-summary", help="Generate AI summary for a doc")
@@ -552,8 +723,11 @@ def main():
     elif args.command == "read-doc":
         print(json.dumps(read_doc(args.doc_id)))
 
-    elif args.command == "comment":
-        print(json.dumps(add_comment(args.file_id, args.content, args.quote)))
+    elif args.command == "inline-comment":
+        print(json.dumps(add_inline_comment(args.doc_id, args.content, args.after)))
+
+    elif args.command == "cleanup":
+        print(json.dumps(cleanup_doc(args.doc_id)))
 
     elif args.command == "generate-summary":
         print(json.dumps(generate_summary(args.doc_id, args.title)))
