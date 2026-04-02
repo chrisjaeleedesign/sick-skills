@@ -1,6 +1,6 @@
 ---
 name: kb
-description: "Connect to a Google Drive knowledge base that agents can query and contribute to. Use whenever the user mentions knowledge base, KB, shared docs, Drive folder, updating docs, querying team knowledge, leaving comments on docs, or wants to set up a collaborative knowledge layer. Also triggers when another skill needs to look up shared project knowledge."
+description: "Query, reference, and contribute to a shared Google Drive knowledge base. Use this skill whenever the user says things like 'check the kb', 'reference our knowledge base', 'what do our docs say', 'check our shared docs', 'look up in our docs', 'reference our docs', 'what does our internal documentation say', 'sync the kb', 'refresh the manifest', 'update the kb', 'leave a note on the doc', 'flag something in a doc', or any variation of asking about team knowledge, shared documentation, company guidelines, product direction docs, or wanting to set up, query, update, or contribute to a collaborative knowledge layer in Google Drive. Also use when the user asks you to check existing docs before writing something, or when another skill needs to look up shared project knowledge. Even short phrases like 'check the kb' or 'reference the knowledge base' should trigger this skill."
 ---
 
 # kb
