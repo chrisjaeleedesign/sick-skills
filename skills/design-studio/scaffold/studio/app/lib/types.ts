@@ -163,6 +163,7 @@ export interface ThoughtRelation {
 export interface ThoughtQueryParams {
   search?: string;
   kind?: ThoughtKind;
+  source_type?: SourceType;
   importance?: Importance;
   color?: ThoughtColor;
   family?: string;

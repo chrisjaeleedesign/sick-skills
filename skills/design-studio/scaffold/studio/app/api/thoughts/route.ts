@@ -12,9 +12,14 @@ import {
   addRelation,
   removeRelation,
   getRelations,
+  updateThoughtLayout,
+  bulkUpdateThoughtLayout,
 } from "@/app/lib/db-thoughts";
+import { getDb } from "@/app/lib/db";
+import { getBoardsForThought } from "@/app/lib/db-boards";
 import { storeEmbedding } from "@/app/lib/db-embeddings";
 import { generateEmbedding } from "@/app/lib/embeddings";
+import { handleAction } from "@/app/lib/route-handler";
 import type { ThoughtQueryParams } from "@/app/lib/types";
 
 /** Best-effort embedding: generate and store, but never fail the request. */
@@ -45,6 +50,8 @@ export async function GET(request: Request) {
     });
   }
 
+  const view = searchParams.get("view");
+
   const params: ThoughtQueryParams = {
     search: searchParams.get("search") ?? undefined,
     kind: (searchParams.get("kind") as ThoughtQueryParams["kind"]) ?? undefined,
@@ -55,7 +62,51 @@ export async function GET(request: Request) {
     pinned: searchParams.has("pinned") ? searchParams.get("pinned") === "true" : undefined,
     limit: searchParams.has("limit") ? Number(searchParams.get("limit")) : undefined,
     offset: searchParams.has("offset") ? Number(searchParams.get("offset")) : undefined,
+    // Bank-view extra filter
+    source_type: (searchParams.get("source_type") as ThoughtQueryParams["source_type"]) ?? undefined,
   };
+
+  if (view === "bank") {
+    const thoughts = queryThoughts(params, { withRevision: true });
+
+    if (thoughts.length === 0) {
+      return NextResponse.json(thoughts);
+    }
+
+    // Batch-fetch first attachment per thought
+    const db = getDb();
+    const ids = thoughts.map((t) => t.id);
+    const placeholders = ids.map(() => "?").join(", ");
+    const attachmentRows = db
+      .prepare(
+        `SELECT thought_id, path, type FROM attachments WHERE thought_id IN (${placeholders}) ORDER BY created_at`
+      )
+      .all(...ids) as { thought_id: string; path: string; type: string }[];
+
+    // Take first attachment per thought_id
+    const firstAttachment = new Map<string, { path: string; type: string }>();
+    for (const row of attachmentRows) {
+      if (!firstAttachment.has(row.thought_id)) {
+        firstAttachment.set(row.thought_id, { path: row.path, type: row.type });
+      }
+    }
+
+    // Fetch board membership per thought
+    const result = thoughts.map((t) => {
+      const boards = getBoardsForThought(t.id).map((b) => ({
+        id: b.board_id,
+        name: b.name,
+        color: b.color,
+      }));
+      return {
+        ...t,
+        attachment: firstAttachment.get(t.id) ?? null,
+        boards,
+      };
+    });
+
+    return NextResponse.json(result);
+  }
 
   return NextResponse.json(queryThoughts(params, { withRevision: true }));
 }
@@ -63,39 +114,38 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = await request.json();
 
-  switch (body.action) {
-    case "create-thought": {
-      const result = createThought(body.thought);
-      // Best-effort embedding for the initial revision
+  return handleAction(body, {
+    "create-thought": async (b) => {
+      const result = createThought(b.thought as Parameters<typeof createThought>[0]);
       await embedRevision(result.revision.id, result.revision.body);
-      return NextResponse.json({ ok: true, ...result });
-    }
-    case "update-thought": {
-      updateThought(body.id, body.patch);
-      return NextResponse.json({ ok: true });
-    }
-    case "delete-thought": {
-      deleteThought(body.id);
-      return NextResponse.json({ ok: true });
-    }
-    case "add-revision": {
-      const revision = addRevision(body.thought_id, body.body, body.source);
+      return result;
+    },
+    "update-thought": (b) => {
+      updateThought(b.id as string, b.patch as Parameters<typeof updateThought>[1]);
+    },
+    "delete-thought": (b) => {
+      deleteThought(b.id as string);
+    },
+    "add-revision": async (b) => {
+      const revision = addRevision(b.thought_id as string, b.body as string, b.source as string);
       await embedRevision(revision.id, revision.body);
-      return NextResponse.json({ ok: true, revision });
-    }
-    case "add-attachment": {
-      const attachment = addAttachment(body.attachment);
-      return NextResponse.json({ ok: true, attachment });
-    }
-    case "add-relation": {
-      addRelation(body.from_id, body.to_id, body.type);
-      return NextResponse.json({ ok: true });
-    }
-    case "remove-relation": {
-      removeRelation(body.from_id, body.to_id);
-      return NextResponse.json({ ok: true });
-    }
-    default:
-      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  }
+      return { revision };
+    },
+    "add-attachment": (b) => {
+      const attachment = addAttachment(b.attachment as Parameters<typeof addAttachment>[0]);
+      return { attachment };
+    },
+    "add-relation": (b) => {
+      addRelation(b.from_id as string, b.to_id as string, b.type as Parameters<typeof addRelation>[2]);
+    },
+    "remove-relation": (b) => {
+      removeRelation(b.from_id as string, b.to_id as string);
+    },
+    "update-layout": (b) => {
+      updateThoughtLayout(b.id as string, b.layout as Parameters<typeof updateThoughtLayout>[1]);
+    },
+    "bulk-update-layout": (b) => {
+      bulkUpdateThoughtLayout(b.items as Parameters<typeof bulkUpdateThoughtLayout>[0]);
+    },
+  });
 }

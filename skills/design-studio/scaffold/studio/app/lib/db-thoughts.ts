@@ -163,6 +163,7 @@ export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevi
   const extraBindings: unknown[] = [];
 
   if (params.kind) { extraConditions.push("thoughts.kind = ?"); extraBindings.push(params.kind); }
+  if (params.source_type) { extraConditions.push("thoughts.source_type = ?"); extraBindings.push(params.source_type); }
   if (params.importance) { extraConditions.push("thoughts.importance = ?"); extraBindings.push(params.importance); }
   if (params.color) { extraConditions.push("thoughts.color = ?"); extraBindings.push(params.color); }
   if (params.pinned !== undefined) { extraConditions.push("thoughts.pinned = ?"); extraBindings.push(params.pinned ? 1 : 0); }
