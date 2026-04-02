@@ -4,6 +4,7 @@ import {
   featureAreas, updateFeaturePositions,
   getAllConnections, addConnection, removeConnection, updateConnectionNote,
 } from "@/app/lib/db-features";
+import { handleAction } from "@/app/lib/route-handler";
 import type { ConnectionType } from "@/app/lib/types";
 
 export async function GET(request: Request) {
@@ -17,28 +18,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  switch (body.action) {
-    case "create":
-      return NextResponse.json({ ok: true, feature: insertFeature(body.feature) });
-    case "update":
-      updateFeature(body.id, body.feature);
-      return NextResponse.json({ ok: true });
-    case "delete":
-      deleteFeature(body.id);
-      return NextResponse.json({ ok: true });
-    case "update-positions":
-      updateFeaturePositions(body.updates);
-      return NextResponse.json({ ok: true });
-    case "add-connection":
-      addConnection(body.a_id, body.b_id, body.type as ConnectionType, body.note);
-      return NextResponse.json({ ok: true });
-    case "remove-connection":
-      removeConnection(body.a_id, body.b_id);
-      return NextResponse.json({ ok: true });
-    case "update-connection-note":
-      updateConnectionNote(body.a_id, body.b_id, body.note);
-      return NextResponse.json({ ok: true });
-    default:
-      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  }
+
+  return handleAction(body, {
+    create: (b) => ({ feature: insertFeature(b.feature as Parameters<typeof insertFeature>[0]) }),
+    update: (b) => { updateFeature(b.id as string, b.feature as Partial<Parameters<typeof updateFeature>[1]>); },
+    delete: (b) => { deleteFeature(b.id as string); },
+    "update-positions": (b) => { updateFeaturePositions(b.updates as Parameters<typeof updateFeaturePositions>[0]); },
+    "add-connection": (b) => { addConnection(b.a_id as string, b.b_id as string, b.type as ConnectionType, b.note as string); },
+    "remove-connection": (b) => { removeConnection(b.a_id as string, b.b_id as string); },
+    "update-connection-note": (b) => { updateConnectionNote(b.a_id as string, b.b_id as string, b.note as string); },
+  });
 }

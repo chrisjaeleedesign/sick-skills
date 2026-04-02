@@ -12,7 +12,7 @@ let _vecLoaded = false;
  * Loads the sqlite-vec extension and creates the vec0 virtual table for
  * revision embeddings. Safe to call multiple times — only loads once.
  */
-export function loadVec(): void {
+function loadVec(): void {
   if (_vecLoaded) return;
   const db = getDb();
 
@@ -49,7 +49,7 @@ export function storeEmbedding(revisionId: string, vector: Float32Array): void {
 /**
  * Checks whether an embedding exists for a given revision.
  */
-export function hasEmbedding(revisionId: string): boolean {
+function hasEmbedding(revisionId: string): boolean {
   loadVec();
   const row = getDb().prepare(
     "SELECT 1 FROM revision_embeddings WHERE revision_id = ?",
@@ -70,7 +70,7 @@ interface SimilarResult {
  * Performs KNN cosine similarity search on the revision_embeddings vec0 table.
  * Returns revision IDs ordered by ascending distance (most similar first).
  */
-export function searchSimilar(query: Float32Array, limit: number = 10): SimilarResult[] {
+function searchSimilar(query: Float32Array, limit: number = 10): SimilarResult[] {
   loadVec();
   const db = getDb();
   const rows = db.prepare(`

@@ -1,4 +1,5 @@
 import { getDb, buildQuery } from "./db";
+import { now } from "./utils";
 import type { EventType, InsightType, InsightStatus, Event, Insight, QueryParams } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -92,7 +93,7 @@ export function createEvent(
      VALUES (@id, @ts, @type, @body, @family, @version, @tags, @metadata)`,
   ).run({
     id: event.id,
-    ts: event.ts ?? new Date().toISOString(),
+    ts: event.ts ?? now(),
     type: event.type,
     body: event.body,
     family: event.family ?? null,
@@ -115,7 +116,7 @@ export function createInsight(
      VALUES (@id, @ts, @type, @body, @family, @tags, @status, @refs, @superseded_by)`,
   ).run({
     id: insight.id,
-    ts: insight.ts ?? new Date().toISOString(),
+    ts: insight.ts ?? now(),
     type: insight.type,
     body: insight.body,
     family: insight.family ?? null,

@@ -7,6 +7,20 @@ Portable design prototyping workspace. Creates a `.agents/design/` directory wit
 
 User's request: $ARGUMENTS
 
+## Step 0: Ensure Agentation MCP is Running
+
+**Before doing anything else**, verify the Agentation MCP server is available. This is critical — Agentation provides the visual feedback loop between the browser and the agent.
+
+1. Check if agentation MCP tools are available (e.g., `agentation_list_sessions`). If they are, skip to Step 1.
+2. If NOT available, start the Agentation MCP server:
+   ```bash
+   npx agentation-mcp server &
+   ```
+   Wait a moment for it to initialize, then verify the tools become available.
+3. If the MCP server cannot start (missing dependency), tell the user to install it: `npm install -g agentation-mcp` or `npx add-mcp "npx -y agentation-mcp server"`.
+
+**Never skip this step.** Agentation feedback is how the user communicates visual issues from the browser.
+
 ## Intent Detection & Routing
 
 ### Step 1: Check for `.agents/design/manifest.json`

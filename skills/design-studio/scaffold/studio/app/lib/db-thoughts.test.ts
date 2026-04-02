@@ -13,13 +13,6 @@ import {
   addRelation,
   removeRelation,
   getRelations,
-  createBoard,
-  listBoards,
-  updateBoard,
-  deleteBoard,
-  addBoardItem,
-  removeBoardItem,
-  getBoardItems,
   thoughtTags,
   thoughtFamilies,
   thoughtColors,
@@ -274,57 +267,6 @@ describe("relations", () => {
     addRelation(a.id, b.id, "related");
     addRelation(a.id, b.id, "related"); // duplicate — should be ignored
     expect(getRelations(a.id)).toHaveLength(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Boards
-// ---------------------------------------------------------------------------
-
-describe("boards", () => {
-  it("creates and lists boards", () => {
-    createBoard({ name: "Aesthetics", color: "violet" });
-    createBoard({ name: "Layout ideas" });
-
-    const boards = listBoards();
-    expect(boards).toHaveLength(2);
-  });
-
-  it("updates a board", () => {
-    const board = createBoard({ name: "Draft" });
-    updateBoard(board.id, { name: "Final", description: "Curated collection" });
-
-    const boards = listBoards();
-    const updated = boards.find(b => b.id === board.id)!;
-    expect(updated.name).toBe("Final");
-    expect(updated.description).toBe("Curated collection");
-  });
-
-  it("deletes a board and cascades to items", () => {
-    const board = createBoard({ name: "temp" });
-    const { thought } = createThought({ kind: "observation", body: "x" });
-    addBoardItem(board.id, thought.id);
-
-    deleteBoard(board.id);
-    expect(listBoards()).toEqual([]);
-    expect(getBoardItems(board.id)).toEqual([]);
-  });
-
-  it("adds and removes board items", () => {
-    const board = createBoard({ name: "test" });
-    const { thought: t1 } = createThought({ kind: "observation", body: "a" });
-    const { thought: t2 } = createThought({ kind: "question", body: "b" });
-
-    addBoardItem(board.id, t1.id, 100, 200);
-    addBoardItem(board.id, t2.id, 300, 400);
-
-    const items = getBoardItems(board.id);
-    expect(items).toHaveLength(2);
-    expect(items[0].x).toBe(100);
-    expect(items[0].thought.id).toBe(t1.id);
-
-    removeBoardItem(board.id, t1.id);
-    expect(getBoardItems(board.id)).toHaveLength(1);
   });
 });
 

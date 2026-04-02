@@ -6,7 +6,11 @@ import { COLOR_PALETTE } from "@/app/lib/types";
 import type { Thought, Revision } from "@/app/lib/types";
 import type { Family } from "@/app/lib/manifest";
 import { KindBadge, ImportanceBadge } from "@/app/components/badges";
-import { fetchApi } from "@/app/lib/fetch";
+async function fetchApi<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
 
 // ---------------------------------------------------------------------------
 // Thought card (compact, expandable for revision history)

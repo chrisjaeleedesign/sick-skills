@@ -220,26 +220,59 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
   const chipActive = "bg-primary text-white";
   const chipInactive = "text-text-tertiary hover:bg-surface-2";
 
+  const selectClass = `rounded-lg border border-border bg-card px-2.5 py-1 text-text-primary outline-none focus:border-surface-3 ${
+    compact ? "text-[10px]" : "text-[11px]"
+  }`;
+
+  const labelClass = `text-[10px] font-medium uppercase tracking-wider text-text-tertiary ${compact ? "" : "text-[11px]"}`;
+
   return (
     <div className="space-y-2">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search bank..."
-          className={`w-full rounded-lg border border-border bg-card pl-9 pr-8 text-text-primary outline-none placeholder:text-text-tertiary focus:border-surface-3 focus:ring-1 focus:ring-surface-3 ${
-            compact ? "py-1.5 text-[12px]" : "py-2 text-[13px]"
-          }`}
-        />
-        {searchQuery && (
+      {/* Row 1: Search + Save filter (inline) */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search bank..."
+            className={`w-full rounded-lg border border-border bg-card pl-9 pr-8 text-text-primary outline-none placeholder:text-text-tertiary focus:border-surface-3 focus:ring-1 focus:ring-surface-3 ${
+              compact ? "py-1.5 text-[12px]" : "py-2 text-[13px]"
+            }`}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-tertiary hover:text-text-secondary"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Save filter — inline with search */}
+        {savingFilter ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              placeholder="Filter name..."
+              className="rounded-md border border-border bg-card px-2 py-1 text-[12px] text-text-primary outline-none placeholder:text-text-tertiary focus:border-surface-3 w-32"
+              onKeyDown={(e) => e.key === "Enter" && handleSaveFilter()}
+              autoFocus
+            />
+            <button onClick={handleSaveFilter} className="rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-white">Save</button>
+            <button onClick={() => { setSavingFilter(false); setFilterName(""); }} className="text-[11px] text-text-tertiary hover:text-text-secondary">Cancel</button>
+          </div>
+        ) : (
           <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-tertiary hover:text-text-secondary"
+            onClick={() => setSavingFilter(true)}
+            className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] text-text-tertiary hover:bg-surface-2 hover:text-text-secondary transition whitespace-nowrap"
           >
-            <X className="h-3.5 w-3.5" />
+            <Save className="h-3 w-3" />
+            Save filter
           </button>
         )}
       </div>
@@ -260,68 +293,66 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
         </div>
       )}
 
-      {/* Kind filters */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {KIND_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => { setKindFilter(f.value); setActiveFilterId(null); }}
-            className={`${chipBase} ${kindFilter === f.value ? chipActive : chipInactive}`}
+      {/* Row 2: Dropdowns + source types + toggles */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Kind dropdown */}
+        <div className="flex items-center gap-1.5">
+          <span className={labelClass}>Kind</span>
+          <select
+            value={kindFilter}
+            onChange={(e) => { setKindFilter(e.target.value); setActiveFilterId(null); }}
+            className={selectClass}
           >
-            {f.label}
-          </button>
-        ))}
+            {KIND_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
 
-        <Separator />
-
-        {/* Importance filters */}
-        {IMPORTANCE_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => { setImportanceFilter(f.value); setActiveFilterId(null); }}
-            className={`${chipBase} ${importanceFilter === f.value ? chipActive : chipInactive}`}
+        {/* Importance dropdown */}
+        <div className="flex items-center gap-1.5">
+          <span className={labelClass}>Importance</span>
+          <select
+            value={importanceFilter}
+            onChange={(e) => { setImportanceFilter(e.target.value); setActiveFilterId(null); }}
+            className={selectClass}
           >
-            {f.label}
-          </button>
-        ))}
-      </div>
+            {IMPORTANCE_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
 
-      {/* Source type + time + pinned row */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {SOURCE_TYPE_FILTERS.map((f) => {
-          const Icon = f.icon;
-          const active = sourceTypeFilter.includes(f.value);
-          return (
-            <button
-              key={f.value}
-              onClick={() => { toggleSourceType(f.value); setActiveFilterId(null); }}
-              className={`${chipBase} flex items-center gap-1 ${active ? chipActive : chipInactive}`}
+        {/* Family dropdown */}
+        {availableFamilies.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <span className={labelClass}>Family</span>
+            <select
+              value={familyFilter}
+              onChange={(e) => { setFamilyFilter(e.target.value); setActiveFilterId(null); }}
+              className={selectClass}
             >
-              <Icon className="h-3 w-3" />
-              {f.label}
-            </button>
-          );
-        })}
+              <option value="">All</option>
+              {availableFamilies.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        <Separator />
-
-        {/* Time range */}
-        <div className="flex items-center gap-1">
+        {/* Time range dropdown */}
+        <div className="flex items-center gap-1.5">
           <Clock className="h-3 w-3 text-text-tertiary" />
           <select
             value={timeRange}
             onChange={(e) => { setTimeRange(e.target.value); setActiveFilterId(null); }}
-            className={`rounded-full border border-border bg-transparent px-2 py-0.5 text-text-tertiary outline-none focus:border-surface-3 ${
-              compact ? "text-[10px]" : "text-[11px]"
-            }`}
+            className={selectClass}
           >
             {TIME_RANGES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
         </div>
-
-        <Separator />
 
         {/* Pinned toggle */}
         <button
@@ -333,22 +364,6 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           <Star className={`h-3 w-3 ${pinnedOnly ? "fill-amber-400" : ""}`} />
           Pinned
         </button>
-
-        {/* Family filter */}
-        {availableFamilies.length > 0 && (
-          <select
-            value={familyFilter}
-            onChange={(e) => { setFamilyFilter(e.target.value); setActiveFilterId(null); }}
-            className={`rounded-full border border-border bg-transparent px-2.5 py-0.5 text-text-tertiary outline-none focus:border-surface-3 ${
-              compact ? "text-[10px]" : "text-[11px]"
-            }`}
-          >
-            <option value="">All families</option>
-            {availableFamilies.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-        )}
 
         {/* Color filter */}
         <div className="flex items-center gap-1">
@@ -372,56 +387,39 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
         </div>
       </div>
 
-      {/* Tag chips */}
-      {availableTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] text-text-tertiary">Tags:</span>
-          {availableTags.slice(0, 20).map((tag) => (
+      {/* Row 3: Source type chips */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={labelClass}>Type</span>
+        {SOURCE_TYPE_FILTERS.map((f) => {
+          const Icon = f.icon;
+          const active = sourceTypeFilter.includes(f.value);
+          return (
             <button
-              key={tag}
-              onClick={() => { toggleTag(tag); setActiveFilterId(null); }}
-              className={`${chipBase} ${tagFilter.includes(tag) ? chipActive : chipInactive}`}
+              key={f.value}
+              onClick={() => { toggleSourceType(f.value); setActiveFilterId(null); }}
+              className={`${chipBase} flex items-center gap-1 ${active ? chipActive : chipInactive}`}
             >
-              {tag}
+              <Icon className="h-3 w-3" />
+              {f.label}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
 
-      {/* Save filter button */}
-      <div className="flex items-center gap-2">
-        {savingFilter ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={filterName}
-              onChange={(e) => setFilterName(e.target.value)}
-              placeholder="Filter name..."
-              className="rounded-md border border-border bg-card px-2 py-1 text-[12px] text-text-primary outline-none placeholder:text-text-tertiary focus:border-surface-3"
-              onKeyDown={(e) => e.key === "Enter" && handleSaveFilter()}
-              autoFocus
-            />
-            <button
-              onClick={handleSaveFilter}
-              className="rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-white"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => { setSavingFilter(false); setFilterName(""); }}
-              className="text-[11px] text-text-tertiary hover:text-text-secondary"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setSavingFilter(true)}
-            className="flex items-center gap-1 text-[11px] text-text-tertiary hover:text-text-secondary transition"
-          >
-            <Save className="h-3 w-3" />
-            Save filter
-          </button>
+        {/* Tag chips */}
+        {availableTags.length > 0 && (
+          <>
+            <div className="mx-1 h-4 w-px bg-border" />
+            <span className={labelClass}>Tags</span>
+            {availableTags.slice(0, 15).map((tag) => (
+              <button
+                key={tag}
+                onClick={() => { toggleTag(tag); setActiveFilterId(null); }}
+                className={`${chipBase} ${tagFilter.includes(tag) ? chipActive : chipInactive}`}
+              >
+                {tag}
+              </button>
+            ))}
+          </>
         )}
       </div>
     </div>

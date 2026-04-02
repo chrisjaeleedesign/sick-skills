@@ -6,6 +6,7 @@ import {
   createInsight,
   updateInsight,
 } from "@/app/lib/db-journal";
+import { handleAction } from "@/app/lib/route-handler";
 import type { QueryParams } from "@/app/lib/types";
 
 export async function GET(request: Request) {
@@ -37,19 +38,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = await request.json();
 
-  switch (body.action) {
-    case "append-event":
-      createEvent(body.event);
-      break;
-    case "append-insight":
-      createInsight(body.insight);
-      break;
-    case "update-insight":
-      updateInsight(body.id, body.patch);
-      break;
-    default:
-      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  }
-
-  return NextResponse.json({ ok: true });
+  return handleAction(body, {
+    "append-event": (b) => { createEvent(b.event as Parameters<typeof createEvent>[0]); },
+    "append-insight": (b) => { createInsight(b.insight as Parameters<typeof createInsight>[0]); },
+    "update-insight": (b) => { updateInsight(b.id as string, b.patch as Parameters<typeof updateInsight>[1]); },
+  });
 }

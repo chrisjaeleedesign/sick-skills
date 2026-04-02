@@ -22,14 +22,13 @@
     "@dnd-kit/sortable": "^10.0.0",
     "agentation": "^2.3.3",
     "better-sqlite3": "^12.8.0",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
     "next": "^16.1.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "sqlite-vec": "^0.1.7",
-    "tailwind-merge": "^3.5.0"
+    "react-grid-layout": "^2.2.3",
+    "sqlite-vec": "^0.1.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
@@ -37,6 +36,7 @@
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
+    "@types/react-grid-layout": "^2.1.0",
     "playwright": "^1.58.2",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.8.3",

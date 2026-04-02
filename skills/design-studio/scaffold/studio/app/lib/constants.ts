@@ -1,9 +1,5 @@
 import { Monitor, Tablet, Smartphone } from "lucide-react";
 
-/** Standard container dimensions for prototype rendering. */
-export const CONTAINER_WIDTH = 1440;
-export const CONTAINER_HEIGHT = 900;
-
 /** Device presets for the prototype viewer. */
 export const DEVICE_PRESETS = {
   desktop: { width: 1440, height: 900, label: "Desktop" },

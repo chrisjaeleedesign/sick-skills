@@ -1,5 +1,5 @@
 import { getDb } from "./db";
-import { genId } from "./utils";
+import { genId, now } from "./utils";
 import type { Feature, ConnectionType, FeatureConnection } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -23,7 +23,7 @@ export function insertFeature(f: {
   priority?: string; status?: string; x?: number; y?: number;
 }): Feature {
   const db = getDb();
-  const now = new Date().toISOString();
+  const ts = now();
   const id = genId("feat");
   db.prepare(`
     INSERT INTO features (id, area, name, description, notes, priority, status, x, y, created_at, updated_at)
@@ -31,7 +31,7 @@ export function insertFeature(f: {
   `).run({
     id, area: f.area, name: f.name, description: f.description ?? "",
     notes: f.notes ?? "", priority: f.priority ?? "", status: f.status ?? "",
-    x: f.x ?? 0, y: f.y ?? 0, created_at: now, updated_at: now,
+    x: f.x ?? 0, y: f.y ?? 0, created_at: ts, updated_at: ts,
   });
   return db.prepare("SELECT * FROM features WHERE id = @id").get({ id }) as Feature;
 }
@@ -47,7 +47,7 @@ export function updateFeature(id: string, updates: Partial<Feature>): void {
   }
   if (sets.length === 0) return;
   sets.push("updated_at = @updated_at");
-  values.updated_at = new Date().toISOString();
+  values.updated_at = now();
   db.prepare(`UPDATE features SET ${sets.join(", ")} WHERE id = @id`).run(values);
 }
 
@@ -62,9 +62,9 @@ export function featureAreas(): string[] {
 export function updateFeaturePositions(updates: { id: string; x: number; y: number }[]): void {
   const db = getDb();
   const stmt = db.prepare("UPDATE features SET x = @x, y = @y, updated_at = @updated_at WHERE id = @id");
-  const now = new Date().toISOString();
+  const ts = now();
   const tx = db.transaction(() => {
-    for (const u of updates) stmt.run({ ...u, updated_at: now });
+    for (const u of updates) stmt.run({ ...u, updated_at: ts });
   });
   tx();
 }
@@ -80,11 +80,11 @@ export function getAllConnections(): FeatureConnection[] {
 export function addConnection(aId: string, bId: string, type: ConnectionType, note?: string): void {
   let a = aId, b = bId;
   if (type === "related" && b < a) { [a, b] = [b, a]; }
-  const now = new Date().toISOString();
+  const ts = now();
   getDb().prepare(`
     INSERT OR IGNORE INTO feature_connections (a_id, b_id, type, note, created_at)
     VALUES (@a, @b, @type, @note, @created_at)
-  `).run({ a, b, type, note: note ?? "", created_at: now });
+  `).run({ a, b, type, note: note ?? "", created_at: ts });
 }
 
 export function removeConnection(aId: string, bId: string): void {

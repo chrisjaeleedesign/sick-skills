@@ -76,6 +76,7 @@ export function parseDropId(id: string): DropTarget | null {
  *
  * Returns a new grid and (possibly increased) row count. Never mutates inputs.
  */
+/** @internal Used by applyDragResult — not part of public API */
 export function insertWithShift(
   grid: Record<string, string>,
   rows: number,
@@ -122,6 +123,7 @@ export function insertWithShift(
  * Remove completely empty trailing rows and columns, cleaning up any
  * orphaned grid keys. Never reduces below 1x1.
  */
+/** @internal Used by applyDragResult — not part of public API */
 export function trimTrailing(
   grid: Record<string, string>,
   rows: number,
@@ -165,6 +167,7 @@ export function trimTrailing(
 /**
  * Remove a slug from the grid by value. Returns a new grid object.
  */
+/** @internal Used by applyDragResult — not part of public API */
 export function removeSlug(
   grid: Record<string, string>,
   slug: string,
@@ -182,6 +185,7 @@ export function removeSlug(
  * Search all sections for a slug's grid position.
  * Returns the sectionId, row, and col, or null if not found.
  */
+/** @internal Used by applyDragResult — not part of public API */
 export function findSlug(
   sections: readonly Section[],
   slug: string,
@@ -208,6 +212,7 @@ export function findSlug(
  * Returns null if the drop is invalid (e.g. column cap reached, or
  * called with a cell target).
  */
+/** @internal Used by applyDragResult — not part of public API */
 export function resolveGutterDrop(
   columns: number,
   rows: number,

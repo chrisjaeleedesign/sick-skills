@@ -1,13 +1,14 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { NextResponse } from "next/server";
+import { DESIGN_ROOT } from "@/app/lib/db";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ family: string; version: string }> }
 ) {
   const { family, version } = await params;
-  const filePath = join(process.cwd(), "../references", `${family}-v${version}.png`);
+  const filePath = join(DESIGN_ROOT, "references", `${family}-v${version}.png`);
 
   try {
     const buffer = readFileSync(filePath);

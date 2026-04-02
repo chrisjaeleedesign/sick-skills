@@ -14,19 +14,7 @@ import {
 } from "lucide-react";
 import type { Family } from "@/app/lib/manifest";
 import { COLOR_PALETTE } from "@/app/lib/types";
-
-function timeAgo(dateStr: string): string {
-  const seconds = Math.floor(
-    (Date.now() - new Date(dateStr).getTime()) / 1000
-  );
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+import { timeAgo } from "@/app/lib/utils";
 
 export function FamilyCard({
   family,
@@ -104,11 +92,11 @@ export function FamilyCard({
         </button>
       )}
 
+      {/* Header — links to latest version */}
       <Link
         href={`/prototypes/${family.slug}/v${latest.number}`}
         className="block hover:opacity-90 transition-opacity"
       >
-        {/* Header */}
         <div className="flex items-baseline justify-between pr-6">
           <div className="flex items-center gap-1.5 min-w-0">
             {family.color && (
@@ -127,73 +115,76 @@ export function FamilyCard({
         <p className="mt-0.5 text-xs text-text-tertiary leading-relaxed">
           {family.description}
         </p>
+      </Link>
 
-        {/* Thumbnail */}
-        {showThumbnail && !thumbError && (
-          <div className="mt-2">
-            <div className="flex justify-end">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setThumbExpanded(!thumbExpanded);
-                }}
-                className="text-text-tertiary hover:text-text-secondary"
-              >
-                {thumbExpanded ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-              </button>
-            </div>
-            {thumbExpanded && (
+      {/* Thumbnail */}
+      {showThumbnail && !thumbError && (
+        <div className="mt-2">
+          <div className="flex justify-end">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setThumbExpanded(!thumbExpanded);
+              }}
+              className="text-text-tertiary hover:text-text-secondary"
+            >
+              {thumbExpanded ? (
+                <ChevronUp className="h-3 w-3" />
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
+          </div>
+          {thumbExpanded && (
+            <Link href={`/prototypes/${family.slug}/v${latest.number}`}>
               <img
                 src={`/api/screenshot/${family.slug}/${latest.number}`}
                 alt={family.name}
                 loading="lazy"
-                className="mt-1 w-full rounded border border-border"
+                className="mt-1 w-full rounded border border-border hover:opacity-90 transition-opacity"
                 onError={() => setThumbError(true)}
               />
-            )}
-          </div>
-        )}
-
-        {/* Version list */}
-        <div className="mt-3 space-y-0.5">
-          {family.versions.map((v) => {
-            const isCurrentVersion = isCurrent && currentVersion === v.number;
-            return (
-              <div
-                key={v.number}
-                className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
-                  isCurrentVersion ? "bg-surface-2" : ""
-                }`}
-              >
-                <span className="w-6 shrink-0 font-mono text-text-tertiary">
-                  v{v.number}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-text-secondary">
-                  {v.direction}
-                </span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  {v.starred && (
-                    <Star className="h-3 w-3 fill-accent-amber text-accent-amber" />
-                  )}
-                  {v.parentVersion && (
-                    <span className="flex items-center gap-0.5 text-[10px] text-text-tertiary">
-                      <GitBranch className="h-3 w-3" />v{v.parentVersion}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-text-tertiary">
-                    {timeAgo(v.createdAt)}
-                  </span>
-                </span>
-              </div>
-            );
-          })}
+            </Link>
+          )}
         </div>
-      </Link>
+      )}
+
+      {/* Version list — each row links to its specific version */}
+      <div className="mt-3 space-y-0.5">
+        {family.versions.map((v) => {
+          const isCurrentVersion = isCurrent && currentVersion === v.number;
+          return (
+            <Link
+              key={v.number}
+              href={`/prototypes/${family.slug}/v${v.number}`}
+              className={`flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors ${
+                isCurrentVersion ? "bg-surface-2" : "hover:bg-surface-1"
+              }`}
+            >
+              <span className="w-6 shrink-0 font-mono text-text-tertiary">
+                v{v.number}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-text-secondary">
+                {v.direction}
+              </span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                {v.starred && (
+                  <Star className="h-3 w-3 fill-accent-amber text-accent-amber" />
+                )}
+                {v.parentVersion && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-text-tertiary">
+                    <GitBranch className="h-3 w-3" />v{v.parentVersion}
+                  </span>
+                )}
+                <span className="text-[10px] text-text-tertiary">
+                  {timeAgo(v.createdAt)}
+                </span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
