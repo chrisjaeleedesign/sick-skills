@@ -1,19 +1,15 @@
 import { getDb, buildQuery } from "./db";
-import { genId } from "./utils";
+import { genId, now } from "./utils";
 import type {
   ThoughtKind, SourceType, Importance, RelationType,
   AttachmentType, ThoughtColor,
   Thought, Revision, Attachment, ThoughtRelation,
-  Board, BoardItem, ThoughtQueryParams,
+  ThoughtQueryParams,
 } from "./types";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function now(): string {
-  return new Date().toISOString();
-}
 
 function deserializeThought(row: Record<string, unknown>): Thought {
   return {
@@ -29,6 +25,10 @@ function deserializeThought(row: Record<string, unknown>): Thought {
     importance: (row.importance as Importance) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
+    layout_w: (row.layout_w as number) ?? undefined,
+    layout_h: (row.layout_h as number) ?? undefined,
+    layout_x: (row.layout_x as number) ?? undefined,
+    layout_y: (row.layout_y as number) ?? undefined,
   };
 }
 
@@ -201,10 +201,10 @@ export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevi
     ? "LEFT JOIN revisions lr ON lr.thought_id = thoughts.id AND lr.seq = (SELECT MAX(seq) FROM revisions WHERE thought_id = thoughts.id)"
     : "";
 
-  // Replace the SELECT clause to add DISTINCT and revision columns,
+  // Replace the SELECT clause to add DISTINCT, layout, and revision columns,
   // and inject the search/revision joins after FROM thoughts
   const sql = baseQuery
-    .replace("SELECT thoughts.* FROM thoughts", `SELECT ${distinct} thoughts.*${revisionSelect} FROM thoughts ${searchJoin} ${revisionJoin}`.trim());
+    .replace("SELECT thoughts.* FROM thoughts", `SELECT ${distinct} thoughts.*, thoughts.layout_w, thoughts.layout_h, thoughts.layout_x, thoughts.layout_y${revisionSelect} FROM thoughts ${searchJoin} ${revisionJoin}`.trim());
 
   const rows = db.prepare(sql).all(...bindings) as Record<string, unknown>[];
   return rows.map((row) => {
@@ -315,104 +315,6 @@ export function getRelations(thoughtId: string): ThoughtRelation[] {
 }
 
 // ---------------------------------------------------------------------------
-// Boards
-// ---------------------------------------------------------------------------
-
-export function createBoard(input: { name: string; description?: string; color?: ThoughtColor }): Board {
-
-  const db = getDb();
-  const id = genId("brd");
-  const ts = now();
-
-  db.prepare(`
-    INSERT INTO boards (id, name, description, color, created_at, updated_at)
-    VALUES (@id, @name, @description, @color, @created_at, @updated_at)
-  `).run({
-    id, name: input.name, description: input.description ?? "",
-    color: input.color ?? null, created_at: ts, updated_at: ts,
-  });
-
-  return db.prepare("SELECT * FROM boards WHERE id = ?").get(id) as Board;
-}
-
-export function listBoards(): Board[] {
-
-  return getDb().prepare("SELECT * FROM boards ORDER BY updated_at DESC").all() as Board[];
-}
-
-export function updateBoard(id: string, patch: Partial<Pick<Board, "name" | "description" | "color">>): void {
-
-  const db = getDb();
-  const sets: string[] = [];
-  const values: Record<string, unknown> = { id };
-
-  if (patch.name !== undefined) { sets.push("name = @name"); values.name = patch.name; }
-  if (patch.description !== undefined) { sets.push("description = @description"); values.description = patch.description; }
-  if (patch.color !== undefined) { sets.push("color = @color"); values.color = patch.color; }
-
-  if (sets.length === 0) return;
-  sets.push("updated_at = @updated_at");
-  values.updated_at = now();
-
-  db.prepare(`UPDATE boards SET ${sets.join(", ")} WHERE id = @id`).run(values);
-}
-
-export function deleteBoard(id: string): void {
-
-  getDb().prepare("DELETE FROM boards WHERE id = ?").run(id);
-}
-
-export function addBoardItem(boardId: string, thoughtId: string, x: number = 0, y: number = 0): void {
-
-  const ts = now();
-  getDb().prepare(`
-    INSERT OR REPLACE INTO board_items (board_id, thought_id, x, y, added_at)
-    VALUES (@board_id, @thought_id, @x, @y, @added_at)
-  `).run({ board_id: boardId, thought_id: thoughtId, x, y, added_at: ts });
-}
-
-export function removeBoardItem(boardId: string, thoughtId: string): void {
-
-  getDb().prepare("DELETE FROM board_items WHERE board_id = ? AND thought_id = ?").run(boardId, thoughtId);
-}
-
-export function getBoardItems(boardId: string): (BoardItem & { thought: Thought })[] {
-
-  const db = getDb();
-  const rows = db.prepare(`
-    SELECT bi.*, t.id AS t_id, t.kind, t.source_type, t.source_url, t.source_meta,
-           t.family, t.tags AS t_tags, t.color, t.pinned, t.importance,
-           t.created_at AS t_created_at, t.updated_at AS t_updated_at
-    FROM board_items bi
-    JOIN thoughts t ON t.id = bi.thought_id
-    WHERE bi.board_id = ?
-    ORDER BY bi.added_at
-  `).all(boardId) as Record<string, unknown>[];
-
-  return rows.map(row => ({
-    board_id: row.board_id as string,
-    thought_id: row.thought_id as string,
-    x: row.x as number,
-    y: row.y as number,
-    added_at: row.added_at as string,
-    thought: deserializeThought({
-      id: row.t_id,
-      kind: row.kind,
-      source_type: row.source_type,
-      source_url: row.source_url,
-      source_meta: row.source_meta,
-      family: row.family,
-      tags: row.t_tags,
-      color: row.color,
-      pinned: row.pinned,
-      importance: row.importance,
-      created_at: row.t_created_at,
-      updated_at: row.t_updated_at,
-    }),
-  }));
-}
-
-// ---------------------------------------------------------------------------
 // Aggregation
 // ---------------------------------------------------------------------------
 
@@ -438,4 +340,41 @@ export function thoughtColors(): ThoughtColor[] {
     "SELECT DISTINCT color FROM thoughts WHERE color IS NOT NULL ORDER BY color",
   ).all() as { color: ThoughtColor }[];
   return rows.map(r => r.color);
+}
+
+// ---------------------------------------------------------------------------
+// Layout helpers
+// ---------------------------------------------------------------------------
+
+export function updateThoughtLayout(id: string, layout: { layout_x?: number; layout_y?: number; layout_w?: number; layout_h?: number }): void {
+
+  const db = getDb();
+  const sets: string[] = [];
+  const values: Record<string, unknown> = { id };
+
+  if (layout.layout_x !== undefined) { sets.push("layout_x = @layout_x"); values.layout_x = layout.layout_x; }
+  if (layout.layout_y !== undefined) { sets.push("layout_y = @layout_y"); values.layout_y = layout.layout_y; }
+  if (layout.layout_w !== undefined) { sets.push("layout_w = @layout_w"); values.layout_w = layout.layout_w; }
+  if (layout.layout_h !== undefined) { sets.push("layout_h = @layout_h"); values.layout_h = layout.layout_h; }
+
+  if (sets.length === 0) return;
+  sets.push("updated_at = @updated_at");
+  values.updated_at = now();
+
+  db.prepare(`UPDATE thoughts SET ${sets.join(", ")} WHERE id = @id`).run(values);
+}
+
+export function bulkUpdateThoughtLayout(items: { id: string; layout_x: number; layout_y: number; layout_w: number; layout_h: number }[]): void {
+
+  const db = getDb();
+  const stmt = db.prepare(
+    "UPDATE thoughts SET layout_x = @layout_x, layout_y = @layout_y, layout_w = @layout_w, layout_h = @layout_h, updated_at = @updated_at WHERE id = @id"
+  );
+  const ts = now();
+  const tx = db.transaction(() => {
+    for (const item of items) {
+      stmt.run({ id: item.id, layout_x: item.layout_x, layout_y: item.layout_y, layout_w: item.layout_w, layout_h: item.layout_h, updated_at: ts });
+    }
+  });
+  tx();
 }

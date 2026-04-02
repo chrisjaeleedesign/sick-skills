@@ -99,7 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_insights_status ON insights(status);
 CREATE TABLE IF NOT EXISTS thoughts (
   id          TEXT PRIMARY KEY,
   kind        TEXT NOT NULL CHECK (kind IN ('observation','question','principle','reference')),
-  source_type TEXT CHECK (source_type IN ('video','article','conversation','observation','prototype','image')),
+  source_type TEXT CHECK (source_type IN ('video','article','conversation','observation','prototype','image','link')),
   source_url  TEXT,
   source_meta TEXT NOT NULL DEFAULT '{}',
   family      TEXT,
@@ -107,7 +107,11 @@ CREATE TABLE IF NOT EXISTS thoughts (
   color       TEXT,
   pinned      INTEGER NOT NULL DEFAULT 0,
   created_at  TEXT NOT NULL,
-  updated_at  TEXT NOT NULL
+  updated_at  TEXT NOT NULL,
+  layout_w    INTEGER DEFAULT 1,
+  layout_h    INTEGER DEFAULT 1,
+  layout_x    INTEGER,
+  layout_y    INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_thoughts_kind       ON thoughts(kind);
@@ -159,6 +163,7 @@ CREATE TABLE IF NOT EXISTS boards (
   name        TEXT NOT NULL,
   description TEXT DEFAULT '',
   color       TEXT,
+  columns     INTEGER DEFAULT 6,
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
@@ -169,6 +174,8 @@ CREATE TABLE IF NOT EXISTS board_items (
   thought_id TEXT NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
   x          REAL NOT NULL DEFAULT 0,
   y          REAL NOT NULL DEFAULT 0,
+  w          INTEGER DEFAULT 1,
+  h          INTEGER DEFAULT 1,
   added_at   TEXT NOT NULL,
   PRIMARY KEY (board_id, thought_id)
 );
@@ -221,6 +228,14 @@ CREATE TABLE IF NOT EXISTS feature_connections (
 );
 CREATE INDEX IF NOT EXISTS idx_fc_a ON feature_connections(a_id);
 CREATE INDEX IF NOT EXISTS idx_fc_b ON feature_connections(b_id);
+
+-- Saved filters
+CREATE TABLE IF NOT EXISTS saved_filters (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  filter_json TEXT NOT NULL,
+  created_at  TEXT DEFAULT (datetime('now'))
+);
 `;
 
 // ---------------------------------------------------------------------------
@@ -455,14 +470,17 @@ const MIGRATIONS: Migration[] = [
       // the new column, migrate data, and keep conviction for backward compat.
       try { db.exec("ALTER TABLE thoughts ADD COLUMN importance TEXT"); } catch { /* already exists */ }
 
-      // Map old conviction values to new importance values
-      db.exec(`UPDATE thoughts SET importance = CASE conviction
-        WHEN 'hunch' THEN 'signal'
-        WHEN 'leaning' THEN 'assumption'
-        WHEN 'confident' THEN 'guiding'
-        WHEN 'core' THEN 'foundational'
-        ELSE conviction
-      END WHERE importance IS NULL`);
+      // Map old conviction values to new importance values (if conviction column still exists)
+      const hasConviction = (db.prepare("SELECT COUNT(*) as cnt FROM pragma_table_info('thoughts') WHERE name = 'conviction'").get() as { cnt: number }).cnt > 0;
+      if (hasConviction) {
+        db.exec(`UPDATE thoughts SET importance = CASE conviction
+          WHEN 'hunch' THEN 'signal'
+          WHEN 'leaning' THEN 'assumption'
+          WHEN 'confident' THEN 'guiding'
+          WHEN 'core' THEN 'foundational'
+          ELSE conviction
+        END WHERE importance IS NULL`);
+      }
 
       // Clear importance for observations and references (it's optional for these)
       // Actually keep it — user may want to filter by importance on any kind
@@ -474,6 +492,30 @@ const MIGRATIONS: Migration[] = [
     run: (db) => {
       // SQLite 3.35+ supports DROP COLUMN
       try { db.exec("ALTER TABLE thoughts DROP COLUMN conviction"); } catch { /* older SQLite or column already gone */ }
+    },
+  },
+  {
+    id: 4,
+    name: "bank-and-boards-schema",
+    run: (db) => {
+      try { db.exec("ALTER TABLE thoughts ADD COLUMN layout_w INTEGER DEFAULT 1"); } catch { /* already exists */ }
+      try { db.exec("ALTER TABLE thoughts ADD COLUMN layout_h INTEGER DEFAULT 1"); } catch { /* already exists */ }
+      try { db.exec("ALTER TABLE thoughts ADD COLUMN layout_x INTEGER"); } catch { /* already exists */ }
+      try { db.exec("ALTER TABLE thoughts ADD COLUMN layout_y INTEGER"); } catch { /* already exists */ }
+
+      try { db.exec("ALTER TABLE board_items ADD COLUMN w INTEGER DEFAULT 1"); } catch { /* already exists */ }
+      try { db.exec("ALTER TABLE board_items ADD COLUMN h INTEGER DEFAULT 1"); } catch { /* already exists */ }
+
+      try { db.exec("ALTER TABLE boards ADD COLUMN columns INTEGER DEFAULT 6"); } catch { /* already exists */ }
+
+      try {
+        db.exec(`CREATE TABLE IF NOT EXISTS saved_filters (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          filter_json TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        )`);
+      } catch { /* already exists */ }
     },
   },
 ];

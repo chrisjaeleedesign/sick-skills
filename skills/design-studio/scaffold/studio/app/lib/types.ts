@@ -110,7 +110,7 @@ export const COLOR_PALETTE: Record<ThoughtColor, { bg: string; border: string; t
 // ---------------------------------------------------------------------------
 
 export type ThoughtKind = "observation" | "question" | "principle" | "reference";
-export type SourceType = "video" | "article" | "conversation" | "observation" | "prototype" | "image";
+export type SourceType = "video" | "article" | "conversation" | "observation" | "prototype" | "image" | "link";
 export type Importance = "invalidated" | "signal" | "assumption" | "guiding" | "foundational";
 export type RelationType = "related" | "inspired_by" | "builds_on" | "contradicts";
 export type AttachmentType = "image" | "screenshot" | "thumbnail" | "video_ref";
@@ -128,6 +128,10 @@ export interface Thought {
   importance?: Importance;
   created_at: string;
   updated_at: string;
+  layout_w?: number;
+  layout_h?: number;
+  layout_x?: number;
+  layout_y?: number;
 }
 
 export interface Revision {
@@ -156,23 +160,6 @@ export interface ThoughtRelation {
   created_at: string;
 }
 
-export interface Board {
-  id: string;
-  name: string;
-  description: string;
-  color?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BoardItem {
-  board_id: string;
-  thought_id: string;
-  x: number;
-  y: number;
-  added_at: string;
-}
-
 export interface ThoughtQueryParams {
   search?: string;
   kind?: ThoughtKind;
@@ -183,4 +170,45 @@ export interface ThoughtQueryParams {
   pinned?: boolean;
   limit?: number;
   offset?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Bank & Boards types
+// ---------------------------------------------------------------------------
+
+export interface Board {
+  id: string;
+  name: string;
+  description: string;
+  color?: ThoughtColor;
+  columns: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BoardItem {
+  board_id: string;
+  thought_id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  added_at: string;
+}
+
+export interface SavedFilter {
+  id: string;
+  name: string;
+  filter_json: FilterState;
+  created_at: string;
+}
+
+export interface FilterState {
+  types?: SourceType[];
+  tags?: string[];
+  families?: string[];
+  timeRange?: { since?: string; until?: string };
+  boardId?: string;
+  onBoard?: "any" | "none";
+  pinned?: boolean;
 }
