@@ -1,0 +1,94 @@
+[
+  {
+    "query": "reference our knowledge base to see what our brand guidelines say about how we should talk to customers in emails — i think there's a doc somewhere about tone",
+    "should_trigger": true
+  },
+  {
+    "query": "hey can you check our shared docs for the product direction? i need to know what we decided about the onboarding flow for v1",
+    "should_trigger": true
+  },
+  {
+    "query": "leave a note on the company direction doc that the pricing model section needs updating — we changed our approach last week",
+    "should_trigger": true
+  },
+  {
+    "query": "i just added a few new docs to the drive folder, can you sync the kb so they show up in the manifest",
+    "should_trigger": true
+  },
+  {
+    "query": "what does our internal documentation say about how we handle user data privacy? i want to make sure this feature aligns with our policies",
+    "should_trigger": true
+  },
+  {
+    "query": "we have some shared google docs with our product specs. can you look through them and tell me what our positioning is?",
+    "should_trigger": true
+  },
+  {
+    "query": "can you flag in the product doc that the section about call cadence is outdated? we decided on biweekly",
+    "should_trigger": true
+  },
+  {
+    "query": "i need to set up a shared knowledge base in google drive for our team so the ai can reference our docs. how do i get started?",
+    "should_trigger": true
+  },
+  {
+    "query": "refresh the manifest — andy added a competitive analysis doc to the folder yesterday",
+    "should_trigger": true
+  },
+  {
+    "query": "before you write this email, check our docs to see if there are any guidelines about how we communicate with investors",
+    "should_trigger": true
+  },
+  {
+    "query": "can you create a new google doc called 'Q2 Roadmap' and add some initial sections for features, timeline, and milestones?",
+    "should_trigger": false
+  },
+  {
+    "query": "write me a python script that reads a google sheet and exports it to csv — the sheet id is 1abc123 and i need columns A through D",
+    "should_trigger": false
+  },
+  {
+    "query": "i need to share this google drive folder with my cofounder. can you help me set the permissions so she has edit access?",
+    "should_trigger": false
+  },
+  {
+    "query": "help me draft a product requirements doc for our new feature — it should cover user stories, acceptance criteria, and technical constraints",
+    "should_trigger": false
+  },
+  {
+    "query": "can you search my codebase for any references to the old API endpoint? i think there are some hardcoded URLs in the config files",
+    "should_trigger": false
+  },
+  {
+    "query": "i want to build a dashboard that pulls data from google sheets and displays charts. can you help me set that up with next.js?",
+    "should_trigger": false
+  },
+  {
+    "query": "help me organize my google drive — i have like 200 files in one folder and i need to sort them into subfolders by project",
+    "should_trigger": false
+  },
+  {
+    "query": "can you write copy for our landing page hero section? we're targeting founders who need help with decision-making and accountability",
+    "should_trigger": false
+  },
+  {
+    "query": "i need to set up google oauth for my app so users can log in with their google accounts. can you walk me through the client credentials setup?",
+    "should_trigger": false
+  },
+  {
+    "query": "take a look at this doc i have locally at ./docs/architecture.md and tell me if the database schema makes sense for our use case",
+    "should_trigger": false
+  },
+  {
+    "query": "check the kb",
+    "should_trigger": true
+  },
+  {
+    "query": "What does our kb say about this",
+    "should_trigger": true
+  },
+  {
+    "query": "reference the knowledge base",
+    "should_trigger": true
+  }
+]

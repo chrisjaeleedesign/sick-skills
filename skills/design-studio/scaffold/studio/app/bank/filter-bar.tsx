@@ -80,6 +80,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
   const [timeRange, setTimeRange] = useState("");
   const [customSince, setCustomSince] = useState("");
   const [customUntil, setCustomUntil] = useState("");
+  const prevTimeRangeRef = useRef("");
   const [activeFilterId, setActiveFilterId] = useState<string | null>(null);
 
   // Meta state
@@ -324,11 +325,24 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           </button>
         )}
 
+        {/* Pinned toggle */}
+        <button
+          onClick={() => { setPinnedOnly(!pinnedOnly); setActiveFilterId(null); }}
+          className={`flex items-center gap-1 rounded-md px-2 py-1 ${
+            compact ? "text-[10px]" : "text-[11px]"
+          } font-medium transition ${
+            pinnedOnly ? "bg-accent-amber/20 text-accent-amber" : "text-text-tertiary hover:bg-surface-2 hover:text-text-secondary"
+          }`}
+        >
+          <Star className={`h-3 w-3 ${pinnedOnly ? "fill-amber-400" : ""}`} />
+          Pinned
+        </button>
+
         {/* Divider */}
         <div className="h-4 w-px bg-border" />
 
         {/* Kind */}
-        <FilterPopover label="Kind" activeCount={kindFilter.length} compact={compact}>
+        <FilterPopover label="Kind" activeCount={kindFilter.length} compact={compact} onClear={() => setKindFilter([])}>
           {KIND_OPTIONS.map((opt) => (
             <CheckboxItem
               key={opt.value}
@@ -340,7 +354,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
         </FilterPopover>
 
         {/* Importance */}
-        <FilterPopover label="Importance" activeCount={importanceFilter.length} compact={compact}>
+        <FilterPopover label="Importance" activeCount={importanceFilter.length} compact={compact} onClear={() => setImportanceFilter([])}>
           {IMPORTANCE_OPTIONS.map((opt) => (
             <CheckboxItem
               key={opt.value}
@@ -352,7 +366,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
         </FilterPopover>
 
         {/* Type (source type) */}
-        <FilterPopover label="Type" activeCount={sourceTypeFilter.length} compact={compact}>
+        <FilterPopover label="Type" activeCount={sourceTypeFilter.length} compact={compact} onClear={() => setSourceTypeFilter([])}>
           {SOURCE_TYPE_OPTIONS.map((opt) => {
             const Icon = opt.icon;
             return (
@@ -369,7 +383,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
 
         {/* Family */}
         {availableFamilies.length > 0 && (
-          <FilterPopover label="Family" activeCount={familyFilter.length} compact={compact}>
+          <FilterPopover label="Family" activeCount={familyFilter.length} compact={compact} onClear={() => setFamilyFilter([])}>
             {availableFamilies.map((fam) => (
               <CheckboxItem
                 key={fam}
@@ -386,13 +400,20 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           label="Time"
           activeCount={timeRange ? 1 : 0}
           compact={compact}
+          onClear={() => { setTimeRange(""); setCustomSince(""); setCustomUntil(""); }}
         >
           {TIME_PRESETS.map((preset) => (
             <RadioItem
               key={preset.value}
               label={preset.label}
               checked={timeRange === preset.value}
-              onChange={() => { setTimeRange(preset.value); setActiveFilterId(null); }}
+              onChange={() => {
+                if (preset.value === "custom") {
+                  prevTimeRangeRef.current = timeRange;
+                }
+                setTimeRange(preset.value);
+                setActiveFilterId(null);
+              }}
             />
           ))}
           {timeRange === "custom" && (
@@ -421,7 +442,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
 
         {/* Tags */}
         {availableTags.length > 0 && (
-          <FilterPopover label="Tags" activeCount={tagFilter.length} compact={compact}>
+          <FilterPopover label="Tags" activeCount={tagFilter.length} compact={compact} onClear={() => setTagFilter([])}>
             <div className="mb-1">
               <input
                 type="text"
@@ -441,19 +462,6 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
             ))}
           </FilterPopover>
         )}
-
-        {/* Pinned toggle */}
-        <button
-          onClick={() => { setPinnedOnly(!pinnedOnly); setActiveFilterId(null); }}
-          className={`flex items-center gap-1 rounded-md px-2 py-1 ${
-            compact ? "text-[10px]" : "text-[11px]"
-          } font-medium transition ${
-            pinnedOnly ? "bg-accent-amber/20 text-accent-amber" : "text-text-tertiary hover:bg-surface-2 hover:text-text-secondary"
-          }`}
-        >
-          <Star className={`h-3 w-3 ${pinnedOnly ? "fill-amber-400" : ""}`} />
-          Pinned
-        </button>
 
         {/* Color dots */}
         <div className="flex items-center gap-1">

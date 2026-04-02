@@ -12,9 +12,10 @@ interface FilterPopoverProps {
   activeCount?: number;
   children: React.ReactNode;
   compact?: boolean;
+  onClear?: () => void;
 }
 
-export function FilterPopover({ label, activeCount, children, compact }: FilterPopoverProps) {
+export function FilterPopover({ label, activeCount, children, compact, onClear }: FilterPopoverProps) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -62,6 +63,14 @@ export function FilterPopover({ label, activeCount, children, compact }: FilterP
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg p-2 min-w-[180px] max-h-[280px] overflow-y-auto">
           {children}
+          {onClear && isActive && (
+            <button
+              onClick={() => { onClear(); setOpen(false); }}
+              className="mt-1 w-full rounded-md px-2 py-1 text-[11px] text-text-tertiary hover:bg-surface-2 hover:text-text-secondary transition border-t border-border pt-1.5"
+            >
+              Clear selection
+            </button>
+          )}
         </div>
       )}
     </div>
