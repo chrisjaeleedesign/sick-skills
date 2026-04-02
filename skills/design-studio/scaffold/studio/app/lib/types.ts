@@ -162,13 +162,15 @@ export interface ThoughtRelation {
 
 export interface ThoughtQueryParams {
   search?: string;
-  kind?: ThoughtKind;
+  kind?: ThoughtKind | ThoughtKind[];
   source_type?: SourceType;
-  importance?: Importance;
+  importance?: Importance | Importance[];
   color?: ThoughtColor;
-  family?: string;
+  family?: string | string[];
   tags?: string[];
   pinned?: boolean;
+  since?: string;
+  until?: string;
   limit?: number;
   offset?: number;
 }

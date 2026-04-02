@@ -52,14 +52,33 @@ export async function GET(request: Request) {
 
   const view = searchParams.get("view");
 
+  // Parse comma-separated multi-value filters
+  const rawKind = searchParams.get("kind");
+  const rawImportance = searchParams.get("importance");
+  const rawFamily = searchParams.get("family");
+
   const params: ThoughtQueryParams = {
     search: searchParams.get("search") ?? undefined,
-    kind: (searchParams.get("kind") as ThoughtQueryParams["kind"]) ?? undefined,
-    importance: (searchParams.get("importance") as ThoughtQueryParams["importance"]) ?? undefined,
+    kind: rawKind
+      ? (rawKind.includes(",")
+          ? rawKind.split(",").filter(Boolean) as ThoughtQueryParams["kind"]
+          : rawKind as ThoughtQueryParams["kind"])
+      : undefined,
+    importance: rawImportance
+      ? (rawImportance.includes(",")
+          ? rawImportance.split(",").filter(Boolean) as ThoughtQueryParams["importance"]
+          : rawImportance as ThoughtQueryParams["importance"])
+      : undefined,
     color: (searchParams.get("color") as ThoughtQueryParams["color"]) ?? undefined,
-    family: searchParams.get("family") ?? undefined,
+    family: rawFamily
+      ? (rawFamily.includes(",")
+          ? rawFamily.split(",").filter(Boolean)
+          : rawFamily)
+      : undefined,
     tags: searchParams.get("tags")?.split(",").filter(Boolean) ?? undefined,
     pinned: searchParams.has("pinned") ? searchParams.get("pinned") === "true" : undefined,
+    since: searchParams.get("since") ?? undefined,
+    until: searchParams.get("until") ?? undefined,
     limit: searchParams.has("limit") ? Number(searchParams.get("limit")) : undefined,
     offset: searchParams.has("offset") ? Number(searchParams.get("offset")) : undefined,
     // Bank-view extra filter

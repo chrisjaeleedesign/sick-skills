@@ -162,11 +162,43 @@ export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevi
   const extraConditions: string[] = [];
   const extraBindings: unknown[] = [];
 
-  if (params.kind) { extraConditions.push("thoughts.kind = ?"); extraBindings.push(params.kind); }
+  if (params.kind) {
+    if (Array.isArray(params.kind)) {
+      extraConditions.push(`thoughts.kind IN (${params.kind.map(() => '?').join(',')})`);
+      extraBindings.push(...params.kind);
+    } else {
+      extraConditions.push("thoughts.kind = ?");
+      extraBindings.push(params.kind);
+    }
+  }
   if (params.source_type) { extraConditions.push("thoughts.source_type = ?"); extraBindings.push(params.source_type); }
-  if (params.importance) { extraConditions.push("thoughts.importance = ?"); extraBindings.push(params.importance); }
+  if (params.importance) {
+    if (Array.isArray(params.importance)) {
+      extraConditions.push(`thoughts.importance IN (${params.importance.map(() => '?').join(',')})`);
+      extraBindings.push(...params.importance);
+    } else {
+      extraConditions.push("thoughts.importance = ?");
+      extraBindings.push(params.importance);
+    }
+  }
   if (params.color) { extraConditions.push("thoughts.color = ?"); extraBindings.push(params.color); }
   if (params.pinned !== undefined) { extraConditions.push("thoughts.pinned = ?"); extraBindings.push(params.pinned ? 1 : 0); }
+
+  // Handle since/until via extra conditions (buildQuery uses .ts but thoughts uses .created_at)
+  if (params.since) { extraConditions.push("thoughts.created_at >= ?"); extraBindings.push(params.since); }
+  if (params.until) { extraConditions.push("thoughts.created_at <= ?"); extraBindings.push(params.until); }
+
+  // Handle family as array via extra conditions (buildQuery only handles single string)
+  let familyForBuildQuery: string | undefined;
+  if (params.family) {
+    if (Array.isArray(params.family)) {
+      extraConditions.push(`thoughts.family IN (${params.family.map(() => '?').join(',')})`);
+      extraBindings.push(...params.family);
+      // Don't pass to buildQuery — we handle it here
+    } else {
+      familyForBuildQuery = params.family;
+    }
+  }
 
   // Search path: FTS goes through revisions (not directly on thoughts), so
   // buildQuery's standard FTS join won't work. Handle manually.
@@ -184,7 +216,7 @@ export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevi
   const { sql: baseQuery, bindings } = buildQuery(
     "thoughts",
     "revisions_fts", // unused since we clear search
-    { ...params, search: undefined },
+    { ...params, search: undefined, family: familyForBuildQuery, since: undefined, until: undefined },
     {
       extraConditions: [...searchConditions, ...extraConditions],
       extraBindings: [...searchBindings, ...extraBindings],
