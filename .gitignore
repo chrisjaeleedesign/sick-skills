@@ -2,3 +2,9 @@
 docs/
 .agents/
 .superpowers/
+
+# Design studio runtime artifacts
+skills/design-studio/scaffold/journal.db*
+skills/design-studio/scaffold/projects/
+skills/design-studio/scaffold/studio/.next/
+skills/design-studio/scaffold/studio/tsconfig.tsbuildinfo
