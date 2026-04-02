@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, X, Star, LayoutGrid, List } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Search, X, Star, LayoutGrid, List, ArrowLeft } from "lucide-react";
 import type {
   Thought,
   Revision,
@@ -54,6 +56,9 @@ type TimelineItem =
   | { type: "event"; event: Event };
 
 export function ThoughtsView() {
+  const searchParams = useSearchParams();
+  const project = searchParams.get("project");
+  const galleryHref = project ? `/?project=${encodeURIComponent(project)}` : "/";
   const [viewMode, setViewMode] = useState<"cards" | "timeline">("cards");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -176,11 +181,21 @@ export function ThoughtsView() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-text-primary">Thoughts</h1>
-          <p className="text-[12px] text-text-tertiary">
-            {thoughtCount} thought{thoughtCount !== 1 ? "s" : ""}
-          </p>
+        <div className="flex items-center gap-4">
+          <Link
+            href={galleryHref}
+            className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Gallery
+          </Link>
+          <div className="h-4 w-px bg-border" />
+          <div>
+            <h1 className="text-lg font-semibold text-text-primary">Thoughts</h1>
+            <p className="text-[12px] text-text-tertiary">
+              {thoughtCount} thought{thoughtCount !== 1 ? "s" : ""}
+            </p>
+          </div>
         </div>
       </div>
 

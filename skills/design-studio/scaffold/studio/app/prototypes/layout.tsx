@@ -15,7 +15,7 @@ export default function PrototypeLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [familyInfo, setFamilyInfo] = useState<{ name: string; description: string; version: number } | null>(null);
+  const [familyInfo, setFamilyInfo] = useState<{ name: string; description: string; version: number; project: string } | null>(null);
 
   // Extract family slug and version from pathname
   useEffect(() => {
@@ -31,10 +31,10 @@ export default function PrototypeLayout({
         ))
       )
       .then((results) => {
-        for (const { data } of results) {
+        for (const { project, data } of results) {
           const family = data.families?.[slug];
           if (family) {
-            setFamilyInfo({ name: family.name, description: family.description, version: parseInt(ver) });
+            setFamilyInfo({ name: family.name, description: family.description, version: parseInt(ver), project });
             return;
           }
         }
@@ -102,7 +102,7 @@ export default function PrototypeLayout({
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-border bg-surface-0 px-4 py-2">
         <Link
-          href="/"
+          href={familyInfo?.project && familyInfo.project !== "default" ? `/?project=${familyInfo.project}` : "/"}
           className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
