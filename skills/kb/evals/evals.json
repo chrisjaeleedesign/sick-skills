@@ -1,0 +1,23 @@
+{
+  "skill_name": "kb",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/kb update",
+      "expected_output": "The skill should detect whether gws is installed and authenticated. If not, it walks through setup. If yes, it runs update-manifest which scans the Drive folder, creates or refreshes the _kb_manifest sheet, generates AI summaries for each doc, and reports what changed (added, updated, removed counts).",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "/kb what does our brand voice guide say about tone for customer emails?",
+      "expected_output": "The skill should read the manifest, find a doc whose summary matches brand voice/tone/emails, fetch that doc's content, and answer the question grounded in the doc content with a citation to the source doc name.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "/kb leave a comment on the pricing doc that the enterprise tier pricing changed last week",
+      "expected_output": "The skill should find the pricing doc in the manifest, then use kb.py comment to post a comment on that doc noting the pricing change. Should NOT directly edit the doc.",
+      "files": []
+    }
+  ]
+}
