@@ -1,6 +1,6 @@
 ---
 name: design-studio
-description: "Create, iterate, and compare interactive UI prototypes in a .agents/design/ workspace with a visual gallery and Agentation feedback. Use for vibe designing, layout exploration, rapid UI iteration, and visual feedback loops. Invoke with /design-studio. Use this skill whenever the user mentions prototyping, UI exploration, design concepts, mockups, layout experiments, or wants to visually iterate on interface ideas."
+description: "Create, iterate, and compare interactive UI prototypes in a visual gallery with Agentation feedback. Collect inspiration into a mood board bank with bento-grid boards. Map product features as a spatial graph. Use this skill whenever the user wants to: prototype or mockup a UI, explore or iterate on layouts and designs, vibe design, save reference images or screenshots to a mood board, organize inspiration into boards, browse a design gallery, map out product features, or visually compare design directions. Also triggers on: 'let me see some options', 'explore designs', 'try a different layout', 'save this to my board', 'show me what we have', 'I don't like this design', pasting images for design reference, or any mention of prototyping, UI exploration, design concepts, mockups, layout experiments, mood boards, inspiration banks, or feature mapping."
 ---
 
 Portable design prototyping workspace. Creates a `.agents/design/` directory with a Next.js gallery, Agentation visual feedback, and a **feel → react → fork → feel** loop.
