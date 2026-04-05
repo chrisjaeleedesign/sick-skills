@@ -45,7 +45,7 @@ Read `.agents/design/manifest.json` to get current family and version context. T
 - **RUN** — User wants to see the gallery or start the dev server. ("show me the gallery", "open the studio", "launch it", "let me browse")
 - **UPDATE** — User wants to refresh the studio scaffold to the latest version. ("update the studio", "get latest version", "refresh the scaffold")
 - **FEATURES** — User wants to work with the feature map. ("map out the features", "show the feature tree", "what features do we have")
-- **BANK** — User wants to save inspiration, paste an image, add a reference, manage boards, or interact with the mood/reference bank. ("save this", "add to bank", "paste this image", "mood board", "add to board", "show boards", "inspiration", "reference image")
+- **JOURNAL** — User wants to save inspiration, paste an image, add a reference, manage boards, or interact with the design journal. ("save this", "add to journal", "add to bank", "paste this image", "mood board", "add to board", "show boards", "inspiration", "reference image", "journal", "remember this", "save this idea", "note this down")
 - **PUSH** — User wants to sync local studio changes back to the skill scaffold. ("push changes to scaffold", "sync back", "save these studio improvements")
 - **STATUS** — The input is empty. Show current state.
 - **ITERATE** — Default. If the input doesn't clearly match another route, treat it as a design direction for the current prototype. This is the most common action — users describe what they want changed.
@@ -63,53 +63,37 @@ When ambiguous between CREATE and ITERATE: if the user references or implies evo
 | RUN | Read and follow [prompts/run.md](prompts/run.md) |
 | UPDATE | Read and follow [prompts/update.md](prompts/update.md) |
 | FEATURES | Read and follow [prompts/features.md](prompts/features.md) |
-| BANK | Read and follow [prompts/bank.md](prompts/bank.md) |
+| JOURNAL | Read and follow [prompts/journal.md](prompts/journal.md) |
 | PUSH | Read and follow [prompts/push.md](prompts/push.md) |
 | STATUS | Read and follow [prompts/status.md](prompts/status.md) |
 
-### Proactive Thought Capture
+### Journal Capture (MANDATORY)
 
-**During ANY design-studio interaction** (create, iterate, status, or conversation), watch for the user sharing inspiration, philosophy, aesthetic ideas, or references. When detected, automatically save as a thought via `POST /api/thoughts` on the studio server (default port from manifest settings, typically localhost:3001).
+Every design-studio interaction MUST end with journal capture. This is how the design story gets told. After completing the primary task (create, iterate, etc.), the agent MUST review the conversation and save entries for:
 
-**Detection signals:**
-- User mentions watching, reading, or seeing something ("I saw this video about...", "I was reading about...")
-- User shares a philosophy or principle ("color should represent state, not be literal", "intentional unfinishedness")
-- User describes an aesthetic direction ("organic, breathing interfaces", "brutalist but warm")
-- User references external media (YouTube links, articles, images, other apps/products)
-- User expresses a design instinct or gut reaction that goes beyond the current prototype
+**Story beats** (the narrative of how we got here):
+- Rejections: "none of these feel right" → `observation`
+- Convergences: "this is the direction" → `principle`
+- Branches: "try both approaches" → `observation`
+- Pivots: "actually let's go a different way" → `observation`
+- Reactions: "I like this" / "this doesn't work" → `observation`
+- Decisions: "we're going with X" → `principle` with importance `guiding`
 
-**How to capture:**
-```bash
-curl -s -X POST http://localhost:<port>/api/thoughts \
-  -H "Content-Type: application/json" \
-  -d '{
-    "action": "create-thought",
-    "thought": {
-      "kind": "<observation|question|principle|reference>",
-      "body": "<concise summary of the idea>",
-      "source_type": "conversation",
-      "family": "<current family slug if relevant, omit if general>",
-      "tags": ["<relevant tags>"],
-      "conviction": "hunch"
-    }
-  }'
-```
+**Ideas and references:**
+- Philosophies shared by the user → `principle`
+- External references (videos, articles, apps) → `reference`
+- Aesthetic directions described → `observation`
+- Open questions raised → `question`
 
-**After capturing:** Briefly confirm: "Saved thought: [one-line summary]" — don't interrupt the flow.
+Follow [_journal-entry.md](prompts/_journal-entry.md) for the API pattern. Create one entry per distinct idea. Set `project` to the current project. Briefly confirm each: "Saved: [summary]"
 
-**Kind selection:**
-- Philosophy/principle/rule → `principle`
-- External reference (video, article, app) → `reference`
-- Aesthetic instinct or gut reaction → `observation`
-- Open question or uncertainty → `question`
-
-**Default conviction:** `hunch` for new ideas. Upgrade to `leaning` if the user repeats or reinforces the idea.
+This step is embedded as the final step in create.md and iterate.md, but applies to ALL interactions including status checks and conversations where the user shares ideas.
 
 ### Internal subroutines (not user-facing)
 
 | Subroutine | Used by | Action |
 |------------|---------|--------|
-| CAPTURE | CREATE, ITERATE | Read [prompts/capture.md](prompts/capture.md) — screenshots the current prototype via browser automation |
+| CAPTURE | CREATE, ITERATE | Read [prompts/_capture.md](prompts/_capture.md) — screenshots the current prototype via browser automation |
 
 ---
 

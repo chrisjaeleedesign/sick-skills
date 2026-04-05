@@ -8,22 +8,11 @@ type ManifestAction =
   | { action: "add-section"; section: Section }
   | { action: "set-current"; family: string; version: number };
 
-/** Find the first empty cell in the focused section's grid, expanding rows if needed. */
+/** Add a family slug to the focused section's items list. */
 function assignToFocusedSection(manifest: { sections: Section[] }, slug: string): void {
   const focused = manifest.sections.find((s) => s.focus);
   if (!focused) return;
-
-  for (let r = 0; r < focused.rows; r++) {
-    for (let c = 0; c < focused.columns; c++) {
-      const key = `${r}:${c}`;
-      if (!focused.grid[key]) {
-        focused.grid[key] = slug;
-        return;
-      }
-    }
-  }
-  focused.grid[`${focused.rows}:0`] = slug;
-  focused.rows += 1;
+  if (!focused.items.includes(slug)) focused.items.push(slug);
 }
 
 function getProject(request: Request): string {
@@ -45,7 +34,8 @@ export async function POST(request: Request) {
     manifest.families[body.family.slug] = body.family;
     assignToFocusedSection(manifest, body.family.slug);
   } else if (body.action === "add-section") {
-    manifest.sections.unshift(body.section);
+    const section = { ...body.section, items: body.section.items ?? [] };
+    manifest.sections.unshift(section);
   } else if (body.action === "set-current") {
     manifest.current = { family: body.family, version: body.version };
   } else {

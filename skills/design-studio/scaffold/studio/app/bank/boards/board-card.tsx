@@ -1,7 +1,7 @@
 "use client";
 
 import { COLOR_PALETTE } from "@/app/lib/types";
-import type { ThoughtColor } from "@/app/lib/types";
+import type { Color } from "@/app/lib/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,13 +12,13 @@ interface BoardCardProps {
     id: string;
     name: string;
     description: string;
-    color?: ThoughtColor;
+    color?: Color;
     columns: number;
     created_at: string;
     updated_at: string;
   };
   itemCount: number;
-  items: { attachment?: { path: string; type: string } | null }[];
+  previewPaths: string[];
   onClick: () => void;
 }
 
@@ -26,26 +26,13 @@ interface BoardCardProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 30) return `${diffDay}d ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+import { timeAgo } from "@/app/lib/utils";
 
 // ---------------------------------------------------------------------------
 // BoardCard
 // ---------------------------------------------------------------------------
 
-export function BoardCard({ board, itemCount, items, onClick }: BoardCardProps) {
+export function BoardCard({ board, itemCount, previewPaths, onClick }: BoardCardProps) {
   const colorStyles = board.color ? COLOR_PALETTE[board.color] : null;
 
   return (
@@ -71,16 +58,15 @@ export function BoardCard({ board, itemCount, items, onClick }: BoardCardProps) 
       {/* Mini preview — 2x2 grid */}
       <div className="grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
         {[0, 1, 2, 3].map((i) => {
-          const item = items[i];
-          const hasImage = item?.attachment?.type === "image" || item?.attachment?.type === "screenshot";
+          const path = previewPaths[i];
           return (
             <div
               key={i}
               className="aspect-square rounded-md overflow-hidden bg-surface-2"
             >
-              {hasImage && item?.attachment ? (
+              {path ? (
                 <img
-                  src={`/api/media/${item.attachment.path}`}
+                  src={`/api/media/${path}`}
                   alt=""
                   className="h-full w-full object-cover"
                   loading="lazy"
@@ -88,7 +74,7 @@ export function BoardCard({ board, itemCount, items, onClick }: BoardCardProps) 
               ) : (
                 <div
                   className={`h-full w-full ${
-                    item
+                    i < itemCount
                       ? colorStyles
                         ? `${colorStyles.bg} opacity-40`
                         : "bg-surface-3/30"

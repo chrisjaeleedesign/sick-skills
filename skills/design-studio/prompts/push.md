@@ -38,7 +38,7 @@ Push infrastructure improvements from the current project's `.agents/design/stud
 
 ## What gets pushed
 
-- All studio infrastructure: lib, api, components, thoughts, features, gallery, config
+- All studio infrastructure: lib, api, components, entries, features, gallery, config
 - `app/prototypes/layout.tsx` (the viewer wrapper)
 - `app/prototypes/example-dashboard/` (the example)
 - Scripts, migrations, config files

@@ -6,13 +6,13 @@ import {
   Landmark,
   BookMarked,
 } from "lucide-react";
-import type { ThoughtKind, Importance } from "@/app/lib/types";
+import type { EntryKind, Importance } from "@/app/lib/types";
 
 // ---------------------------------------------------------------------------
 // Kind / importance metadata
 // ---------------------------------------------------------------------------
 
-export const KIND_META: Record<ThoughtKind, { label: string; icon: typeof Eye; color: string; bg: string }> = {
+export const KIND_META: Record<EntryKind, { label: string; icon: typeof Eye; color: string; bg: string }> = {
   observation: { label: "Observation", icon: Eye,         color: "text-accent-blue",    bg: "bg-accent-blue/10" },
   question:    { label: "Question",    icon: HelpCircle,  color: "text-purple-500",    bg: "bg-purple-500/10" },
   principle:   { label: "Principle",   icon: Landmark,    color: "text-accent-amber",   bg: "bg-accent-amber/10" },
@@ -31,7 +31,7 @@ export const IMPORTANCE_META: Record<Importance, { label: string; opacity: strin
 // Badges
 // ---------------------------------------------------------------------------
 
-export function KindBadge({ kind }: { kind: ThoughtKind }) {
+export function KindBadge({ kind }: { kind: EntryKind }) {
   const meta = KIND_META[kind];
   const Icon = meta.icon;
   return (

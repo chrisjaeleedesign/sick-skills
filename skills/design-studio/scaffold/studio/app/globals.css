@@ -1,5 +1,3 @@
-@import "react-grid-layout/css/styles.css";
-@import "react-resizable/css/styles.css";
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
@@ -140,15 +138,6 @@
 @utility text-pb-tertiary { color: #9C9590; }
 @utility text-pb-faint { color: #CFCAC4; }
 
-/* react-grid-layout dark mode overrides */
-.react-grid-placeholder {
-  background: rgba(79, 172, 254, 0.15) !important;
-  border: 1px dashed rgba(79, 172, 254, 0.4) !important;
-  border-radius: 8px !important;
-}
-.react-resizable-handle::after {
-  border-color: rgba(255, 255, 255, 0.2) !important;
-}
 
 /* Prototype frames: dark mode isolation is handled by the prototype layout
    component which removes .dark from <html> while a prototype is mounted.

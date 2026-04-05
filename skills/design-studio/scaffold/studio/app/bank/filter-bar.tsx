@@ -1,34 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, X, Star, Save, Image, FileText, Camera, Link2 } from "lucide-react";
-import type { ThoughtColor } from "@/app/lib/types";
+import { Search, X, Star, Save, Image, FileText, Camera, Link2, Layers, EyeOff } from "lucide-react";
+import type { Color } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
-import { FilterPopover, CheckboxItem, RadioItem } from "./filter-popover";
+import { FilterPopover, SelectItem } from "./filter-popover";
 
 // ---------------------------------------------------------------------------
 // Filter config
 // ---------------------------------------------------------------------------
 
-const KIND_OPTIONS: { value: string; label: string }[] = [
-  { value: "observation", label: "Observation" },
-  { value: "question", label: "Question" },
-  { value: "principle", label: "Principle" },
-  { value: "reference", label: "Reference" },
-];
-
-const IMPORTANCE_OPTIONS: { value: string; label: string }[] = [
-  { value: "signal", label: "Signal" },
-  { value: "assumption", label: "Assumption" },
-  { value: "guiding", label: "Guiding" },
-  { value: "foundational", label: "Foundational" },
-  { value: "invalidated", label: "Invalidated" },
-];
+import { KIND_OPTIONS, IMPORTANCE_OPTIONS, COLORS } from "@/app/lib/constants";
 
 const SOURCE_TYPE_OPTIONS: { value: string; label: string; icon: typeof Image }[] = [
+  { value: "conversation", label: "Conversation", icon: FileText },
+  { value: "prototype", label: "Prototype", icon: Layers },
   { value: "image", label: "Image", icon: Image },
-  { value: "thought", label: "Thought", icon: FileText },
-  { value: "screenshot", label: "Screenshot", icon: Camera },
   { value: "link", label: "Link", icon: Link2 },
 ];
 
@@ -41,6 +28,56 @@ const TIME_PRESETS: { value: string; label: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function normalizeFilterArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value as string[];
+  if (typeof value === "string" && value !== "all") return [value];
+  return [];
+}
+
+function ToggleButton({ active, onClick, icon: Icon, label, activeClass, compact, iconClass }: {
+  active: boolean; onClick: () => void; icon: React.ComponentType<{ className?: string }>;
+  label: string; activeClass: string; compact?: boolean; iconClass?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1 rounded-md px-2 py-1 ${
+        compact ? "text-[10px]" : "text-[11px]"
+      } font-medium transition ${
+        active ? activeClass : "text-text-tertiary hover:bg-surface-2 hover:text-text-secondary"
+      }`}
+    >
+      <Icon className={`h-3 w-3 ${iconClass ?? ""}`} />
+      {label}
+    </button>
+  );
+}
+
+function SaveFilterForm({ onSave, onCancel }: {
+  onSave: (name: string) => void; onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Filter name..."
+        className="rounded-md border border-border bg-card px-2 py-1 text-[12px] text-text-primary outline-none placeholder:text-text-tertiary focus:border-surface-3 w-32"
+        onKeyDown={(e) => e.key === "Enter" && onSave(name)}
+        autoFocus
+      />
+      <button onClick={() => onSave(name)} className="rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-white">Save</button>
+      <button onClick={onCancel} className="text-[11px] text-text-tertiary hover:text-text-secondary">Cancel</button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -51,6 +88,7 @@ interface FilterBarProps {
 
 interface MetaData {
   families: string[];
+  projects?: string[];
   tags?: string[];
   colors?: string[];
   kinds?: string[];
@@ -72,9 +110,11 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [kindFilter, setKindFilter] = useState<string[]>([]);
   const [importanceFilter, setImportanceFilter] = useState<string[]>([]);
-  const [colorFilter, setColorFilter] = useState<ThoughtColor | "">("");
+  const [colorFilter, setColorFilter] = useState<Color | "">("");
   const [pinnedOnly, setPinnedOnly] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [familyFilter, setFamilyFilter] = useState<string[]>([]);
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [sourceTypeFilter, setSourceTypeFilter] = useState<string[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [timeRange, setTimeRange] = useState("");
@@ -85,10 +125,10 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
 
   // Meta state
   const [availableFamilies, setAvailableFamilies] = useState<string[]>([]);
+  const [availableProjects, setAvailableProjects] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [savingFilter, setSavingFilter] = useState(false);
-  const [filterName, setFilterName] = useState("");
 
   // Tag search within popover
   const [tagSearch, setTagSearch] = useState("");
@@ -104,10 +144,11 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
 
   // Fetch metadata on mount
   useEffect(() => {
-    fetch("/api/thoughts/meta")
+    fetch("/api/entries/meta")
       .then((r) => r.json())
       .then((data: MetaData) => {
         setAvailableFamilies(data.families ?? []);
+        setAvailableProjects(data.projects ?? []);
         setAvailableTags(data.tags ?? []);
       })
       .catch(console.error);
@@ -129,7 +170,9 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
     if (importanceFilter.length > 0) params.importance = importanceFilter.join(",");
     if (colorFilter) params.color = colorFilter;
     if (pinnedOnly) params.pinned = "true";
+    if (showHidden) params.hidden = "true";
     if (familyFilter.length > 0) params.family = familyFilter.join(",");
+    if (projectFilter.length > 0) params.project = projectFilter.join(",");
     if (sourceTypeFilter.length > 0) params.source_type = sourceTypeFilter.join(",");
     if (tagFilter.length > 0) params.tags = tagFilter.join(",");
 
@@ -153,7 +196,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
     }
 
     return params;
-  }, [debouncedSearch, kindFilter, importanceFilter, colorFilter, pinnedOnly, familyFilter, sourceTypeFilter, tagFilter, timeRange, customSince, customUntil]);
+  }, [debouncedSearch, kindFilter, importanceFilter, colorFilter, pinnedOnly, showHidden, familyFilter, projectFilter, sourceTypeFilter, tagFilter, timeRange, customSince, customUntil]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -173,38 +216,11 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
   function applySavedFilter(filter: SavedFilter) {
     const f = filter.filter_json as Record<string, unknown>;
     setActiveFilterId(filter.id);
-
-    // Handle kind — legacy string or new array
-    const rawKind = f.kind;
-    if (Array.isArray(rawKind)) {
-      setKindFilter(rawKind as string[]);
-    } else if (typeof rawKind === "string" && rawKind !== "all") {
-      setKindFilter([rawKind]);
-    } else {
-      setKindFilter([]);
-    }
-
-    // Handle importance — legacy string or new array
-    const rawImp = f.importance;
-    if (Array.isArray(rawImp)) {
-      setImportanceFilter(rawImp as string[]);
-    } else if (typeof rawImp === "string" && rawImp !== "all") {
-      setImportanceFilter([rawImp]);
-    } else {
-      setImportanceFilter([]);
-    }
-
-    // Handle family — legacy string or new array
-    const rawFam = f.family;
-    if (Array.isArray(rawFam)) {
-      setFamilyFilter(rawFam as string[]);
-    } else if (typeof rawFam === "string" && rawFam) {
-      setFamilyFilter([rawFam]);
-    } else {
-      setFamilyFilter([]);
-    }
-
-    setColorFilter((f.color as ThoughtColor) ?? "");
+    setKindFilter(normalizeFilterArray(f.kind));
+    setImportanceFilter(normalizeFilterArray(f.importance));
+    setFamilyFilter(normalizeFilterArray(f.family));
+    setProjectFilter(normalizeFilterArray(f.project));
+    setColorFilter((f.color as Color) ?? "");
     setPinnedOnly((f.pinned as boolean) ?? false);
     setSourceTypeFilter((f.source_type as string[]) ?? []);
     setTagFilter((f.tags as string[]) ?? []);
@@ -214,14 +230,15 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
   }
 
   // Save current filter
-  async function handleSaveFilter() {
-    if (!filterName.trim()) return;
+  async function handleSaveFilter(name: string) {
+    if (!name.trim()) return;
     const state = {
       kind: kindFilter,
       importance: importanceFilter,
       color: colorFilter,
       pinned: pinnedOnly,
       family: familyFilter,
+      project: projectFilter,
       source_type: sourceTypeFilter,
       tags: tagFilter,
       timeRange,
@@ -232,13 +249,12 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
       const res = await fetch("/api/saved-filters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: filterName, filter_json: state }),
+        body: JSON.stringify({ action: "create", name, filter_json: state }),
       });
       if (res.ok) {
         const saved = await res.json();
         setSavedFilters((prev) => [...prev, saved]);
         setSavingFilter(false);
-        setFilterName("");
       }
     } catch (err) {
       console.error(err);
@@ -252,6 +268,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
     colorFilter !== "" ||
     pinnedOnly ||
     familyFilter.length > 0 ||
+    projectFilter.length > 0 ||
     sourceTypeFilter.length > 0 ||
     tagFilter.length > 0 ||
     timeRange !== "";
@@ -296,19 +313,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
       <div className="flex flex-wrap items-center gap-1">
         {/* Save filter */}
         {savingFilter ? (
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              value={filterName}
-              onChange={(e) => setFilterName(e.target.value)}
-              placeholder="Filter name..."
-              className="rounded-md border border-border bg-card px-2 py-1 text-[12px] text-text-primary outline-none placeholder:text-text-tertiary focus:border-surface-3 w-32"
-              onKeyDown={(e) => e.key === "Enter" && handleSaveFilter()}
-              autoFocus
-            />
-            <button onClick={handleSaveFilter} className="rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-white">Save</button>
-            <button onClick={() => { setSavingFilter(false); setFilterName(""); }} className="text-[11px] text-text-tertiary hover:text-text-secondary">Cancel</button>
-          </div>
+          <SaveFilterForm onSave={handleSaveFilter} onCancel={() => setSavingFilter(false)} />
         ) : (
           <button
             onClick={() => setSavingFilter(true)}
@@ -325,18 +330,36 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           </button>
         )}
 
-        {/* Pinned toggle */}
-        <button
+        {/* Toggle buttons */}
+        <ToggleButton
+          active={pinnedOnly}
           onClick={() => { setPinnedOnly(!pinnedOnly); setActiveFilterId(null); }}
-          className={`flex items-center gap-1 rounded-md px-2 py-1 ${
-            compact ? "text-[10px]" : "text-[11px]"
-          } font-medium transition ${
-            pinnedOnly ? "bg-accent-amber/20 text-accent-amber" : "text-text-tertiary hover:bg-surface-2 hover:text-text-secondary"
-          }`}
-        >
-          <Star className={`h-3 w-3 ${pinnedOnly ? "fill-amber-400" : ""}`} />
-          Pinned
-        </button>
+          icon={Star}
+          label="Pinned"
+          activeClass="bg-accent-amber/20 text-accent-amber"
+          compact={compact}
+          iconClass={pinnedOnly ? "fill-amber-400" : ""}
+        />
+        <ToggleButton
+          active={showHidden}
+          onClick={() => { setShowHidden(!showHidden); setActiveFilterId(null); }}
+          icon={EyeOff}
+          label="Hidden"
+          activeClass="bg-purple-100 text-purple-600"
+          compact={compact}
+        />
+        <ToggleButton
+          active={sourceTypeFilter.includes("prototype") && sourceTypeFilter.includes("image")}
+          onClick={() => {
+            const isActive = sourceTypeFilter.includes("prototype") && sourceTypeFilter.includes("image");
+            setSourceTypeFilter(isActive ? [] : ["prototype", "image"]);
+            setActiveFilterId(null);
+          }}
+          icon={Image}
+          label="Images"
+          activeClass="bg-primary/10 text-primary"
+          compact={compact}
+        />
 
         {/* Divider */}
         <div className="h-4 w-px bg-border" />
@@ -344,7 +367,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
         {/* Kind */}
         <FilterPopover label="Kind" activeCount={kindFilter.length} compact={compact} onClear={() => setKindFilter([])}>
           {KIND_OPTIONS.map((opt) => (
-            <CheckboxItem
+            <SelectItem
               key={opt.value}
               label={opt.label}
               checked={kindFilter.includes(opt.value)}
@@ -356,7 +379,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
         {/* Importance */}
         <FilterPopover label="Importance" activeCount={importanceFilter.length} compact={compact} onClear={() => setImportanceFilter([])}>
           {IMPORTANCE_OPTIONS.map((opt) => (
-            <CheckboxItem
+            <SelectItem
               key={opt.value}
               label={opt.label}
               checked={importanceFilter.includes(opt.value)}
@@ -370,7 +393,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           {SOURCE_TYPE_OPTIONS.map((opt) => {
             const Icon = opt.icon;
             return (
-              <CheckboxItem
+              <SelectItem
                 key={opt.value}
                 label={opt.label}
                 checked={sourceTypeFilter.includes(opt.value)}
@@ -381,11 +404,30 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           })}
         </FilterPopover>
 
+        {/* Project */}
+        {availableProjects.length > 0 && (
+          <FilterPopover label="Project" activeCount={projectFilter.length} compact={compact} onClear={() => setProjectFilter([])}>
+            <SelectItem
+              label="Global (no project)"
+              checked={projectFilter.includes("__global")}
+              onChange={() => toggleArrayFilter(setProjectFilter, "__global")}
+            />
+            {availableProjects.map((proj) => (
+              <SelectItem
+                key={proj}
+                label={proj}
+                checked={projectFilter.includes(proj)}
+                onChange={() => toggleArrayFilter(setProjectFilter, proj)}
+              />
+            ))}
+          </FilterPopover>
+        )}
+
         {/* Family */}
         {availableFamilies.length > 0 && (
           <FilterPopover label="Family" activeCount={familyFilter.length} compact={compact} onClear={() => setFamilyFilter([])}>
             {availableFamilies.map((fam) => (
-              <CheckboxItem
+              <SelectItem
                 key={fam}
                 label={fam}
                 checked={familyFilter.includes(fam)}
@@ -409,8 +451,9 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
           }}
         >
           {TIME_PRESETS.map((preset) => (
-            <RadioItem
+            <SelectItem
               key={preset.value}
+              type="radio"
               label={preset.label}
               checked={timeRange === preset.value}
               onChange={() => {
@@ -459,7 +502,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
               />
             </div>
             {filteredTags.map((tag) => (
-              <CheckboxItem
+              <SelectItem
                 key={tag}
                 label={tag}
                 checked={tagFilter.includes(tag)}
@@ -471,7 +514,7 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
 
         {/* Color dots */}
         <div className="flex items-center gap-1">
-          {(["red", "blue", "emerald", "amber", "purple", "pink", "gray"] as ThoughtColor[]).map((c) => (
+          {COLORS.map((c) => (
             <button
               key={c}
               onClick={() => { setColorFilter(colorFilter === c ? "" : c); setActiveFilterId(null); }}

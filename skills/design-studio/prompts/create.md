@@ -48,50 +48,26 @@ You are creating a new prototype family from a design description.
 
    **Section ordering:** Sections are rendered in array order (newest first). When creating a new section, prepend it to the `sections` array (or use `{"action": "add-section", "section": {...}}` which prepends automatically).
 
-5. **Capture screenshot:** Follow [capture.md](capture.md) to screenshot the new prototype. Save to `.agents/design/references/<slug>-v1.png` and add to the version's `references` array.
+5. **Capture screenshot:** Follow [_capture.md](_capture.md) to screenshot the new prototype. Save to `.agents/design/references/<slug>-v1.png` and add to the version's `references` array.
 
-   After capturing, save the screenshot to the bank:
-   ```bash
-   # Create a bank item for the screenshot
-   RESPONSE=$(curl -s -X POST http://localhost:<port>/api/thoughts \
-     -H "Content-Type: application/json" \
-     -d "{\"action\":\"create-thought\",\"thought\":{\"kind\":\"reference\",\"source_type\":\"prototype\",\"family\":\"<slug>\",\"body\":\"<Family Name> v1 screenshot\",\"tags\":[\"screenshot\",\"auto-captured\"]}}")
-   THOUGHT_ID=$(echo $RESPONSE | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-   # Add screenshot as attachment
-   curl -s -X POST http://localhost:<port>/api/thoughts \
-     -H "Content-Type: application/json" \
-     -d "{\"action\":\"add-attachment\",\"thought_id\":\"${THOUGHT_ID}\",\"attachment\":{\"kind\":\"image\",\"url\":\"references/<slug>-v1.png\",\"label\":\"<Family Name> v1 screenshot\"}}"
-   # Trigger vision analysis (non-blocking)
-   curl -s -X POST http://localhost:<port>/api/thoughts/analyze-image \
-     -H "Content-Type: application/json" \
-     -d "{\"thought_id\":\"${THOUGHT_ID}\"}" &
-   ```
-
-6. **Log to journal:** Run from `.agents/design/studio/`:
-   ```bash
-   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table event --type created \
-     --body "Created <family name> v1 — <direction>" \
-     --family <slug> --tags "created,v1"
-   ```
-   Also log the design direction as an insight:
-   ```bash
-   cd .agents/design/studio && npx tsx scripts/journal-log.ts --table insight --type direction \
-     --body "<user's design intent / description>" \
-     --family <slug> --tags "<relevant comma-separated tags>" --status active
-   ```
-
-7. **Capture thoughts:** If the user's description includes design philosophy, aesthetic ideas, or principles (beyond just "make a sidebar layout"), save them as thoughts linked to the new family. Use the thoughts API (see SKILL.md "Proactive Thought Capture" section). Examples of what to capture:
-   - "I want something that feels alive, not static" → observation, tags: [aesthetic, animation]
-   - "Navigation should be contextual, not fixed" → principle, tags: [navigation, ux]
-   - "Inspired by that Stripe dashboard" → reference, tags: [inspiration, dashboard]
-
-   Skip this step if the user's description is purely functional with no philosophical/aesthetic content.
-
-8. **Report:**
+6. **Report:**
 
    > **Created:** [<family name> v1](http://localhost:<port>/prototypes/<slug>/v1)
 
    Remind the user they can use the Agentation toolbar to leave visual feedback directly on the prototype.
+
+7. **Journal capture**
+
+Before ending, review this conversation for journal-worthy moments. Read and follow [_journal-entry.md](_journal-entry.md) to create entries for any of:
+
+- **Decisions** made during this session ("we're going with X direction")
+- **Reactions** from the user (positive or negative) to what was created
+- **Principles** or philosophies that emerged from the discussion
+- **References** or inspiration the user shared
+- **Questions** that remain open or unresolved
+- **Pivots** or direction changes ("actually, let's try something different")
+
+Create one entry per distinct idea. Set `project` to the current project and `family` to the prototype family if relevant. This is how the design story gets told — don't skip it.
 
 ## Constraints
 

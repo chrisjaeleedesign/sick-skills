@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getDb } from "./db";
-import { createThought, addRevision } from "./db-thoughts";
+import { createEntry, addRevision } from "./db-entries";
 import { loadVec, storeEmbedding, hasEmbedding, searchSimilar, hybridSearch } from "./db-embeddings";
 
 // ---------------------------------------------------------------------------
@@ -12,10 +12,10 @@ beforeEach(() => {
   const db = getDb();
   db.exec("DELETE FROM board_items");
   db.exec("DELETE FROM boards");
-  db.exec("DELETE FROM thought_relations");
+  db.exec("DELETE FROM entry_relations");
   db.exec("DELETE FROM attachments");
   db.exec("DELETE FROM revisions");
-  db.exec("DELETE FROM thoughts");
+  db.exec("DELETE FROM entries");
   // Clear vec0 table
   db.exec("DELETE FROM revision_embeddings");
 });
@@ -59,7 +59,7 @@ describe("vec0 table creation", () => {
 
 describe("storeEmbedding / hasEmbedding", () => {
   it("stores and checks embedding existence", () => {
-    const { revision } = createThought({ kind: "observation", body: "test" });
+    const { revision } = createEntry({ kind: "observation", body: "test" });
     const vec = randomVector();
 
     expect(hasEmbedding(revision.id)).toBe(false);
@@ -68,7 +68,7 @@ describe("storeEmbedding / hasEmbedding", () => {
   });
 
   it("overwrites existing embedding", () => {
-    const { revision } = createThought({ kind: "observation", body: "test" });
+    const { revision } = createEntry({ kind: "observation", body: "test" });
     storeEmbedding(revision.id, randomVector());
     storeEmbedding(revision.id, randomVector()); // should not throw
     expect(hasEmbedding(revision.id)).toBe(true);
@@ -79,8 +79,8 @@ describe("searchSimilar", () => {
   it("returns results ordered by distance", () => {
     const baseVec = randomVector();
 
-    const { revision: r1 } = createThought({ kind: "observation", body: "close" });
-    const { revision: r2 } = createThought({ kind: "observation", body: "far" });
+    const { revision: r1 } = createEntry({ kind: "observation", body: "close" });
+    const { revision: r2 } = createEntry({ kind: "observation", body: "far" });
 
     // r1 gets a vector very similar to query, r2 gets a random one
     storeEmbedding(r1.id, similarVector(baseVec, 0.01));
@@ -98,21 +98,21 @@ describe("hybridSearch", () => {
   it("combines FTS and vector results", () => {
     const baseVec = randomVector();
 
-    // This thought has both matching text and similar embedding
-    const { thought: t1, revision: r1 } = createThought({
+    // This entry has both matching text and similar embedding
+    const { entry: e1, revision: r1 } = createEntry({
       kind: "observation",
       body: "organic shapes feel natural and alive",
     });
     storeEmbedding(r1.id, similarVector(baseVec, 0.01));
 
-    // This thought only has matching text
-    const { thought: t2 } = createThought({
+    // This entry only has matching text
+    const { entry: _e2 } = createEntry({
       kind: "observation",
       body: "organic materials in architecture",
     });
 
-    // This thought only has similar embedding
-    const { thought: t3, revision: r3 } = createThought({
+    // This entry only has similar embedding
+    const { entry: _e3, revision: r3 } = createEntry({
       kind: "observation",
       body: "rigid geometric grids",
     });
@@ -121,7 +121,7 @@ describe("hybridSearch", () => {
     const results = hybridSearch("organic", baseVec, 10);
     expect(results.length).toBeGreaterThanOrEqual(1);
 
-    // t1 should rank highest (matches both FTS and vector)
-    expect(results[0].thought_id).toBe(t1.id);
+    // e1 should rank highest (matches both FTS and vector)
+    expect(results[0].thought_id).toBe(e1.id);
   });
 });

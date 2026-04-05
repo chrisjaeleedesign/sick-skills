@@ -3,48 +3,44 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { COLOR_PALETTE } from "@/app/lib/types";
-import type { Thought, Revision } from "@/app/lib/types";
+import type { Entry, Revision } from "@/app/lib/types";
 import type { Family } from "@/app/lib/manifest";
 import { KindBadge, ImportanceBadge } from "@/app/components/badges";
-async function fetchApi<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
-}
+import { apiFetch } from "@/app/lib/api";
 
 // ---------------------------------------------------------------------------
-// Thought card (compact, expandable for revision history)
+// Entry card (compact, expandable for revision history)
 // ---------------------------------------------------------------------------
 
-interface ThoughtWithRevisions extends Thought {
+interface EntryWithRevisions extends Entry {
   revisions?: Revision[];
   score?: number;
 }
 
-function ThoughtCard({ thought }: { thought: ThoughtWithRevisions }) {
+function EntryCard({ entry }: { entry: EntryWithRevisions }) {
   const [expanded, setExpanded] = useState(false);
-  const [revisions, setRevisions] = useState<Revision[]>(thought.revisions ?? []);
+  const [revisions, setRevisions] = useState<Revision[]>(entry.revisions ?? []);
   const latestBody = revisions[0]?.body ?? "(no content)";
 
   useEffect(() => {
     if (!expanded || revisions.length > 0) return;
-    fetchApi<{ revisions?: Revision[] }>(`/api/thoughts?id=${thought.id}`)
+    apiFetch<{ revisions?: Revision[] }>(`/api/entries?id=${entry.id}`)
       .then(data => { if (data.revisions) setRevisions(data.revisions); })
       .catch(console.error);
-  }, [expanded, thought.id, revisions.length]);
+  }, [expanded, entry.id, revisions.length]);
 
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="flex items-start gap-2">
-        {thought.color && (
-          <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-full ${COLOR_PALETTE[thought.color].dot}`} />
+        {entry.color && (
+          <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-full ${COLOR_PALETTE[entry.color].dot}`} />
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 mb-1">
-            <KindBadge kind={thought.kind} />
-            {thought.importance && <ImportanceBadge importance={thought.importance} />}
-            {thought.family && (
-              <span className="text-[10px] text-text-tertiary truncate">{thought.family}</span>
+            <KindBadge kind={entry.kind} />
+            {entry.importance && <ImportanceBadge importance={entry.importance} />}
+            {entry.family && (
+              <span className="text-[10px] text-text-tertiary truncate">{entry.family}</span>
             )}
           </div>
           <p className="text-xs text-text-secondary leading-relaxed line-clamp-3">
@@ -91,12 +87,12 @@ function QuickAdd({ familySlugs, onAdded }: { familySlugs: string[]; onAdded: ()
     if (!body || submitting) return;
     setSubmitting(true);
     try {
-      await fetch("/api/thoughts", {
+      await fetch("/api/entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "create-thought",
-          thought: {
+          action: "create-entry",
+          entry: {
             kind: "observation",
             body,
             family: familySlugs[0],
@@ -117,7 +113,7 @@ function QuickAdd({ familySlugs, onAdded }: { familySlugs: string[]; onAdded: ()
       <input
         value={value}
         onChange={e => setValue(e.target.value)}
-        placeholder="Quick thought..."
+        placeholder="Quick note..."
         className="flex-1 rounded border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-text-primary outline-none placeholder:text-text-tertiary focus:ring-1 focus:ring-primary"
       />
       <button
@@ -142,8 +138,8 @@ export function GallerySidebar({
   selectedFamilies: Family[];
   onClose: () => void;
 }) {
-  const [linkedThoughts, setLinkedThoughts] = useState<ThoughtWithRevisions[]>([]);
-  const [relatedThoughts, setRelatedThoughts] = useState<ThoughtWithRevisions[]>([]);
+  const [linkedEntries, setLinkedEntries] = useState<EntryWithRevisions[]>([]);
+  const [relatedEntries, setRelatedEntries] = useState<EntryWithRevisions[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -151,39 +147,39 @@ export function GallerySidebar({
   const familyNames = selectedFamilies.map(f => f.name);
   const familyKey = useMemo(() => familySlugs.join(","), [familySlugs]);
 
-  const fetchThoughts = useCallback(async () => {
+  const fetchEntries = useCallback(async () => {
     if (familySlugs.length === 0) return;
     setLoading(true);
     try {
-      // Fetch linked thoughts (by family match)
+      // Fetch linked entries (by family match)
       const linkedResults = await Promise.all(
         familySlugs.map(slug =>
-          fetchApi<ThoughtWithRevisions[]>(`/api/thoughts?family=${encodeURIComponent(slug)}&limit=20`)
-            .catch((err) => { console.error(err); return [] as ThoughtWithRevisions[]; })
+          apiFetch<EntryWithRevisions[]>(`/api/entries?family=${encodeURIComponent(slug)}&limit=20`)
+            .catch((err) => { console.error(err); return [] as EntryWithRevisions[]; })
         )
       );
-      const allLinked: ThoughtWithRevisions[] = linkedResults.flat();
-      // Deduplicate by thought id
+      const allLinked: EntryWithRevisions[] = linkedResults.flat();
+      // Deduplicate by entry id
       const seen = new Set<string>();
       const deduped = allLinked.filter(t => {
         if (seen.has(t.id)) return false;
         seen.add(t.id);
         return true;
       });
-      setLinkedThoughts(deduped);
+      setLinkedEntries(deduped);
 
-      // Fetch related thoughts via semantic search (use first family's description)
+      // Fetch related entries via semantic search (use first family's description)
       const firstFamily = selectedFamilies[0];
       if (firstFamily) {
         const searchText = `${firstFamily.name} ${firstFamily.description}`;
-        const related = await fetchApi<ThoughtWithRevisions[]>(
-          `/api/thoughts/search?q=${encodeURIComponent(searchText)}&limit=10`
-        ).catch((err) => { console.error(err); return [] as ThoughtWithRevisions[]; });
-        // Filter out already-linked thoughts
+        const related = await apiFetch<EntryWithRevisions[]>(
+          `/api/entries/search?q=${encodeURIComponent(searchText)}&limit=10`
+        ).catch((err) => { console.error(err); return [] as EntryWithRevisions[]; });
+        // Filter out already-linked entries
         const linkedIds = new Set(deduped.map(t => t.id));
-        setRelatedThoughts(
+        setRelatedEntries(
           (Array.isArray(related) ? related : []).filter(
-            (t: ThoughtWithRevisions) => !linkedIds.has(t.id)
+            (t: EntryWithRevisions) => !linkedIds.has(t.id)
           )
         );
       }
@@ -192,7 +188,7 @@ export function GallerySidebar({
     }
   }, [familyKey, refreshKey]);
 
-  useEffect(() => { fetchThoughts(); }, [fetchThoughts]);
+  useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
   return (
     <div className="fixed right-0 top-0 z-40 flex h-full w-96 flex-col border-l border-border bg-surface-0 pt-12 shadow-xl animate-in slide-in-from-right duration-200">
@@ -228,32 +224,32 @@ export function GallerySidebar({
 
         {!loading && (
           <>
-            {/* Linked thoughts */}
+            {/* Linked entries */}
             <section>
               <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-tertiary">
-                Linked Thoughts
-                {linkedThoughts.length > 0 && (
-                  <span className="ml-1.5 text-[10px] font-normal">{linkedThoughts.length}</span>
+                Linked Entries
+                {linkedEntries.length > 0 && (
+                  <span className="ml-1.5 text-[10px] font-normal">{linkedEntries.length}</span>
                 )}
               </h4>
-              {linkedThoughts.length === 0 ? (
-                <p className="text-xs text-text-tertiary">No thoughts linked to this family yet.</p>
+              {linkedEntries.length === 0 ? (
+                <p className="text-xs text-text-tertiary">No entries linked to this family yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {linkedThoughts.map(t => <ThoughtCard key={t.id} thought={t} />)}
+                  {linkedEntries.map(t => <EntryCard key={t.id} entry={t} />)}
                 </div>
               )}
             </section>
 
-            {/* Related thoughts (semantic) */}
-            {relatedThoughts.length > 0 && (
+            {/* Related entries (semantic) */}
+            {relatedEntries.length > 0 && (
               <section>
                 <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-tertiary">
                   Related
-                  <span className="ml-1.5 text-[10px] font-normal">{relatedThoughts.length}</span>
+                  <span className="ml-1.5 text-[10px] font-normal">{relatedEntries.length}</span>
                 </h4>
                 <div className="space-y-2">
-                  {relatedThoughts.map(t => <ThoughtCard key={t.id} thought={t} />)}
+                  {relatedEntries.map(t => <EntryCard key={t.id} entry={t} />)}
                 </div>
               </section>
             )}

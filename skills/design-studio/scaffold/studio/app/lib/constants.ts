@@ -1,4 +1,28 @@
 import { Monitor, Tablet, Smartphone } from "lucide-react";
+import type { Color } from "./types";
+
+// ---------------------------------------------------------------------------
+// Shared filter/display constants (used by bank, filter-bar, boards)
+// ---------------------------------------------------------------------------
+
+export const COLORS: Color[] = [
+  "red", "blue", "emerald", "amber", "purple", "pink", "gray",
+];
+
+export const KIND_OPTIONS = [
+  { value: "observation", label: "Observation" },
+  { value: "question", label: "Question" },
+  { value: "principle", label: "Principle" },
+  { value: "reference", label: "Reference" },
+] as const;
+
+export const IMPORTANCE_OPTIONS = [
+  { value: "signal", label: "Signal" },
+  { value: "assumption", label: "Assumption" },
+  { value: "guiding", label: "Guiding" },
+  { value: "foundational", label: "Foundational" },
+  { value: "invalidated", label: "Invalidated" },
+] as const;
 
 /** Device presets for the prototype viewer. */
 export const DEVICE_PRESETS = {

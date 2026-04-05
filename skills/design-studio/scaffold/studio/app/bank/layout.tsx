@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 export default function BankLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const project = searchParams.get("project");
-  const projectSuffix = project ? `?project=${encodeURIComponent(project)}` : "";
+  const { suffix } = useProjectQuery();
 
   const tabs = [
-    { label: "All Items", href: `/bank${projectSuffix}` },
-    { label: "Boards", href: `/bank/boards${projectSuffix}` },
+    { label: "All Items", href: `/bank${suffix}` },
+    { label: "Boards", href: `/bank/boards${suffix}` },
   ];
 
   function isActive(href: string) {
@@ -22,7 +21,6 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 57px)" }}>
-      {/* Tab navigation */}
       <div className="flex items-center gap-1 border-b border-border bg-surface-0 px-6">
         {tabs.map((tab) => (
           <Link
@@ -41,8 +39,6 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
           </Link>
         ))}
       </div>
-
-      {/* Content */}
       <div className="flex-1 overflow-hidden">{children}</div>
     </div>
   );

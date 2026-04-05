@@ -1,56 +1,4 @@
 // ---------------------------------------------------------------------------
-// Journal types — shared between server (db-journal.ts) and client components
-// ---------------------------------------------------------------------------
-
-export type EventType = "created" | "iterated" | "archived" | "moved" | "feedback";
-export type InsightType = "preference" | "learning" | "reaction" | "direction" | "decision";
-export type InsightStatus = "active" | "superseded" | "killed" | "final";
-
-export interface Event {
-  id: string;
-  ts: string;
-  type: EventType;
-  body: string;
-  family?: string;
-  version?: number;
-  tags: string[];
-  metadata: Record<string, unknown>;
-}
-
-export interface Insight {
-  id: string;
-  ts: string;
-  type: InsightType;
-  body: string;
-  family?: string;
-  tags: string[];
-  status: InsightStatus;
-  refs: string[];
-  superseded_by?: string;
-}
-
-export interface QueryParams {
-  search?: string;
-  type?: string;
-  status?: string;
-  family?: string;
-  tags?: string[];
-  since?: string;
-  until?: string;
-  limit?: number;
-  offset?: number;
-}
-
-/** ID prefixes for insight types, used by the journal CLI and modal form. */
-export const INSIGHT_PREFIXES: Record<InsightType, string> = {
-  preference: "pref",
-  learning: "lrn",
-  reaction: "rxn",
-  direction: "dir",
-  decision: "dec",
-};
-
-// ---------------------------------------------------------------------------
 // Features
 // ---------------------------------------------------------------------------
 
@@ -79,15 +27,15 @@ export interface FeatureConnection {
 }
 
 // ---------------------------------------------------------------------------
-// Colors — shared across thoughts, families, sections, boards
+// Colors — shared across entries, families, sections, boards
 // ---------------------------------------------------------------------------
 
-export type ThoughtColor =
+export type Color =
   | "red" | "orange" | "amber" | "yellow" | "lime"
   | "emerald" | "teal" | "cyan" | "blue" | "indigo"
   | "violet" | "purple" | "pink" | "rose" | "gray";
 
-export const COLOR_PALETTE: Record<ThoughtColor, { bg: string; border: string; text: string; dot: string }> = {
+export const COLOR_PALETTE: Record<Color, { bg: string; border: string; text: string; dot: string }> = {
   red:     { bg: "bg-red-50",     border: "border-red-300",     text: "text-red-700",     dot: "bg-red-500" },
   orange:  { bg: "bg-orange-50",  border: "border-orange-300",  text: "text-orange-700",  dot: "bg-orange-500" },
   amber:   { bg: "bg-amber-50",   border: "border-amber-300",   text: "text-amber-700",   dot: "bg-amber-500" },
@@ -106,37 +54,35 @@ export const COLOR_PALETTE: Record<ThoughtColor, { bg: string; border: string; t
 };
 
 // ---------------------------------------------------------------------------
-// Thoughts
+// Entries (design journal)
 // ---------------------------------------------------------------------------
 
-export type ThoughtKind = "observation" | "question" | "principle" | "reference";
+export type EntryKind = "observation" | "question" | "principle" | "reference";
 export type SourceType = "video" | "article" | "conversation" | "observation" | "prototype" | "image" | "link";
 export type Importance = "invalidated" | "signal" | "assumption" | "guiding" | "foundational";
 export type RelationType = "related" | "inspired_by" | "builds_on" | "contradicts";
 export type AttachmentType = "image" | "screenshot" | "thumbnail" | "video_ref";
 
-export interface Thought {
+export interface Entry {
   id: string;
-  kind: ThoughtKind;
+  kind: EntryKind;
   source_type?: SourceType;
   source_url?: string;
   source_meta: Record<string, unknown>;
   family?: string;
+  project?: string;
   tags: string[];
-  color?: ThoughtColor;
+  color?: Color;
   pinned: boolean;
   importance?: Importance;
+  hidden: boolean;
   created_at: string;
   updated_at: string;
-  layout_w?: number;
-  layout_h?: number;
-  layout_x?: number;
-  layout_y?: number;
 }
 
 export interface Revision {
   id: string;
-  thought_id: string;
+  entry_id: string;
   body?: string;
   seq: number;
   source: string;
@@ -145,7 +91,7 @@ export interface Revision {
 
 export interface Attachment {
   id: string;
-  thought_id: string;
+  entry_id: string;
   revision_id?: string;
   type: AttachmentType;
   path: string;
@@ -153,22 +99,24 @@ export interface Attachment {
   created_at: string;
 }
 
-export interface ThoughtRelation {
+export interface EntryRelation {
   from_id: string;
   to_id: string;
   type: RelationType;
   created_at: string;
 }
 
-export interface ThoughtQueryParams {
+export interface EntryQueryParams {
   search?: string;
-  kind?: ThoughtKind | ThoughtKind[];
-  source_type?: SourceType;
+  kind?: EntryKind | EntryKind[];
+  source_type?: SourceType | SourceType[];
   importance?: Importance | Importance[];
-  color?: ThoughtColor;
+  color?: Color;
   family?: string | string[];
+  project?: string | string[];
   tags?: string[];
   pinned?: boolean;
+  hidden?: boolean;
   since?: string;
   until?: string;
   limit?: number;
@@ -183,7 +131,7 @@ export interface Board {
   id: string;
   name: string;
   description: string;
-  color?: ThoughtColor;
+  color?: Color;
   columns: number;
   created_at: string;
   updated_at: string;
@@ -191,7 +139,7 @@ export interface Board {
 
 export interface BoardItem {
   board_id: string;
-  thought_id: string;
+  entry_id: string;
   x: number;
   y: number;
   w: number;
@@ -214,4 +162,5 @@ export interface FilterState {
   boardId?: string;
   onBoard?: "any" | "none";
   pinned?: boolean;
+  hidden?: boolean;
 }

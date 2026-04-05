@@ -25,26 +25,21 @@ export function FilterPopover({ label, activeCount, children, compact, onClear, 
     onClose?.();
   }
 
-  // Close on click-outside
+  // Close on click-outside or Escape
   useEffect(() => {
     if (!open) return;
-    function handleMouseDown(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        handleClose();
-      }
-    }
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
+    const handleClick = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) handleClose();
+    };
+    const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") handleClose();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, [open]);
 
   const isActive = activeCount !== undefined && activeCount > 0;
@@ -88,59 +83,39 @@ export function FilterPopover({ label, activeCount, children, compact, onClear, 
 }
 
 // ---------------------------------------------------------------------------
-// CheckboxItem
+// SelectItem — unified checkbox/radio indicator
 // ---------------------------------------------------------------------------
 
-interface CheckboxItemProps {
+interface SelectItemProps {
+  type?: "checkbox" | "radio";
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   icon?: React.ReactNode;
 }
 
-export function CheckboxItem({ label, checked, onChange, icon }: CheckboxItemProps) {
+export function SelectItem({ type = "checkbox", label, checked, onChange, icon }: SelectItemProps) {
   return (
     <button
       onClick={() => onChange(!checked)}
       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-text-primary hover:bg-surface-2 transition"
     >
-      {/* Checkbox indicator */}
       <span
-        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded ${
-          checked ? "bg-primary" : "border border-border"
+        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center ${
+          type === "radio" ? "rounded-full" : "rounded"
+        } ${
+          type === "radio"
+            ? checked ? "border border-primary" : "border border-border"
+            : checked ? "bg-primary" : "border border-border"
         }`}
       >
-        {checked && <Check className="h-2.5 w-2.5 text-white" />}
+        {checked && (
+          type === "radio"
+            ? <span className="h-2 w-2 rounded-full bg-primary" />
+            : <Check className="h-2.5 w-2.5 text-white" />
+        )}
       </span>
       {icon && <span className="flex shrink-0">{icon}</span>}
-      <span className="truncate">{label}</span>
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// RadioItem — circle indicator, radio-style (single select)
-// ---------------------------------------------------------------------------
-
-interface RadioItemProps {
-  label: string;
-  checked: boolean;
-  onChange: () => void;
-}
-
-export function RadioItem({ label, checked, onChange }: RadioItemProps) {
-  return (
-    <button
-      onClick={onChange}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-text-primary hover:bg-surface-2 transition"
-    >
-      <span
-        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
-          checked ? "border-primary" : "border-border"
-        }`}
-      >
-        {checked && <span className="h-2 w-2 rounded-full bg-primary" />}
-      </span>
       <span className="truncate">{label}</span>
     </button>
   );

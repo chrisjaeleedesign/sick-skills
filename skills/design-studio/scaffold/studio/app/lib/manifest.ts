@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "fs";
 import { join, basename } from "path";
 import { DESIGN_ROOT } from "./db";
-import type { ThoughtColor } from "./types";
+import type { Color } from "./types";
 
 export interface Reference {
   type: "screenshot" | "file" | "text";
@@ -23,7 +23,7 @@ export interface Family {
   slug: string;
   description: string;
   archived?: boolean;
-  color?: ThoughtColor;
+  color?: Color;
   createdAt: string;
   versions: Version[];
 }
@@ -33,10 +33,13 @@ export interface Section {
   name: string;
   focus: boolean;
   collapsed: boolean;
-  color?: ThoughtColor;
-  columns: number;
-  rows: number;
-  grid: Record<string, string>; // "row:col" -> familySlug
+  color?: Color;
+  columns?: number;  // optional — if set, masonry uses this exact count
+  items: string[];   // ordered family slugs
+
+  // Legacy fields — kept for migration, stripped on read
+  rows?: number;
+  grid?: Record<string, string>;
 }
 
 export interface Settings {
@@ -103,41 +106,89 @@ function ensureProjectsDir(): void {
 // ---------------------------------------------------------------------------
 
 /** Raw JSON shape before validation/migration */
+interface RawSection {
+  id: string;
+  name: string;
+  focus?: boolean;
+  collapsed?: boolean;
+  color?: Color;
+  columns?: number;
+  rows?: number;
+  grid?: Record<string, string>;
+  familySlugs?: string[];
+  items?: string[];
+}
+
 interface RawManifest {
   current?: { family: string; version: number } | null;
-  sections?: Array<{
-    id: string;
-    name: string;
-    focus?: boolean;
-    collapsed?: boolean;
-    color?: ThoughtColor;
-    columns?: number;
-    rows?: number;
-    grid?: Record<string, string>;
-    familySlugs?: string[];
-  }>;
+  sections?: RawSection[];
   families?: Record<string, Family>;
   settings?: Partial<Settings>;
 }
 
-/** Migrate old familySlugs-based sections to grid format */
-function migrateSections(raw: RawManifest): Section[] {
-  if (!raw.sections?.length) return [];
-  return raw.sections.map((s) => {
-    if (s.grid) return s as Section;
-    const slugs: string[] = s.familySlugs || [];
-    const grid: Record<string, string> = {};
-    slugs.forEach((slug, i) => { grid[`${i}:0`] = slug; });
+/** Convert a grid Record<"row:col", slug> to a flat items array in reading order. */
+function gridToItems(grid: Record<string, string>, rows: number, columns: number): string[] {
+  const items: string[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < columns; c++) {
+      const slug = grid[`${r}:${c}`];
+      if (slug) items.push(slug);
+    }
+  }
+  return items;
+}
+
+/** Migrate any legacy section format to the current items-based format. */
+function migrateSection(raw: RawSection): Section {
+  // Already migrated
+  if (raw.items && !raw.grid) {
     return {
-      id: s.id,
-      name: s.name,
-      focus: s.focus ?? false,
-      collapsed: s.collapsed ?? false,
-      columns: 1,
-      rows: Math.max(slugs.length, 1),
-      grid,
+      id: raw.id,
+      name: raw.name,
+      focus: raw.focus ?? false,
+      collapsed: raw.collapsed ?? false,
+      color: raw.color,
+      columns: raw.columns,
+      items: raw.items,
     };
-  });
+  }
+
+  // Legacy: familySlugs (oldest format)
+  if (raw.familySlugs && !raw.grid) {
+    return {
+      id: raw.id,
+      name: raw.name,
+      focus: raw.focus ?? false,
+      collapsed: raw.collapsed ?? false,
+      color: raw.color,
+      items: raw.familySlugs,
+    };
+  }
+
+  // Legacy: grid coordinate format
+  if (raw.grid) {
+    const rows = raw.rows ?? 1;
+    const cols = raw.columns ?? 1;
+    return {
+      id: raw.id,
+      name: raw.name,
+      focus: raw.focus ?? false,
+      collapsed: raw.collapsed ?? false,
+      color: raw.color,
+      columns: cols > 1 ? cols : undefined, // preserve column preference if meaningful
+      items: gridToItems(raw.grid, rows, cols),
+    };
+  }
+
+  // Empty section
+  return {
+    id: raw.id,
+    name: raw.name,
+    focus: raw.focus ?? false,
+    collapsed: raw.collapsed ?? false,
+    color: raw.color,
+    items: [],
+  };
 }
 
 export function readManifest(project: string = "default"): Manifest {
@@ -145,10 +196,11 @@ export function readManifest(project: string = "default"): Manifest {
   const path = projectPath(project);
   try {
     const raw: RawManifest = JSON.parse(readFileSync(path, "utf-8"));
-    const needsMigration = raw.sections?.some((s) => s.familySlugs && !s.grid);
+    const sections = (raw.sections ?? []).map(migrateSection);
+    const needsMigration = raw.sections?.some((s) => s.grid || s.familySlugs);
     const manifest: Manifest = {
       current: raw.current ?? null,
-      sections: needsMigration ? migrateSections(raw) : (raw.sections as Section[] ?? []),
+      sections,
       families: raw.families ?? {},
       settings: { ...DEFAULT_SETTINGS, ...raw.settings },
     };

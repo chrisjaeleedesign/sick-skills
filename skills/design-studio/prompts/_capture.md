@@ -19,15 +19,9 @@ You are capturing a screenshot of the current prototype to use as a visual refer
    ```bash
    cd .agents/design/studio && npx tsx scripts/capture.ts --family <slug> --version <N> [--device <preset>]
    ```
-   This launches headless Chromium, navigates to the prototype in bare capture mode (no Design Studio chrome), and saves a clean screenshot.
+   This launches headless Chromium, navigates to the prototype in bare capture mode (no Design Studio chrome), and saves a clean screenshot. The capture script automatically creates a journal entry with the screenshot attached.
 
-4. **Update manifest:** Add to the version's `references` array:
-   ```json
-   { "type": "screenshot", "path": "references/<family>-v<N>.png", "description": "Auto-captured" }
-   ```
-   For non-desktop captures, the filename includes the device: `<family>-v<N>-<device>.png`
-
-5. **Read the screenshot** using the Read tool so it's in conversation context — this lets the agent (and user) see what was generated.
+4. **Read the screenshot** using the Read tool so it's in conversation context — this lets the agent (and user) see what was generated.
 
 ## Fallback
 

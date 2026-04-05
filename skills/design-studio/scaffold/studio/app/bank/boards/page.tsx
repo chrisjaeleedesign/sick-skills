@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Loader2 } from "lucide-react";
 import type { Board } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
-import type { ThoughtColor } from "@/app/lib/types";
+import type { Color } from "@/app/lib/types";
 import { BoardCard } from "./board-card";
 
 // ---------------------------------------------------------------------------
@@ -14,10 +14,10 @@ import { BoardCard } from "./board-card";
 
 interface BoardWithPreview extends Board {
   itemCount: number;
-  previewItems: { attachment?: { path: string; type: string } | null }[];
+  previewPaths: string[];
 }
 
-const BOARD_COLORS: ThoughtColor[] = ["red", "blue", "emerald", "amber", "purple", "pink", "gray"];
+const BOARD_COLORS: Color[] = ["red", "blue", "emerald", "amber", "purple", "pink", "gray"];
 
 // ---------------------------------------------------------------------------
 // Boards Overview page
@@ -35,50 +35,16 @@ export default function BoardsPage() {
   // New board form state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newBoardName, setNewBoardName] = useState("");
-  const [newBoardColor, setNewBoardColor] = useState<ThoughtColor>("blue");
+  const [newBoardColor, setNewBoardColor] = useState<Color>("blue");
   const [creating, setCreating] = useState(false);
 
   const fetchBoards = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/thoughts/boards");
+      const res = await fetch("/api/entries/boards?preview=true");
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
-      const boardList: Board[] = data.boards ?? [];
-
-      // Fetch item counts and preview items for each board
-      const enriched: BoardWithPreview[] = await Promise.all(
-        boardList.map(async (board) => {
-          try {
-            const itemRes = await fetch(`/api/thoughts/boards?id=${board.id}`);
-            if (!itemRes.ok) return { ...board, itemCount: 0, previewItems: [] };
-            const itemData = await itemRes.json();
-            const items = itemData.items ?? [];
-
-            // Fetch thought data for preview (first 4 items)
-            const previewItems: { attachment?: { path: string; type: string } | null }[] = [];
-            for (const item of items.slice(0, 4)) {
-              try {
-                const qs = new URLSearchParams({ view: "bank", limit: "1" });
-                // Use search by ID - fetch the specific thought
-                const tRes = await fetch(`/api/thoughts?id=${item.thought_id}`);
-                if (tRes.ok) {
-                  const tData = await tRes.json();
-                  previewItems.push({ attachment: tData.attachments?.[0] ? { path: tData.attachments[0].path, type: tData.attachments[0].type } : null });
-                }
-              } catch {
-                previewItems.push({ attachment: null });
-              }
-            }
-
-            return { ...board, itemCount: items.length, previewItems };
-          } catch {
-            return { ...board, itemCount: 0, previewItems: [] };
-          }
-        }),
-      );
-
-      setBoards(enriched);
+      setBoards(data.boards ?? []);
     } catch (err) {
       console.error("Failed to fetch boards:", err);
     }
@@ -93,7 +59,7 @@ export default function BoardsPage() {
     if (!newBoardName.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch("/api/thoughts/boards", {
+      const res = await fetch("/api/entries/boards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -128,7 +94,7 @@ export default function BoardsPage() {
             key={board.id}
             board={board}
             itemCount={board.itemCount}
-            items={board.previewItems}
+            previewPaths={board.previewPaths}
             onClick={() => router.push(`/bank/boards/${board.id}${projectSuffix}`)}
           />
         ))}

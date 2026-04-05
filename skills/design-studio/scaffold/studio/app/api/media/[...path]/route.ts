@@ -14,9 +14,9 @@ const CONTENT_TYPES: Record<string, string> = {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { path: string[] } },
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
-  const segments = params.path;
+  const { path: segments } = await params;
 
   if (!segments || segments.length === 0) {
     return NextResponse.json({ error: "No path provided" }, { status: 400 });

@@ -4,23 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Loader2 } from "lucide-react";
-import type { Board, BoardItem } from "@/app/lib/types";
-import { BentoGrid } from "@/app/bank/bento-grid";
-import type { BentoItem } from "@/app/bank/bento-grid";
+import { AnimatePresence, motion } from "motion/react";
+import type { Board } from "@/app/lib/types";
+import { Masonry } from "@/app/bank/masonry";
 import { BankItem } from "@/app/bank/bank-item";
 import type { BankItemData } from "@/app/bank/bank-item";
-import { ThoughtDetail } from "@/app/components/thought-detail";
+import { EntryDetail } from "@/app/components/entry-detail";
 import { BankDrawer } from "../bank-drawer";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type BoardThought = BankItemData & BentoItem;
-
-// ---------------------------------------------------------------------------
-// Board Detail page
-// ---------------------------------------------------------------------------
+const PANEL_WIDTH = 520;
 
 export default function BoardDetailPage() {
   const params = useParams();
@@ -30,8 +22,8 @@ export default function BoardDetailPage() {
   const projectSuffix = project ? `?project=${encodeURIComponent(project)}` : "";
 
   const [board, setBoard] = useState<Board | null>(null);
-  const [boardItems, setBoardItems] = useState<BoardItem[]>([]);
-  const [thoughts, setThoughts] = useState<BoardThought[]>([]);
+  const [entries, setEntries] = useState<BankItemData[]>([]);
+  const [boardItemIds, setBoardItemIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -39,100 +31,41 @@ export default function BoardDetailPage() {
   const fetchBoard = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/thoughts/boards?id=${id}`);
+      const res = await fetch(`/api/entries/boards?id=${id}&enriched=true`);
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       setBoard(data.board);
-      const items: BoardItem[] = data.items ?? [];
-      setBoardItems(items);
-
-      // Fetch thought data for each board item
-      if (items.length === 0) {
-        setThoughts([]);
-        setLoading(false);
-        return;
-      }
-
-      // Batch fetch thoughts with bank view
-      const qs = new URLSearchParams({ view: "bank", limit: "200" });
-      if (project) qs.set("project", project);
-      const thoughtsRes = await fetch(`/api/thoughts?${qs}`);
-      if (!thoughtsRes.ok) throw new Error(`${thoughtsRes.status}`);
-      const allThoughts: BankItemData[] = await thoughtsRes.json();
-
-      // Filter to only board items, apply board layout positions
-      const itemMap = new Map(items.map((bi) => [bi.thought_id, bi]));
-      const boardThoughts: BoardThought[] = allThoughts
-        .filter((t) => itemMap.has(t.id))
-        .map((t) => {
-          const bi = itemMap.get(t.id)!;
-          return {
-            ...t,
-            layout_x: bi.x,
-            layout_y: bi.y,
-            layout_w: bi.w,
-            layout_h: bi.h,
-          };
-        });
-
-      setThoughts(boardThoughts);
+      const enrichedEntries: BankItemData[] = data.entries ?? [];
+      setBoardItemIds(new Set(enrichedEntries.map((e) => e.id)));
+      setEntries(enrichedEntries);
     } catch (err) {
       console.error("Failed to fetch board:", err);
     }
     setLoading(false);
-  }, [id, project]);
+  }, [id]);
 
-  useEffect(() => {
-    fetchBoard();
-  }, [fetchBoard]);
+  useEffect(() => { fetchBoard(); }, [fetchBoard]);
 
-  const handleLayoutChange = useCallback(
-    async (layouts: { id: string; x: number; y: number; w: number; h: number }[]) => {
-      try {
-        await fetch("/api/thoughts/boards", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "bulk-update-board-layout",
-            board_id: id,
-            items: layouts.map((l) => ({
-              thought_id: l.id,
-              x: l.x,
-              y: l.y,
-              w: l.w,
-              h: l.h,
-            })),
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to save board layout:", err);
-      }
-    },
-    [id],
-  );
-
-  const handleRefresh = useCallback(() => {
-    fetchBoard();
-  }, [fetchBoard]);
+  const handleRefresh = useCallback(() => fetchBoard(), [fetchBoard]);
 
   const handleDelete = useCallback(
-    async (thoughtId: string) => {
+    async (entryId: string) => {
       try {
-        await fetch("/api/thoughts", {
+        await fetch("/api/entries", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "delete-thought", id: thoughtId }),
+          body: JSON.stringify({ action: "delete-entry", id: entryId }),
         });
         setSelectedId(null);
         handleRefresh();
       } catch (err) {
-        console.error("Failed to delete thought:", err);
+        console.error("Failed to delete entry:", err);
       }
     },
     [handleRefresh],
   );
 
-  const existingItemIds = new Set(boardItems.map((bi) => bi.thought_id));
+  const panelOpen = selectedId !== null;
 
   if (loading) {
     return (
@@ -144,8 +77,10 @@ export default function BoardDetailPage() {
 
   return (
     <div className="flex h-full">
-      {/* Main area */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div
+        className="flex-1 overflow-y-auto transition-[padding] duration-200"
+        style={{ padding: panelOpen ? "24px 16px" : "24px 8%" }}
+      >
         {/* Header */}
         <div className="mb-4 flex items-center gap-3">
           <Link
@@ -167,50 +102,52 @@ export default function BoardDetailPage() {
           </button>
         </div>
 
-        {/* Board grid */}
-        {thoughts.length === 0 ? (
+        {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-text-tertiary">
             <p className="text-sm">This board is empty</p>
             <p className="mt-1 text-xs">Click "Add from bank" to add items</p>
           </div>
         ) : (
-          <BentoGrid
-            items={thoughts}
-            columns={board?.columns ?? 6}
-            rowHeight={90}
-            onLayoutChange={handleLayoutChange}
-            renderItem={(item) => {
-              const thought = item as BoardThought;
-              return (
-                <BankItem
-                  item={thought}
-                  tileWidth={thought.layout_w ?? 1}
-                  tileHeight={thought.layout_h ?? 1}
-                  onClick={() => setSelectedId(thought.id)}
-                />
-              );
-            }}
+          <Masonry
+            items={entries}
+            renderItem={(item) => (
+              <BankItem
+                item={item}
+                onClick={() => setSelectedId(item.id)}
+              />
+            )}
           />
         )}
       </div>
 
-      {/* Detail panel */}
-      {selectedId && (
-        <ThoughtDetail
-          thoughtId={selectedId}
-          onClose={() => setSelectedId(null)}
-          onUpdate={handleRefresh}
-          onDelete={handleDelete}
-        />
-      )}
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            key="detail-panel"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: PANEL_WIDTH, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+            className="shrink-0 overflow-hidden"
+          >
+            <div style={{ width: PANEL_WIDTH }}>
+              <EntryDetail
+                entryId={selectedId}
+                onClose={() => setSelectedId(null)}
+                onUpdate={handleRefresh}
+                onDelete={handleDelete}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Bank drawer */}
       <BankDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         boardId={id}
         onItemAdded={handleRefresh}
-        existingItemIds={existingItemIds}
+        existingItemIds={boardItemIds}
       />
     </div>
   );

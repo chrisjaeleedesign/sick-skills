@@ -1,0 +1,90 @@
+[
+  {
+    "query": "I want to try a few different sidebar layouts for this app — maybe one with icons only, one with full labels, and a collapsible one. Let me see them side by side",
+    "should_trigger": true
+  },
+  {
+    "query": "here's a screenshot from Linear that I really love the feel of [image]. Can you save this to my mood board?",
+    "should_trigger": true
+  },
+  {
+    "query": "let's prototype a mobile chat interface, something that feels like iMessage but with AI features. Start with a basic version and we'll iterate",
+    "should_trigger": true
+  },
+  {
+    "query": "I pasted some color palette inspiration earlier — can you add it to the 'warm tones' board?",
+    "should_trigger": true
+  },
+  {
+    "query": "the current dashboard prototype feels too boxy and rigid. Make it more organic and airy, maybe with more rounded corners and breathing room",
+    "should_trigger": true
+  },
+  {
+    "query": "show me the design gallery, I want to browse through what we've built so far",
+    "should_trigger": true
+  },
+  {
+    "query": "I want to vibe design a landing page for my SaaS product. Dark theme, modern, with a hero section and pricing table",
+    "should_trigger": true
+  },
+  {
+    "query": "can you map out the feature tree for our assistant product? I want to see how permissions, memory, and conversation features relate to each other",
+    "should_trigger": true
+  },
+  {
+    "query": "I've been collecting reference images and design thoughts — let me search through the bank for anything tagged with 'navigation'",
+    "should_trigger": true
+  },
+  {
+    "query": "archive the old modal-dialog prototype, we're going in a different direction. And create a new concept for a command palette instead",
+    "should_trigger": true
+  },
+  {
+    "query": "can you fix the bug in our login form? The submit button doesn't work when the email field has a + character in it",
+    "should_trigger": false
+  },
+  {
+    "query": "I need to set up a PostgreSQL database for my Next.js app. Can you help me with the prisma schema and the docker-compose file?",
+    "should_trigger": false
+  },
+  {
+    "query": "write unit tests for the UserService class — it handles registration, login, and password reset. Use vitest",
+    "should_trigger": false
+  },
+  {
+    "query": "review this pull request and check for any security issues, especially around the auth middleware changes",
+    "should_trigger": false
+  },
+  {
+    "query": "can you build me a REST API endpoint that takes a CSV file upload and returns the parsed data as JSON? Use Express",
+    "should_trigger": false
+  },
+  {
+    "query": "I need to refactor this 500-line React component into smaller pieces. It's the main dashboard page and it handles data fetching, state management, and rendering all in one file",
+    "should_trigger": false
+  },
+  {
+    "query": "help me set up CI/CD with GitHub Actions. I need it to run tests on PRs and deploy to Vercel on merge to main",
+    "should_trigger": false
+  },
+  {
+    "query": "my webpack build is taking 45 seconds. Can you look at the config and figure out why it's so slow? Maybe we need to split some chunks",
+    "should_trigger": false
+  },
+  {
+    "query": "I want to add dark mode to my existing Next.js app. It already uses Tailwind. Just need the toggle and the CSS variable setup",
+    "should_trigger": false
+  },
+  {
+    "query": "can you help me write a migration script to move our user data from MongoDB to PostgreSQL? About 50k records, need to preserve the timestamps",
+    "should_trigger": false
+  },
+  {
+    "query": "use the design studio",
+    "should_trigger": true
+  },
+  {
+    "query": "I'm not sure I like these designs. can we explore?",
+    "should_trigger": true
+  }
+]

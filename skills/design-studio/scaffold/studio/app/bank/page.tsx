@@ -3,105 +3,86 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { BentoGrid } from "./bento-grid";
-import type { BentoItem } from "./bento-grid";
+import { AnimatePresence, motion } from "motion/react";
+import { Masonry } from "./masonry";
 import { BankItem } from "./bank-item";
 import type { BankItemData } from "./bank-item";
 import { FilterBar } from "./filter-bar";
-import { ThoughtDetail } from "@/app/components/thought-detail";
+import { EntryDetail } from "@/app/components/entry-detail";
+import { useBankItems } from "./use-bank-items";
 
-// ---------------------------------------------------------------------------
-// All Items page — main bank view
-// ---------------------------------------------------------------------------
-
-type BankThought = BankItemData & BentoItem;
+const PANEL_WIDTH = 520;
 
 export default function BankPage() {
   const searchParams = useSearchParams();
   const project = searchParams.get("project");
 
-  const [items, setItems] = useState<BankThought[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items, setItems, loading, fetchItems } = useBankItems();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const filterParams = useRef<Record<string, string>>({});
+  const hasSynced = useRef(false);
 
-  const fetchItems = useCallback(async (params: Record<string, string> = {}) => {
-    setLoading(true);
-    try {
-      const qs = new URLSearchParams({ view: "bank", limit: "200", ...params });
-      if (project) qs.set("project", project);
-      const res = await fetch(`/api/thoughts?${qs}`);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const data: BankThought[] = await res.json();
-      setItems(data);
-    } catch (err) {
-      console.error("Failed to fetch bank items:", err);
-    }
-    setLoading(false);
-  }, [project]);
+  useEffect(() => { setMounted(true); }, []);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchItems();
+  const fetchWithProject = useCallback((params: Record<string, string> = {}) => {
+    const merged: Record<string, string> = { limit: "500", ...params };
+    return fetchItems(merged);
   }, [fetchItems]);
+
+  useEffect(() => {
+    if (hasSynced.current) return;
+    hasSynced.current = true;
+    fetchWithProject(filterParams.current);
+  }, [fetchWithProject]);
 
   const handleFilterChange = useCallback(
     (params: Record<string, string>) => {
       filterParams.current = params;
-      fetchItems(params);
+      fetchWithProject(params);
     },
-    [fetchItems],
-  );
-
-  const handleLayoutChange = useCallback(
-    async (layouts: { id: string; x: number; y: number; w: number; h: number }[]) => {
-      try {
-        await fetch("/api/thoughts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "bulk-update-layout",
-            items: layouts.map((l) => ({
-              id: l.id,
-              layout_x: l.x,
-              layout_y: l.y,
-              layout_w: l.w,
-              layout_h: l.h,
-            })),
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to save layout:", err);
-      }
-    },
-    [],
+    [fetchWithProject],
   );
 
   const handleRefresh = useCallback(() => {
-    fetchItems(filterParams.current);
-  }, [fetchItems]);
+    fetchWithProject(filterParams.current);
+  }, [fetchWithProject]);
 
   const handleDelete = useCallback(
     async (id: string) => {
       try {
-        await fetch("/api/thoughts", {
+        await fetch("/api/entries", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "delete-thought", id }),
+          body: JSON.stringify({ action: "delete-entry", id }),
         });
         setSelectedId(null);
         handleRefresh();
       } catch (err) {
-        console.error("Failed to delete thought:", err);
+        console.error("Failed to delete entry:", err);
       }
     },
     [handleRefresh],
   );
 
+  const handleHide = useCallback((id: string) => {
+    fetch("/api/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update-entry", entry: { id, hidden: true } }),
+    })
+      .then(() => setItems((prev) => prev.filter((item) => item.id !== id)))
+      .catch(console.error);
+  }, []);
+
+  const panelOpen = selectedId !== null;
+
   return (
     <div className="flex h-full">
-      {/* Main content area */}
-      <div className={`flex-1 overflow-y-auto p-6 ${selectedId ? "pr-0" : ""}`}>
+      <div
+        className={`flex-1 overflow-y-auto ${mounted ? "transition-[padding] duration-200" : ""}`}
+        style={{ padding: panelOpen ? "24px 16px" : "24px 8%" }}
+      >
         <FilterBar onFilterChange={handleFilterChange} />
 
         {loading ? (
@@ -115,36 +96,41 @@ export default function BankPage() {
           </div>
         ) : (
           <div className="mt-4">
-            <BentoGrid
+            <Masonry
               items={items}
-              columns={6}
-              rowHeight={90}
-              onLayoutChange={handleLayoutChange}
-              renderItem={(item) => {
-                const bankItem = item as BankThought;
-                return (
-                  <BankItem
-                    item={bankItem}
-                    tileWidth={bankItem.layout_w ?? 1}
-                    tileHeight={bankItem.layout_h ?? 1}
-                    onClick={() => setSelectedId(bankItem.id)}
-                  />
-                );
-              }}
+              renderItem={(item) => (
+                <BankItem
+                  item={item}
+                  onClick={() => setSelectedId(item.id)}
+                  onHide={() => handleHide(item.id)}
+                />
+              )}
             />
           </div>
         )}
       </div>
 
-      {/* Detail panel */}
-      {selectedId && (
-        <ThoughtDetail
-          thoughtId={selectedId}
-          onClose={() => setSelectedId(null)}
-          onUpdate={handleRefresh}
-          onDelete={handleDelete}
-        />
-      )}
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            key="detail-panel"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: PANEL_WIDTH, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+            className="shrink-0 overflow-hidden"
+          >
+            <div style={{ width: PANEL_WIDTH }}>
+              <EntryDetail
+                entryId={selectedId}
+                onClose={() => setSelectedId(null)}
+                onUpdate={handleRefresh}
+                onDelete={handleDelete}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

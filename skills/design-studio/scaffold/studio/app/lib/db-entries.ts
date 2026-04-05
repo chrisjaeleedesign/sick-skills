@@ -1,41 +1,39 @@
 import { getDb, buildQuery } from "./db";
 import { genId, now } from "./utils";
 import type {
-  ThoughtKind, SourceType, Importance, RelationType,
-  AttachmentType, ThoughtColor,
-  Thought, Revision, Attachment, ThoughtRelation,
-  ThoughtQueryParams,
+  EntryKind, SourceType, Importance, RelationType,
+  AttachmentType, Color,
+  Entry, Revision, Attachment, EntryRelation,
+  EntryQueryParams,
 } from "./types";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function deserializeThought(row: Record<string, unknown>): Thought {
+function deserializeEntry(row: Record<string, unknown>): Entry {
   return {
     id: row.id as string,
-    kind: row.kind as ThoughtKind,
+    kind: row.kind as EntryKind,
     source_type: (row.source_type as SourceType) ?? undefined,
     source_url: (row.source_url as string) ?? undefined,
     source_meta: JSON.parse((row.source_meta as string) || "{}"),
     family: (row.family as string) ?? undefined,
+    project: (row.project as string) ?? undefined,
     tags: JSON.parse((row.tags as string) || "[]"),
-    color: (row.color as ThoughtColor) ?? undefined,
+    color: (row.color as Color) ?? undefined,
     pinned: (row.pinned as number) === 1,
     importance: (row.importance as Importance) ?? undefined,
+    hidden: (row.hidden as number) === 1,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
-    layout_w: (row.layout_w as number) ?? undefined,
-    layout_h: (row.layout_h as number) ?? undefined,
-    layout_x: (row.layout_x as number) ?? undefined,
-    layout_y: (row.layout_y as number) ?? undefined,
   };
 }
 
 function deserializeRevision(row: Record<string, unknown>): Revision {
   return {
     id: row.id as string,
-    thought_id: row.thought_id as string,
+    entry_id: row.thought_id as string,
     body: (row.body as string) ?? undefined,
     seq: row.seq as number,
     source: row.source as string,
@@ -46,7 +44,7 @@ function deserializeRevision(row: Record<string, unknown>): Revision {
 function deserializeAttachment(row: Record<string, unknown>): Attachment {
   return {
     id: row.id as string,
-    thought_id: row.thought_id as string,
+    entry_id: row.thought_id as string,
     revision_id: (row.revision_id as string) ?? undefined,
     type: row.type as AttachmentType,
     path: row.path as string,
@@ -56,43 +54,46 @@ function deserializeAttachment(row: Record<string, unknown>): Attachment {
 }
 
 // ---------------------------------------------------------------------------
-// Thought CRUD
+// Entry CRUD
 // ---------------------------------------------------------------------------
 
-export function createThought(input: {
-  kind: ThoughtKind;
+export function createEntry(input: {
+  kind: EntryKind;
   body?: string;
   source_type?: SourceType;
   source_url?: string;
   source_meta?: Record<string, unknown>;
   family?: string;
+  project?: string;
   tags?: string[];
-  color?: ThoughtColor;
+  color?: Color;
   pinned?: boolean;
   importance?: Importance;
+  hidden?: boolean;
   revision_source?: string;
-}): { thought: Thought; revision: Revision } {
-
+}): { entry: Entry; revision: Revision } {
   const db = getDb();
-  const thoughtId = genId("th");
+  const entryId = genId("th");
   const revisionId = genId("rev");
   const ts = now();
 
   const tx = db.transaction(() => {
     db.prepare(`
-      INSERT INTO thoughts (id, kind, source_type, source_url, source_meta, family, tags, color, pinned, importance, created_at, updated_at)
-      VALUES (@id, @kind, @source_type, @source_url, @source_meta, @family, @tags, @color, @pinned, @importance, @created_at, @updated_at)
+      INSERT INTO entries (id, kind, source_type, source_url, source_meta, family, project, tags, color, pinned, importance, hidden, created_at, updated_at)
+      VALUES (@id, @kind, @source_type, @source_url, @source_meta, @family, @project, @tags, @color, @pinned, @importance, @hidden, @created_at, @updated_at)
     `).run({
-      id: thoughtId,
+      id: entryId,
       kind: input.kind,
       source_type: input.source_type ?? null,
       source_url: input.source_url ?? null,
       source_meta: JSON.stringify(input.source_meta ?? {}),
       family: input.family ?? null,
+      project: input.project ?? null,
       tags: JSON.stringify(input.tags ?? []),
       color: input.color ?? null,
       pinned: input.pinned ? 1 : 0,
       importance: input.importance ?? null,
+      hidden: input.hidden ? 1 : 0,
       created_at: ts,
       updated_at: ts,
     });
@@ -102,7 +103,7 @@ export function createThought(input: {
       VALUES (@id, @thought_id, @body, @seq, @source, @created_at)
     `).run({
       id: revisionId,
-      thought_id: thoughtId,
+      thought_id: entryId,
       body: input.body ?? null,
       seq: 1,
       source: input.revision_source ?? "user",
@@ -111,19 +112,17 @@ export function createThought(input: {
   });
   tx();
 
-  const thought = db.prepare("SELECT * FROM thoughts WHERE id = ?").get(thoughtId) as Record<string, unknown>;
+  const entry = db.prepare("SELECT * FROM entries WHERE id = ?").get(entryId) as Record<string, unknown>;
   const revision = db.prepare("SELECT * FROM revisions WHERE id = ?").get(revisionId) as Record<string, unknown>;
-  return { thought: deserializeThought(thought), revision: deserializeRevision(revision) };
+  return { entry: deserializeEntry(entry), revision: deserializeRevision(revision) };
 }
 
-export function getThought(id: string): Thought | undefined {
-
-  const row = getDb().prepare("SELECT * FROM thoughts WHERE id = ?").get(id) as Record<string, unknown> | undefined;
-  return row ? deserializeThought(row) : undefined;
+export function getEntry(id: string): Entry | undefined {
+  const row = getDb().prepare("SELECT * FROM entries WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+  return row ? deserializeEntry(row) : undefined;
 }
 
-export function updateThought(id: string, patch: Partial<Pick<Thought, "kind" | "source_type" | "source_url" | "source_meta" | "family" | "tags" | "color" | "pinned" | "importance">>): void {
-
+export function updateEntry(id: string, patch: Partial<Pick<Entry, "kind" | "source_type" | "source_url" | "source_meta" | "family" | "project" | "tags" | "color" | "pinned" | "importance" | "hidden">>): void {
   const db = getDb();
   const sets: string[] = [];
   const values: Record<string, unknown> = { id };
@@ -133,124 +132,147 @@ export function updateThought(id: string, patch: Partial<Pick<Thought, "kind" | 
   if (patch.source_url !== undefined) { sets.push("source_url = @source_url"); values.source_url = patch.source_url; }
   if (patch.source_meta !== undefined) { sets.push("source_meta = @source_meta"); values.source_meta = JSON.stringify(patch.source_meta); }
   if (patch.family !== undefined) { sets.push("family = @family"); values.family = patch.family; }
+  if (patch.project !== undefined) { sets.push("project = @project"); values.project = patch.project || null; }
   if (patch.tags !== undefined) { sets.push("tags = @tags"); values.tags = JSON.stringify(patch.tags); }
   if (patch.color !== undefined) { sets.push("color = @color"); values.color = patch.color; }
   if (patch.pinned !== undefined) { sets.push("pinned = @pinned"); values.pinned = patch.pinned ? 1 : 0; }
   if (patch.importance !== undefined) { sets.push("importance = @importance"); values.importance = patch.importance; }
+  if (patch.hidden !== undefined) { sets.push("hidden = @hidden"); values.hidden = patch.hidden ? 1 : 0; }
 
   if (sets.length === 0) return;
   sets.push("updated_at = @updated_at");
   values.updated_at = now();
 
-  db.prepare(`UPDATE thoughts SET ${sets.join(", ")} WHERE id = @id`).run(values);
+  db.prepare(`UPDATE entries SET ${sets.join(", ")} WHERE id = @id`).run(values);
 }
 
-export function deleteThought(id: string): void {
-
-  getDb().prepare("DELETE FROM thoughts WHERE id = ?").run(id);
+export function deleteEntry(id: string): void {
+  getDb().prepare("DELETE FROM entries WHERE id = ?").run(id);
 }
 
 // ---------------------------------------------------------------------------
-// Query thoughts
+// Query entries
 // ---------------------------------------------------------------------------
 
-export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevision?: boolean }): (Thought & { latest_revision_body?: string; latest_revision_seq?: number; latest_revision_created_at?: string })[] {
-
+export function queryEntries(params: EntryQueryParams = {}, opts?: { withRevision?: boolean }): (Entry & { latest_revision_body?: string; latest_revision_seq?: number; latest_revision_created_at?: string })[] {
   const db = getDb();
 
-  // Thought-specific extra filters for buildQuery
   const extraConditions: string[] = [];
   const extraBindings: unknown[] = [];
 
+  // By default, hide hidden entries unless explicitly requested
+  if (params.hidden !== true) {
+    extraConditions.push("entries.hidden = 0");
+  }
+
   if (params.kind) {
     if (Array.isArray(params.kind)) {
-      extraConditions.push(`thoughts.kind IN (${params.kind.map(() => '?').join(',')})`);
+      extraConditions.push(`entries.kind IN (${params.kind.map(() => '?').join(',')})`);
       extraBindings.push(...params.kind);
     } else {
-      extraConditions.push("thoughts.kind = ?");
+      extraConditions.push("entries.kind = ?");
       extraBindings.push(params.kind);
     }
   }
-  if (params.source_type) { extraConditions.push("thoughts.source_type = ?"); extraBindings.push(params.source_type); }
+  if (params.source_type) {
+    if (Array.isArray(params.source_type)) {
+      extraConditions.push(`entries.source_type IN (${params.source_type.map(() => "?").join(",")})`);
+      extraBindings.push(...params.source_type);
+    } else {
+      extraConditions.push("entries.source_type = ?");
+      extraBindings.push(params.source_type);
+    }
+  }
   if (params.importance) {
     if (Array.isArray(params.importance)) {
-      extraConditions.push(`thoughts.importance IN (${params.importance.map(() => '?').join(',')})`);
+      extraConditions.push(`entries.importance IN (${params.importance.map(() => '?').join(',')})`);
       extraBindings.push(...params.importance);
     } else {
-      extraConditions.push("thoughts.importance = ?");
+      extraConditions.push("entries.importance = ?");
       extraBindings.push(params.importance);
     }
   }
-  if (params.color) { extraConditions.push("thoughts.color = ?"); extraBindings.push(params.color); }
-  if (params.pinned !== undefined) { extraConditions.push("thoughts.pinned = ?"); extraBindings.push(params.pinned ? 1 : 0); }
+  if (params.color) { extraConditions.push("entries.color = ?"); extraBindings.push(params.color); }
+  if (params.pinned !== undefined) { extraConditions.push("entries.pinned = ?"); extraBindings.push(params.pinned ? 1 : 0); }
 
-  // Handle since/until via extra conditions (buildQuery uses .ts but thoughts uses .created_at)
-  if (params.since) { extraConditions.push("thoughts.created_at >= ?"); extraBindings.push(params.since); }
-  if (params.until) { extraConditions.push("thoughts.created_at <= ?"); extraBindings.push(params.until); }
+  // Handle since/until via extra conditions
+  if (params.since) { extraConditions.push("entries.created_at >= ?"); extraBindings.push(params.since); }
+  if (params.until) { extraConditions.push("entries.created_at <= ?"); extraBindings.push(params.until); }
 
   // Handle family as array via extra conditions (buildQuery only handles single string)
   let familyForBuildQuery: string | undefined;
   if (params.family) {
     if (Array.isArray(params.family)) {
-      extraConditions.push(`thoughts.family IN (${params.family.map(() => '?').join(',')})`);
+      extraConditions.push(`entries.family IN (${params.family.map(() => '?').join(',')})`);
       extraBindings.push(...params.family);
-      // Don't pass to buildQuery — we handle it here
     } else {
       familyForBuildQuery = params.family;
     }
   }
 
-  // Search path: FTS goes through revisions (not directly on thoughts), so
+  // Handle project filter (supports multi-select + "__global" for NULL)
+  if (params.project) {
+    const projects = Array.isArray(params.project) ? params.project : [params.project];
+    const named = projects.filter((p) => p !== "__global");
+    const includeGlobal = projects.includes("__global");
+    const parts: string[] = [];
+    if (named.length > 0) {
+      parts.push(`entries.project IN (${named.map(() => "?").join(",")})`);
+      extraBindings.push(...named);
+    }
+    if (includeGlobal) {
+      parts.push("entries.project IS NULL");
+    }
+    if (parts.length > 0) {
+      extraConditions.push(`(${parts.join(" OR ")})`);
+    }
+  }
+
+  // Search path: FTS goes through revisions (not directly on entries), so
   // buildQuery's standard FTS join won't work. Handle manually.
   let searchJoin = "";
   const searchConditions: string[] = [];
   const searchBindings: unknown[] = [];
   if (params.search) {
-    searchJoin = `JOIN revisions ON revisions.thought_id = thoughts.id JOIN revisions_fts ON revisions_fts.rowid = revisions.rowid`;
+    searchJoin = `JOIN revisions ON revisions.thought_id = entries.id JOIN revisions_fts ON revisions_fts.rowid = revisions.rowid`;
     searchConditions.push("revisions_fts MATCH ?");
     searchBindings.push(params.search);
   }
 
-  // Use buildQuery for the common filters (family, tags, limit, offset)
-  // but pass search=undefined so it doesn't try its own FTS join
   const { sql: baseQuery, bindings } = buildQuery(
-    "thoughts",
-    "revisions_fts", // unused since we clear search
+    "entries",
+    "revisions_fts",
     { ...params, search: undefined, family: familyForBuildQuery, since: undefined, until: undefined },
     {
       extraConditions: [...searchConditions, ...extraConditions],
       extraBindings: [...searchBindings, ...extraBindings],
-      defaultOrder: params.search ? "rank" : "thoughts.created_at DESC",
+      defaultOrder: params.search ? "rank" : "COALESCE(entries.sort_order, 999999) ASC, entries.created_at DESC",
     },
   );
 
-  // buildQuery produces: SELECT thoughts.* FROM thoughts [WHERE ...] ORDER BY ... LIMIT ...
-  // We need to inject the search join and optional revision join, plus DISTINCT for search
   const distinct = params.search ? "DISTINCT" : "";
   const revisionSelect = opts?.withRevision
     ? ", lr.body AS latest_revision_body, lr.seq AS latest_revision_seq, lr.created_at AS latest_revision_created_at"
     : "";
   const revisionJoin = opts?.withRevision
-    ? "LEFT JOIN revisions lr ON lr.thought_id = thoughts.id AND lr.seq = (SELECT MAX(seq) FROM revisions WHERE thought_id = thoughts.id)"
+    ? "LEFT JOIN revisions lr ON lr.thought_id = entries.id AND lr.seq = (SELECT MAX(seq) FROM revisions WHERE thought_id = entries.id)"
     : "";
 
-  // Replace the SELECT clause to add DISTINCT, layout, and revision columns,
-  // and inject the search/revision joins after FROM thoughts
   const sql = baseQuery
-    .replace("SELECT thoughts.* FROM thoughts", `SELECT ${distinct} thoughts.*, thoughts.layout_w, thoughts.layout_h, thoughts.layout_x, thoughts.layout_y${revisionSelect} FROM thoughts ${searchJoin} ${revisionJoin}`.trim());
+    .replace("SELECT entries.* FROM entries", `SELECT ${distinct} entries.*${revisionSelect} FROM entries ${searchJoin} ${revisionJoin}`.trim());
 
   const rows = db.prepare(sql).all(...bindings) as Record<string, unknown>[];
   return rows.map((row) => {
-    const thought = deserializeThought(row);
+    const entry = deserializeEntry(row);
     if (opts?.withRevision) {
       return {
-        ...thought,
+        ...entry,
         latest_revision_body: (row.latest_revision_body as string) ?? undefined,
         latest_revision_seq: (row.latest_revision_seq as number) ?? undefined,
         latest_revision_created_at: (row.latest_revision_created_at as string) ?? undefined,
       };
     }
-    return thought;
+    return entry;
   });
 }
 
@@ -258,31 +280,29 @@ export function queryThoughts(params: ThoughtQueryParams = {}, opts?: { withRevi
 // Revisions
 // ---------------------------------------------------------------------------
 
-export function addRevision(thoughtId: string, body: string, source: string = "user"): Revision {
-
+export function addRevision(entryId: string, body: string, source: string = "user"): Revision {
   const db = getDb();
   const id = genId("rev");
   const ts = now();
 
-  const maxSeq = db.prepare("SELECT MAX(seq) AS max_seq FROM revisions WHERE thought_id = ?").get(thoughtId) as { max_seq: number | null };
+  const maxSeq = db.prepare("SELECT MAX(seq) AS max_seq FROM revisions WHERE thought_id = ?").get(entryId) as { max_seq: number | null };
   const seq = (maxSeq.max_seq ?? 0) + 1;
 
   db.prepare(`
     INSERT INTO revisions (id, thought_id, body, seq, source, created_at)
     VALUES (@id, @thought_id, @body, @seq, @source, @created_at)
-  `).run({ id, thought_id: thoughtId, body, seq, source, created_at: ts });
+  `).run({ id, thought_id: entryId, body, seq, source, created_at: ts });
 
-  // Touch the thought's updated_at
-  db.prepare("UPDATE thoughts SET updated_at = ? WHERE id = ?").run(ts, thoughtId);
+  // Touch the entry's updated_at
+  db.prepare("UPDATE entries SET updated_at = ? WHERE id = ?").run(ts, entryId);
 
   return deserializeRevision(
     db.prepare("SELECT * FROM revisions WHERE id = ?").get(id) as Record<string, unknown>,
   );
 }
 
-export function getRevisions(thoughtId: string): Revision[] {
-
-  const rows = getDb().prepare("SELECT * FROM revisions WHERE thought_id = ? ORDER BY seq DESC").all(thoughtId) as Record<string, unknown>[];
+export function getRevisions(entryId: string): Revision[] {
+  const rows = getDb().prepare("SELECT * FROM revisions WHERE thought_id = ? ORDER BY seq DESC").all(entryId) as Record<string, unknown>[];
   return rows.map(deserializeRevision);
 }
 
@@ -291,13 +311,12 @@ export function getRevisions(thoughtId: string): Revision[] {
 // ---------------------------------------------------------------------------
 
 export function addAttachment(input: {
-  thought_id: string;
+  entry_id: string;
   revision_id?: string;
   type: AttachmentType;
   path: string;
   alt?: string;
 }): Attachment {
-
   const db = getDb();
   const id = genId("att");
   const ts = now();
@@ -306,7 +325,7 @@ export function addAttachment(input: {
     INSERT INTO attachments (id, thought_id, revision_id, type, path, alt, created_at)
     VALUES (@id, @thought_id, @revision_id, @type, @path, @alt, @created_at)
   `).run({
-    id, thought_id: input.thought_id, revision_id: input.revision_id ?? null,
+    id, thought_id: input.entry_id, revision_id: input.revision_id ?? null,
     type: input.type, path: input.path, alt: input.alt ?? "", created_at: ts,
   });
 
@@ -315,9 +334,8 @@ export function addAttachment(input: {
   );
 }
 
-export function getAttachments(thoughtId: string): Attachment[] {
-
-  const rows = getDb().prepare("SELECT * FROM attachments WHERE thought_id = ? ORDER BY created_at").all(thoughtId) as Record<string, unknown>[];
+export function getAttachments(entryId: string): Attachment[] {
+  const rows = getDb().prepare("SELECT * FROM attachments WHERE thought_id = ? ORDER BY created_at").all(entryId) as Record<string, unknown>[];
   return rows.map(deserializeAttachment);
 }
 
@@ -326,24 +344,21 @@ export function getAttachments(thoughtId: string): Attachment[] {
 // ---------------------------------------------------------------------------
 
 export function addRelation(fromId: string, toId: string, type: RelationType): void {
-
   const ts = now();
   getDb().prepare(`
-    INSERT OR IGNORE INTO thought_relations (from_id, to_id, type, created_at)
+    INSERT OR IGNORE INTO entry_relations (from_id, to_id, type, created_at)
     VALUES (@from_id, @to_id, @type, @created_at)
   `).run({ from_id: fromId, to_id: toId, type, created_at: ts });
 }
 
 export function removeRelation(fromId: string, toId: string): void {
-
-  getDb().prepare("DELETE FROM thought_relations WHERE from_id = ? AND to_id = ?").run(fromId, toId);
+  getDb().prepare("DELETE FROM entry_relations WHERE from_id = ? AND to_id = ?").run(fromId, toId);
 }
 
-export function getRelations(thoughtId: string): ThoughtRelation[] {
-
+export function getRelations(entryId: string): EntryRelation[] {
   const rows = getDb().prepare(
-    "SELECT * FROM thought_relations WHERE from_id = ? OR to_id = ? ORDER BY created_at",
-  ).all(thoughtId, thoughtId) as ThoughtRelation[];
+    "SELECT * FROM entry_relations WHERE from_id = ? OR to_id = ? ORDER BY created_at",
+  ).all(entryId, entryId) as EntryRelation[];
   return rows;
 }
 
@@ -351,63 +366,30 @@ export function getRelations(thoughtId: string): ThoughtRelation[] {
 // Aggregation
 // ---------------------------------------------------------------------------
 
-export function thoughtTags(): string[] {
-
+export function entryTags(): string[] {
   const rows = getDb().prepare(
-    "SELECT DISTINCT j.value AS tag FROM thoughts, json_each(thoughts.tags) AS j ORDER BY tag",
+    "SELECT DISTINCT j.value AS tag FROM entries, json_each(entries.tags) AS j ORDER BY tag",
   ).all() as { tag: string }[];
   return rows.map(r => r.tag);
 }
 
-export function thoughtFamilies(): string[] {
-
+export function entryFamilies(): string[] {
   const rows = getDb().prepare(
-    "SELECT DISTINCT family FROM thoughts WHERE family IS NOT NULL ORDER BY family",
+    "SELECT DISTINCT family FROM entries WHERE family IS NOT NULL ORDER BY family",
   ).all() as { family: string }[];
   return rows.map(r => r.family);
 }
 
-export function thoughtColors(): ThoughtColor[] {
-
+export function entryColors(): Color[] {
   const rows = getDb().prepare(
-    "SELECT DISTINCT color FROM thoughts WHERE color IS NOT NULL ORDER BY color",
-  ).all() as { color: ThoughtColor }[];
+    "SELECT DISTINCT color FROM entries WHERE color IS NOT NULL ORDER BY color",
+  ).all() as { color: Color }[];
   return rows.map(r => r.color);
 }
 
-// ---------------------------------------------------------------------------
-// Layout helpers
-// ---------------------------------------------------------------------------
-
-export function updateThoughtLayout(id: string, layout: { layout_x?: number; layout_y?: number; layout_w?: number; layout_h?: number }): void {
-
-  const db = getDb();
-  const sets: string[] = [];
-  const values: Record<string, unknown> = { id };
-
-  if (layout.layout_x !== undefined) { sets.push("layout_x = @layout_x"); values.layout_x = layout.layout_x; }
-  if (layout.layout_y !== undefined) { sets.push("layout_y = @layout_y"); values.layout_y = layout.layout_y; }
-  if (layout.layout_w !== undefined) { sets.push("layout_w = @layout_w"); values.layout_w = layout.layout_w; }
-  if (layout.layout_h !== undefined) { sets.push("layout_h = @layout_h"); values.layout_h = layout.layout_h; }
-
-  if (sets.length === 0) return;
-  sets.push("updated_at = @updated_at");
-  values.updated_at = now();
-
-  db.prepare(`UPDATE thoughts SET ${sets.join(", ")} WHERE id = @id`).run(values);
-}
-
-export function bulkUpdateThoughtLayout(items: { id: string; layout_x: number; layout_y: number; layout_w: number; layout_h: number }[]): void {
-
-  const db = getDb();
-  const stmt = db.prepare(
-    "UPDATE thoughts SET layout_x = @layout_x, layout_y = @layout_y, layout_w = @layout_w, layout_h = @layout_h, updated_at = @updated_at WHERE id = @id"
-  );
-  const ts = now();
-  const tx = db.transaction(() => {
-    for (const item of items) {
-      stmt.run({ id: item.id, layout_x: item.layout_x, layout_y: item.layout_y, layout_w: item.layout_w, layout_h: item.layout_h, updated_at: ts });
-    }
-  });
-  tx();
+export function entryProjects(): string[] {
+  const rows = getDb().prepare(
+    "SELECT DISTINCT project FROM entries WHERE project IS NOT NULL ORDER BY project",
+  ).all() as { project: string }[];
+  return rows.map(r => r.project);
 }
