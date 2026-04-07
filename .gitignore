@@ -3,6 +3,11 @@ docs/
 .agents/
 .superpowers/
 
+# Ask chat scaffold runtime artifacts
+skills/ask/scaffold/chat/.next/
+skills/ask/scaffold/chat/node_modules/
+skills/ask/scaffold/chat/tsconfig.tsbuildinfo
+
 # Design studio runtime artifacts
 skills/design-studio/scaffold/journal.db*
 skills/design-studio/scaffold/projects/

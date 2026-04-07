@@ -1,47 +1,52 @@
 ---
 name: ask
-description: "Get perspectives from external models, personas, or structured thinking flows. Use whenever the user wants a second opinion, fresh take, multi-model comparison, structured exploration, or says things like 'ask gpt5', 'what would a security engineer think', 'let's think through this', 'go wide', 'challenge this', or 'DeepThink'. Also use when another skill needs to call an external model."
+description: "Get perspectives from external models, personas, or structured thinking flows — via CLI or a browser chat UI. Use whenever the user wants a second opinion, fresh take, multi-model comparison, structured exploration, or says things like 'ask gpt5', 'what would a security engineer think', 'let's think through this', 'go wide', 'challenge this', or 'DeepThink'. Also use when the user wants to: open a chat UI, start a web-based conversation, talk to models in a browser, manage chat projects, or says 'open the chat', 'start the chat app', 'launch the chat', 'web chat'. Also use when another skill needs to call an external model."
 ---
 
 # ask
 
-Get a perspective — from an external model, through a persona lens, or via a structured thinking flow. One skill, one conversation log, composable pieces.
+Get a perspective — from an external model, through a persona lens, via a structured thinking flow, or in a browser chat UI. One skill, shared conversation logs, composable pieces.
 
-## Intent Routing
+User's request: $ARGUMENTS
 
-When `/ask` is invoked, figure out what the user needs before acting:
+## Step 0: Check State
 
-**Simple question, one right answer** → just call the model and return the answer. No ceremony.
-- "is this function thread-safe?"
-- "what does this error mean?"
-- "ask gpt5 if this regex is correct"
-- The signal: the question has a definitive answer, not a tradeoff.
+Use Glob to check for `.agents/chat/package.json` in the current working directory.
 
-**Comparison or tradeoff question** → suggest going wide or checking in before just answering. These are questions where multiple valid answers exist and the best choice depends on context.
-- "should we use Redis or Memcached for caching?"
-- "I'm deciding between a monolith and microservices"
-- "what do you think about our approach to auth?"
-- "pros and cons of using GraphQL here?"
-- The signal: "deciding between", "X vs Y", "what do you think about our approach", "should we use A or B", or any question where a reasonable person could argue either side.
-- Suggest: "There are good arguments on both sides here. Want me to go wide and get a few different takes, or just give you my recommendation?"
+## Step 1: Route Based on Intent
 
-**Wants a specific perspective** → use a persona.
-- "get a devil's advocate take on this" → `--persona devils-advocate`
-- "what would a security engineer think" → `--persona "a senior security engineer focused on auth vulnerabilities"`
+**Regardless of `.agents/chat/` state:**
+- If `$ARGUMENTS` is "help" → display **HELP** text below
 
-**Broad exploration, open-ended** → suggest or start a flow.
-- "let's think through how to handle auth" → suggest a flow
-- "how should we architect the notification system?" → suggest going wide
-- "DeepThink" or "UltraThink" → start a wide flow with parallel persona calls
-- The signal: no specific options on the table yet, the user wants to explore the space.
+**If `.agents/chat/` does NOT exist:**
+- If `$ARGUMENTS` is empty or blank → route to **UI-INIT** (setup + run)
+- If `$ARGUMENTS` implies wanting the browser chat → route to **UI-INIT**, then chain to **UI-RUN**
+- If `$ARGUMENTS` is a question or model request → route to **CLI** (the CLI works without the web UI)
 
-**Ambiguous** → ask briefly. "Do you want me to call an external model for this, or just think through it? Any preference on which model or perspective?"
+**If `.agents/chat/` exists:**
 
-**Explicit flags** → respect them, skip the routing. `--model gpt5 --persona devils-advocate` means the user knows what they want.
+Read `$ARGUMENTS` naturally and determine which route matches:
 
-**The principle: the simpler the ask, the less you bother the user.** Questions with one right answer just go. Questions with tradeoffs get a brief check-in. Open exploration gets a flow suggestion.
+- **UI-RUN** — User wants to see or open the chat UI. ("open the chat", "launch it", "run the web ui", "start the server", "let me chat in the browser", "fire it up", "I want the web interface")
+- **UI-STATUS** — User wants to know what conversations exist or if the server is running. ("what conversations do I have", "is the chat running", "show me my projects", "status")
+- **CLI** — User wants to call a model right now from the terminal. This is any question, request for a perspective, or explicit model/persona flags. ("ask gpt5 about X", "what would a security engineer think", "challenge this", "go wide on caching", "--model sonnet", "is this thread-safe")
+- **STATUS** — The input is empty. Show current state: whether server is running, number of conversations, and suggest either `/ask open` or `/ask [question]`.
 
-## Quick Reference
+When ambiguous between UI-RUN and CLI: if the user mentions "browser", "web", "ui", "open", "launch", or implies wanting a visual interface, route to UI-RUN. If they have a specific question or topic, route to CLI. **Default: CLI** — most users invoking `/ask` with content want a model response, not to start a server.
+
+## Step 2: Execute Route
+
+| Route | Action |
+|-------|--------|
+| UI-INIT | Read and follow [prompts/ui-init.md](prompts/ui-init.md) |
+| UI-RUN | Read and follow [prompts/ui-run.md](prompts/ui-run.md) |
+| UI-STATUS | Read and follow [prompts/ui-status.md](prompts/ui-status.md) |
+| CLI | Read [references/cli.md](references/cli.md) for the full CLI reference, then execute the request |
+| STATUS | Show state briefly — server running? how many conversations? suggest next action |
+
+## CLI Quick Start
+
+For CLI usage, read the full reference at [references/cli.md](references/cli.md). The basics:
 
 ```bash
 # Simple question
@@ -51,34 +56,33 @@ python3 ~/.claude/skills/ask/scripts/ask.py \
 # With a persona
 python3 ~/.claude/skills/ask/scripts/ask.py \
   --model gpt5 --persona devils-advocate \
-  --content "Challenge this architecture decision" \
-  --id arch-review --tag architecture
-
-# Custom inline persona
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --model spark --persona "a grumpy DBA who hates unnecessary joins" \
-  --content "Review this schema"
-
-# With a flow (recorded in metadata — you orchestrate the steps)
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --flow wide --model gpt5 \
-  --content "How should we handle caching?" \
-  --id caching-exploration
+  --content "Challenge this architecture decision"
 
 # Continue a conversation
 python3 ~/.claude/skills/ask/scripts/ask.py \
   --continue .agents/model-calls/2026-03-30_arch-review.jsonl \
   --content "What about the scaling concerns?"
-
-# Branch from exchange 2
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --branch .agents/model-calls/2026-03-30_arch-review.jsonl \
-  --from 2 --content "What if we used event sourcing instead?"
-
-# Show a conversation
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --show .agents/model-calls/2026-03-30_arch-review.jsonl
 ```
+
+**The principle: the simpler the ask, the less you bother the user.** Questions with one right answer just go. Questions with tradeoffs get a brief check-in. Open exploration gets a flow suggestion.
+
+### CLI Intent Sub-Routing
+
+When routing to CLI, further classify the intent:
+
+**Simple question, one right answer** → just call the model and return the answer. No ceremony.
+
+**Comparison or tradeoff question** → suggest going wide or checking in first.
+- Suggest: "There are good arguments on both sides here. Want me to go wide and get a few different takes, or just give you my recommendation?"
+
+**Wants a specific perspective** → use a persona.
+
+**Broad exploration, open-ended** → suggest or start a flow.
+- "DeepThink" or "UltraThink" → start a wide flow with parallel persona calls
+
+**Explicit flags** → respect them, skip the routing.
+
+**Ambiguous** → ask briefly.
 
 ## Models
 
@@ -92,117 +96,45 @@ python3 ~/.claude/skills/ask/scripts/ask.py \
 | `opus` | OpenRouter | Claude Opus 4.6 | Complex writing, nuanced analysis |
 | `gemini` | OpenRouter | Gemini 3.1 Pro | Long context, multimodal |
 
-You can also pass full model IDs: `--model openrouter/meta-llama/llama-3.3-70b`
-
-## Personas
-
-Personas shape how a model responds by setting a perspective lens.
-
-**Pre-baked personas** (in `personas/` directory):
-- `devils-advocate` — challenge assumptions, find holes
-- `pragmatist` — feasibility, effort, what actually ships
-- `visionary` — long-term implications, possibilities
-
-**Custom personas** — pass any description inline:
-- `--persona "a first-time user who's never seen this product"`
-- `--persona "a compliance officer worried about GDPR"`
-
-**When to use:** Whenever a different perspective would be valuable. Personas work with any model — they're just system prompts that frame the response.
-
-For guidance on writing good personas, read `personas/crafting-guide.md`.
-
-## Flows
-
-Flows structure multi-step thinking conversations. The script records the flow name in metadata; you manage the actual steps by following the flow file and announcing transitions in the conversation.
-
-**Pre-baked flows** (in `flows/` directory):
-- `wide` — fan out for multiple perspectives, synthesize, ask user which resonates
-- `challenge` — argue against a position, then steelman the result
-- `double-diamond` — discover → define → develop → deliver
-
-**Using a flow:**
-1. Read the flow file (e.g. `flows/wide.md`) to understand the steps
-2. Start the conversation with `--flow wide`
-3. Follow the steps, announcing transitions as messages in the conversation
-4. The conversation log becomes self-documenting — anyone reading it can see the flow's progression
-
-For guidance on designing custom flows, read `flows/crafting-guide.md`.
-
-## Arguments
-
-| Arg | Required | Description |
-|-----|----------|-------------|
-| `--model` | No | Model alias or `provider/model-id`. Default: `gpt5` |
-| `--content` | Yes | The prompt. Literal string, file path (if exists), or `-` for stdin |
-| `--system-prompt` | No | Path to system instruction file |
-| `--persona` | No | Persona name (from `personas/`) or inline description string |
-| `--flow` | No | Flow name (recorded in metadata) |
-| `--attach` | No | Repeatable. Path to image/video/file attachment |
-| `--id` | No | Name for the conversation file |
-| `--tag` | No | Repeatable. Categorization tag |
-| `--continue` | No | Path to conversation file to continue |
-| `--branch` | No | Path to conversation file to branch from |
-| `--from` | With `--branch` | Exchange number to branch from |
-| `--show` | No | Pretty-print a conversation file |
-| `--thinking` | No | Reasoning effort: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`. See Thinking Mode below. |
-
-## Output
-
-The response prints directly to stdout. After the response, a separator line shows the conversation file path:
-
-```
-[model response here]
-
----
-conversation: .agents/model-calls/2026-03-30_arch-review.jsonl
-```
-
-**Always capture the conversation file path** — you'll need it for `--continue` or `--branch`.
-
-## Images and Attachments
-
-When the user pastes or references an image in the chat, you can pass it to ask. The image arrives as a temp file path in your context. To use it:
-
-1. **Copy the image to a stable location first.** Temp file paths may be cleaned up. Copy to `.agents/media/` or `/tmp/`.
-2. **Pass it with `--attach`.**
-
-```bash
-cp /var/folders/.../paste-image.png .agents/media/screenshot.png
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --model gpt5 \
-  --content "What do you think of this UI design?" \
-  --attach .agents/media/screenshot.png \
-  --id ui-feedback --tag design
-```
-
-Do this automatically when the user asks you to send an image to another model.
-
 ## Important
 
-1. **The called model has ZERO project context.** Include everything it needs in `--content` and `--system-prompt`. If asking about code, paste the relevant code. If asking about architecture, describe the system.
-
-2. **Use `--continue` for follow-ups** rather than starting a new conversation. The model gets the full conversation history.
-
+1. **The called model has ZERO project context.** Include everything it needs in `--content` and `--system-prompt`.
+2. **Use `--continue` for follow-ups** rather than starting a new conversation.
 3. **Use `--branch` to explore alternatives.** The original stays untouched.
-
-4. **Use `--tag` to categorize.** Tags make it easy to find past conversations via grep.
-
-## Thinking Mode
-
-`--thinking high` or `--thinking xhigh` enables deep reasoning on models that support it (gpt5, codex).
-
-- **Reasoning progress streams to stderr.** The script prints `[thinking] ...` lines showing the model's reasoning summary in real time.
-- **Calls can take a long time.** This is normal. The script has no internal read timeout.
-- **Set a generous Bash timeout.** Use `timeout=600000` (10 minutes) minimum. No harm in going higher.
-- **Tell the user it may take a moment.**
-- **Use intentionally.** Reserve for problems that benefit from extended reasoning. For quick questions, use `--model spark`.
 
 ## Conversation Files
 
-Stored as JSONL in `.agents/model-calls/`. Each file has a metadata header with id, model, timestamps, tags, flow, persona, and exchange count. Messages include a `sender` field identifying who produced them (user, model ID, etc.) and an optional `persona` field.
-
-Use `--show` to read them in a friendly format.
+Stored as JSONL in `.agents/model-calls/`. Shared between CLI and web UI — start in the browser, continue from the terminal, or vice versa.
 
 ## First-Time OpenAI Setup
 
 OpenAI models use tokens from `~/.codex/auth.json` (created by `codex login`). If tokens are expired, the script runs `codex login` automatically. No API key needed — uses your ChatGPT subscription.
+
+---
+
+## HELP Text
+
+> **ask** — multi-model perspectives, CLI and browser
+>
+> ### Browser Chat
+> ```
+> /ask open                    # Start chat UI at localhost:3002
+> /ask                         # Same — sets up on first run
+> /ask status                  # Show conversations and server state
+> ```
+>
+> ### CLI (from within Claude Code)
+> ```
+> /ask is this function thread-safe?
+> /ask what would a security engineer think about this auth flow?
+> /ask go wide on how to handle caching
+> /ask --model sonnet challenge this architecture
+> ```
+>
+> ### Features
+> - **Multi-model**: gpt5, sonnet, opus, spark, gemini, and more
+> - **Personas**: devils-advocate, pragmatist, visionary, or any custom perspective
+> - **Flows**: wide (fan out), challenge (steelman), double-diamond
+> - **Streaming**: Real-time responses in both CLI and browser
+> - **Shared history**: JSONL files in `.agents/model-calls/` — CLI and browser share conversations
+> - **Thinking mode**: `--thinking high` for deep reasoning on complex problems
