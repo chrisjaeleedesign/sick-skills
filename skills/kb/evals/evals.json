@@ -4,20 +4,29 @@
     {
       "id": 1,
       "prompt": "/kb update",
-      "expected_output": "The skill should detect whether gws is installed and authenticated. If not, it walks through setup. If yes, it runs update-manifest which scans the Drive folder, creates or refreshes the _kb_manifest sheet, generates AI summaries for each doc, and reports what changed (added, updated, removed counts).",
-      "files": []
+      "expected_output": "The skill checks gws auth and KB config. If authenticated and configured, it lists the Drive folder via gws, reads the current manifest via gws sheets, diffs folder contents against manifest rows, generates summaries for new/modified docs, writes the updated manifest back, and reports what changed.",
+      "files": [],
+      "assertions": [
+        "Checks gws auth status",
+        "Reads .agents/kb/config.json for folder_id and manifest_sheet_id",
+        "Lists the Drive folder using gws drive files list",
+        "Reads the manifest using gws sheets",
+        "Describes the diff logic (new, modified, unchanged, removed)",
+        "Generates summaries that are specific and actionable, not generic"
+      ]
     },
     {
       "id": 2,
       "prompt": "/kb what does our brand voice guide say about tone for customer emails?",
-      "expected_output": "The skill should read the manifest, find a doc whose summary matches brand voice/tone/emails, fetch that doc's content, and answer the question grounded in the doc content with a citation to the source doc name.",
-      "files": []
-    },
-    {
-      "id": 3,
-      "prompt": "/kb leave a comment on the pricing doc that the enterprise tier pricing changed last week",
-      "expected_output": "The skill should find the pricing doc in the manifest, then use kb.py comment to post a comment on that doc noting the pricing change. Should NOT directly edit the doc.",
-      "files": []
+      "expected_output": "The skill reads the manifest via gws sheets, finds a doc whose summary matches brand voice/tone/emails, fetches that doc's content via gws docs, and answers the question grounded in the doc content with a citation to the source doc name.",
+      "files": [],
+      "assertions": [
+        "Reads the manifest using gws sheets",
+        "Identifies relevant docs from manifest summaries",
+        "Fetches doc content using gws docs documents get",
+        "Answers grounded in doc content, not general knowledge",
+        "Cites the source doc by name"
+      ]
     }
   ]
 }

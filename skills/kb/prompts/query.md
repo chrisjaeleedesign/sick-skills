@@ -4,11 +4,19 @@ Find and retrieve knowledge from the Drive knowledge base to answer the user's q
 
 ## Step 1: Read the manifest
 
-```
-python3 <skill-dir>/scripts/kb.py read-manifest
+Load the config to get the manifest sheet ID:
+
+```bash
+cat .agents/kb/config.json
 ```
 
-This returns the full manifest as a list of rows with Title, Type, Doc ID, Summary, Tags, Last Modified, and Status.
+Then read the manifest:
+
+```bash
+gws sheets spreadsheets values get --params '{"spreadsheetId": "<manifest_sheet_id>", "range": "Sheet1!A:G"}'
+```
+
+This returns rows with columns: Title, Type, Doc ID, Summary, Tags, Last Modified, Status.
 
 Scan the **Summary** column to find docs relevant to the user's question. Summaries include "when to reference" signals â€” match on those. Focus on `active` docs (skip `removed` ones).
 
@@ -18,12 +26,13 @@ Pick 1-3 docs whose summaries best match the question. Don't fetch everything â€
 
 ## Step 3: Fetch and read
 
-For each relevant doc:
-```
-python3 <skill-dir>/scripts/kb.py read-doc --doc-id <doc-id>
+For each relevant doc, read it using gws:
+
+```bash
+gws docs documents get --params '{"documentId": "<doc-id>"}'
 ```
 
-Read the content and use it to answer the user's question.
+Extract the text content from the response by walking `body.content[].paragraph.elements[].textRun.content`.
 
 ## Step 4: Respond
 
