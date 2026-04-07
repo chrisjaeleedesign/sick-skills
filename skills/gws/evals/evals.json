@@ -1,0 +1,41 @@
+{
+  "skill_name": "gws",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a spreadsheet tracking our team's OKRs at https://docs.google.com/spreadsheets/d/1abc123FakeSheetId/edit — can you read what's in it and then add a new row with 'Q3 Revenue Target' in column A and '$2.5M' in column B?",
+      "expected_output": "The agent extracts the sheet ID from the URL, uses gws sheets +read or the values get API to read current contents, then uses gws sheets +append or values update to add the new row.",
+      "files": [],
+      "assertions": [
+        "Extracts sheet ID '1abc123FakeSheetId' from the URL",
+        "Uses gws sheets command (either +read or spreadsheets values get) to read the spreadsheet",
+        "Uses gws sheets command (either +append or spreadsheets values update/append) to write the new row",
+        "The new row contains 'Q3 Revenue Target' and '$2.5M'"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you read the contents of this google doc for me? https://docs.google.com/document/d/1BxiMkKlT4YNq_HideIds0K9Xk5E/edit",
+      "expected_output": "The agent extracts the doc ID from the URL, runs gws docs documents get, and extracts readable text from the nested JSON structure.",
+      "files": [],
+      "assertions": [
+        "Extracts doc ID '1BxiMkKlT4YNq_HideIds0K9Xk5E' from the URL",
+        "Uses 'gws docs documents get' with the correct documentId param",
+        "Explains how to extract text from body.content[].paragraph.elements[].textRun.content"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to leave a note on my product roadmap doc (id: abc123def) pointing out that the Q3 timeline seems aggressive given our current velocity",
+      "expected_output": "The agent reads the doc first, then uses batchUpdate or docs +write to insert a styled <<AI: ...>> comment about the Q3 timeline.",
+      "files": [],
+      "assertions": [
+        "Reads the doc first before attempting to insert a comment",
+        "Uses the <<AI: ...>> comment format",
+        "Includes purple styling in the batchUpdate",
+        "Comment content addresses the Q3 timeline concern specifically",
+        "Does not directly edit or delete any human-authored content"
+      ]
+    }
+  ]
+}
