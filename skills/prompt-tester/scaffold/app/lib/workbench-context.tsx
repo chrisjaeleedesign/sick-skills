@@ -95,7 +95,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       await fetch(`/api/prompts/${prompt.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draft: prompt.draft }),
+        body: JSON.stringify({ name: prompt.name, draft: prompt.draft }),
       })
     }, 500)
   }, [])
@@ -111,14 +111,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
   const setPromptName = useCallback((name: string) => {
     updatePrompt(p => ({ ...p, name }))
-    if (activePrompt) {
-      fetch(`/api/prompts/${activePrompt.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      })
-    }
-  }, [activePrompt, updatePrompt])
+  }, [updatePrompt])
 
   const setModel = useCallback((model: string) => {
     updatePrompt(p => ({ ...p, draft: { ...p.draft, model } }))

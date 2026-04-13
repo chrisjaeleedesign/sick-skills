@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { randomUUID } from 'crypto'
-import { appendMessage, updateChatMeta } from '@/app/lib/storage'
+import { appendMessage, updateChatMeta, listMessages } from '@/app/lib/storage'
 import { resolveModel } from '@/app/lib/models'
 import type { ChatMessage, PromptState } from '@/app/lib/workbench-types'
 
@@ -14,6 +14,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const userMsgId = randomUUID()
   const asstMsgId = randomUUID()
   const now = new Date().toISOString()
+
+  // Load prior messages for conversation history BEFORE saving the new user message
+  const priorMessages = await listMessages(chatId)
 
   // Save user message immediately
   const userMsg: ChatMessage = {
@@ -44,6 +47,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           apiMessages.push({ role: 'system', content: promptState.systemInstructions })
         }
 
+        // Add conversation history (priorMessages captured before saving the new user message)
+        for (const msg of priorMessages) {
+          if (msg.role === 'user' && msg.text) {
+            apiMessages.push({ role: 'user', content: msg.text })
+          } else if (msg.role === 'assistant' && msg.outputText) {
+            apiMessages.push({ role: 'assistant', content: msg.outputText })
+          }
+        }
+
+        // Add current user turn
         apiMessages.push({ role: 'user', content: text })
 
         const modelId = resolveModel(promptState.model)
