@@ -13,3 +13,12 @@ skills/design-studio/scaffold/journal.db*
 skills/design-studio/scaffold/projects/
 skills/design-studio/scaffold/studio/.next/
 skills/design-studio/scaffold/studio/tsconfig.tsbuildinfo
+
+# Prompt-tester scaffold runtime artifacts
+skills/prompt-tester/scaffold/.next/
+skills/prompt-tester/scaffold/node_modules/
+skills/prompt-tester/scaffold/tsconfig.tsbuildinfo
+skills/prompt-tester/scaffold/package-lock.json
+
+# Workbench data
+.agents/workbench/

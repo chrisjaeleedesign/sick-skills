@@ -9,6 +9,7 @@
     "start": "next start -p 3201"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "geist": "^1.7.0",
     "lucide-react": "^0.400",
     "next": "^15",

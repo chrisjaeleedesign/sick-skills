@@ -1,14 +1,7 @@
-import type { NextConfig } from "next";
+import { config } from 'dotenv'
+import path from 'path'
 
-const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:3200/api/:path*",
-      },
-    ];
-  },
-};
+config({ path: path.resolve(__dirname, '..', '..', '..', '.env') })
 
-export default nextConfig;
+const nextConfig = {}
+export default nextConfig
