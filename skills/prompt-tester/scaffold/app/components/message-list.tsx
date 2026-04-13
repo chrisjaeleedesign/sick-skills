@@ -18,7 +18,7 @@ export function MessageList({ messages, isStreaming, streamingText, streamingIma
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length, streamingText])
+  }, [messages.length, streamingText, streamingImages.length])
 
   return (
     <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-6">

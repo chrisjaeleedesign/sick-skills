@@ -69,6 +69,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               model: modelId.replace('openrouter/', ''),
               messages: apiMessages,
               temperature: promptState.settings.temperature,
+              ...(promptState.settings.variations != null && { n: promptState.settings.variations }),
+              ...(promptState.settings.aspectRatio != null && { aspect_ratio: promptState.settings.aspectRatio }),
             }),
           })
 
@@ -98,12 +100,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           }
 
           const duration = Date.now() - start
+          const noOutput = outputImages.length === 0 && !outputText
           const asstMsg: ChatMessage = {
             id: asstMsgId,
             role: 'assistant',
             timestamp: new Date().toISOString(),
             outputText: outputText || undefined,
             outputImages: outputImages.length > 0 ? outputImages : undefined,
+            outputError: noOutput ? 'Model returned no images' : undefined,
             promptVersion: 0,
             promptState,
             model: promptState.model,
