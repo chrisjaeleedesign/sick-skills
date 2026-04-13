@@ -13,6 +13,7 @@ interface WorkbenchContextValue {
   messages: ChatMessage[]
   isStreaming: boolean
   streamingText: string
+  streamingImages: string[]
 
   loadChats(): Promise<void>
   createChat(title?: string): Promise<Chat>
@@ -44,6 +45,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
+  const [streamingImages, setStreamingImages] = useState<string[]>([])
   const abortRef = useRef<(() => void) | null>(null)
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -138,6 +140,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
     setIsStreaming(true)
     setStreamingText('')
+    setStreamingImages([])
 
     const promptState = activePrompt.draft
     let cancelled = false
@@ -175,11 +178,15 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
             if ('content' in evt) {
               setStreamingText(t => t + (evt.content as string))
             }
+            if ('url' in evt) {
+              setStreamingImages(imgs => [...imgs, evt.url as string])
+            }
             if ('duration' in evt) {
               // stream done — reload messages
               const msgsRes = await fetch(`/api/chats/${activeChat.id}/messages`)
               setMessages(await msgsRes.json())
               setStreamingText('')
+              setStreamingImages([])
               await loadChats()
             }
           } catch { /* ignore */ }
@@ -197,7 +204,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <WorkbenchContext.Provider value={{
-      chats, activeChat, activePrompt, messages, isStreaming, streamingText,
+      chats, activeChat, activePrompt, messages, isStreaming, streamingText, streamingImages,
       loadChats, createChat, openChat, deleteChat,
       setPromptName, setModel, setSystemInstructions, updateSettings, saveAsVersion,
       sendMessage, stopStream,

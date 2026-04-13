@@ -9,10 +9,11 @@ interface Props {
   messages: ChatMessage[]
   isStreaming: boolean
   streamingText: string
+  streamingImages: string[]
   model: string
 }
 
-export function MessageList({ messages, isStreaming, streamingText, model }: Props) {
+export function MessageList({ messages, isStreaming, streamingText, streamingImages, model }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export function MessageList({ messages, isStreaming, streamingText, model }: Pro
           }}
           streaming
           streamingText={streamingText}
+          streamingImages={streamingImages}
         />
       )}
       <div ref={bottomRef} />

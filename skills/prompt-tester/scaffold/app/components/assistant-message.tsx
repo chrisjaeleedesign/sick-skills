@@ -5,10 +5,14 @@ interface Props {
   message: ChatMessage
   streaming?: boolean
   streamingText?: string
+  streamingImages?: string[]
 }
 
-export function AssistantMessage({ message, streaming, streamingText }: Props) {
+export function AssistantMessage({ message, streaming, streamingText, streamingImages }: Props) {
   const content = streaming ? streamingText ?? '' : (message.outputText ?? '')
+  const images = streaming
+    ? (streamingImages ?? [])
+    : (message.outputImages?.map(img => `/api/images?file=${img.path}`) ?? [])
   const model = message.model
   const version = message.promptVersion > 0 ? `v${message.promptVersion}` : 'draft'
   const duration = message.duration ? `${(message.duration / 1000).toFixed(1)}s` : null
@@ -41,6 +45,19 @@ export function AssistantMessage({ message, streaming, streamingText }: Props) {
       ) : message.outputError ? (
         <div className="text-[13px] text-red-500">{message.outputError}</div>
       ) : null}
+      {images.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {images.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              alt={`Generated image ${i + 1}`}
+              className="max-w-sm rounded border border-[var(--color-border)] cursor-pointer"
+              onClick={() => window.open(url, '_blank')}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
