@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server'
 import { randomUUID } from 'crypto'
+import { writeFile, mkdir } from 'fs/promises'
+import path from 'path'
 import { appendMessage, updateChatMeta, listMessages } from '@/app/lib/storage'
-import { resolveModel } from '@/app/lib/models'
-import type { ChatMessage, PromptState } from '@/app/lib/workbench-types'
+import { resolveModel, isImageModel } from '@/app/lib/models'
+import type { ChatMessage, PromptState, OutputImage } from '@/app/lib/workbench-types'
 
 export const runtime = 'nodejs'
+
+const IMAGES_DIR = path.resolve(process.cwd(), '..', '..', '..', '.agents', 'workbench', 'images')
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: chatId } = await params
@@ -15,16 +19,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const asstMsgId = randomUUID()
   const now = new Date().toISOString()
 
-  // Load prior messages for conversation history BEFORE saving the new user message
   const priorMessages = await listMessages(chatId)
 
-  // Save user message immediately
   const userMsg: ChatMessage = {
     id: userMsgId,
     role: 'user',
     timestamp: now,
     text,
-    promptVersion: 0, // will be filled from promptState
+    promptVersion: 0,
     promptState,
     model: promptState.model,
   }
@@ -39,93 +41,136 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
 
       try {
-        // Build messages array for the API
         const apiMessages: { role: string; content: string }[] = []
-
         if (promptState.systemInstructions) {
-          // Included as system role — OpenRouter passes this to the model
           apiMessages.push({ role: 'system', content: promptState.systemInstructions })
         }
-
-        // Add conversation history (priorMessages captured before saving the new user message)
         for (const msg of priorMessages) {
-          if (msg.role === 'user' && msg.text) {
+          if (msg.role === 'user' && msg.text)
             apiMessages.push({ role: 'user', content: msg.text })
-          } else if (msg.role === 'assistant' && msg.outputText) {
+          else if (msg.role === 'assistant' && msg.outputText)
             apiMessages.push({ role: 'assistant', content: msg.outputText })
-          }
         }
-
-        // Add current user turn
         apiMessages.push({ role: 'user', content: text })
 
         const modelId = resolveModel(promptState.model)
         const apiKey = process.env.OPENROUTER_API_KEY
         if (!apiKey) throw new Error('OPENROUTER_API_KEY not set')
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: modelId.replace('openrouter/', ''),
-            messages: apiMessages,
-            temperature: promptState.settings.temperature,
-            stream: true,
-          }),
-        })
+        if (isImageModel(promptState.model)) {
+          // Image models: non-streaming call, images in response body
+          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: modelId.replace('openrouter/', ''),
+              messages: apiMessages,
+              temperature: promptState.settings.temperature,
+            }),
+          })
 
-        if (!response.ok) {
-          const err = await response.text()
-          throw new Error(`OpenRouter error: ${err}`)
-        }
+          if (!response.ok) {
+            const err = await response.text()
+            throw new Error(`OpenRouter error: ${err}`)
+          }
 
-        const reader = response.body!.getReader()
-        const dec = new TextDecoder()
-        let fullText = ''
+          const json = await response.json()
+          const msg = json.choices?.[0]?.message
+          const outputText: string = msg?.content ?? ''
+          const rawImages: { image_url?: { url?: string } }[] = msg?.images ?? []
 
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
+          await mkdir(IMAGES_DIR, { recursive: true })
 
-          const chunk = dec.decode(value)
-          const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
+          const outputImages: OutputImage[] = []
+          for (const img of rawImages) {
+            const dataUrl = img.image_url?.url ?? ''
+            if (!dataUrl.startsWith('data:image/')) continue
+            const [header, b64] = dataUrl.split(',', 2)
+            const ext = header.split('/')[1]?.split(';')[0] ?? 'png'
+            const filename = `${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`
+            const filepath = path.join(IMAGES_DIR, filename)
+            await writeFile(filepath, Buffer.from(b64, 'base64'))
+            outputImages.push({ id: randomUUID(), path: filename })
+            send('image', { url: `/api/images?file=${filename}` })
+          }
 
-          for (const line of lines) {
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') continue
-            try {
-              const parsed = JSON.parse(data)
-              const delta = parsed.choices?.[0]?.delta?.content ?? ''
-              if (delta) {
-                fullText += delta
-                send('text', { content: delta })
-              }
-            } catch {
-              // ignore malformed chunk
+          const duration = Date.now() - start
+          const asstMsg: ChatMessage = {
+            id: asstMsgId,
+            role: 'assistant',
+            timestamp: new Date().toISOString(),
+            outputText: outputText || undefined,
+            outputImages: outputImages.length > 0 ? outputImages : undefined,
+            promptVersion: 0,
+            promptState,
+            model: promptState.model,
+            duration,
+          }
+          await appendMessage(chatId, asstMsg)
+          await updateChatMeta(chatId, { updated: new Date().toISOString() })
+          send('done', { messageId: asstMsgId, duration })
+        } else {
+          // Text models: streaming
+          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: modelId.replace('openrouter/', ''),
+              messages: apiMessages,
+              temperature: promptState.settings.temperature,
+              stream: true,
+            }),
+          })
+
+          if (!response.ok) {
+            const err = await response.text()
+            throw new Error(`OpenRouter error: ${err}`)
+          }
+
+          const reader = response.body!.getReader()
+          const dec = new TextDecoder()
+          let fullText = ''
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            const chunk = dec.decode(value)
+            const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
+            for (const line of lines) {
+              const data = line.slice(6).trim()
+              if (data === '[DONE]') continue
+              try {
+                const parsed = JSON.parse(data)
+                const delta = parsed.choices?.[0]?.delta?.content ?? ''
+                if (delta) {
+                  fullText += delta
+                  send('text', { content: delta })
+                }
+              } catch { /* ignore malformed */ }
             }
           }
+
+          const duration = Date.now() - start
+          const asstMsg: ChatMessage = {
+            id: asstMsgId,
+            role: 'assistant',
+            timestamp: new Date().toISOString(),
+            outputText: fullText,
+            promptVersion: 0,
+            promptState,
+            model: promptState.model,
+            duration,
+          }
+          await appendMessage(chatId, asstMsg)
+          await updateChatMeta(chatId, { updated: new Date().toISOString() })
+          send('done', { messageId: asstMsgId, duration })
         }
-
-        const duration = Date.now() - start
-
-        // Save assistant message
-        const asstMsg: ChatMessage = {
-          id: asstMsgId,
-          role: 'assistant',
-          timestamp: new Date().toISOString(),
-          outputText: fullText,
-          promptVersion: 0,
-          promptState,
-          model: promptState.model,
-          duration,
-        }
-        await appendMessage(chatId, asstMsg)
-        await updateChatMeta(chatId, { updated: new Date().toISOString() })
-
-        send('done', { messageId: asstMsgId, duration })
       } catch (err) {
         send('error', { message: err instanceof Error ? err.message : 'Unknown error' })
       } finally {
