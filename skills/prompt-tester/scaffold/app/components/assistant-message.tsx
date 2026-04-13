@@ -1,3 +1,5 @@
+'use client'
+
 import type { ChatMessage } from '@/app/lib/workbench-types'
 import { TextOutput } from './text-output'
 

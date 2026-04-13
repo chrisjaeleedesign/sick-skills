@@ -32,7 +32,7 @@ export function MessageList({ messages, isStreaming, streamingText, streamingIma
           message={{
             id: 'streaming',
             role: 'assistant',
-            timestamp: new Date().toISOString(),
+            timestamp: '',
             promptVersion: 0,
             promptState: {} as never,
             model,

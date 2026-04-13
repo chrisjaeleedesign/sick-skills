@@ -48,6 +48,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   const [streamingImages, setStreamingImages] = useState<string[]>([])
   const abortRef = useRef<(() => void) | null>(null)
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isStreamingRef = useRef(false)
 
   const loadChats = useCallback(async () => {
     const res = await fetch('/api/chats')
@@ -136,8 +137,9 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   }, [activePrompt])
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!activeChat || !activePrompt || isStreaming) return
+    if (!activeChat || !activePrompt || isStreamingRef.current) return
 
+    isStreamingRef.current = true
     setIsStreaming(true)
     setStreamingText('')
     setStreamingImages([])
@@ -193,10 +195,11 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } finally {
+      isStreamingRef.current = false
       setIsStreaming(false)
       abortRef.current = null
     }
-  }, [activeChat, activePrompt, isStreaming, loadChats])
+  }, [activeChat, activePrompt, loadChats])
 
   const stopStream = useCallback(() => {
     abortRef.current?.()
