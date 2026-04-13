@@ -7,11 +7,14 @@ import type {
 } from './workbench-types'
 import { DEFAULT_PROMPT_STATE } from './workbench-types'
 
-const WORKBENCH_DIR = process.env.WORKBENCH_DIR
-  || path.resolve(process.cwd(), '..', '..', '..', '.agents', 'workbench')
-
-const PROMPTS_DIR = path.join(WORKBENCH_DIR, 'prompts')
-const CHATS_DIR = path.join(WORKBENCH_DIR, 'chats')
+function getDir() {
+  const base = process.env.WORKBENCH_DIR
+    || path.resolve(process.cwd(), '..', '..', '..', '.agents', 'workbench')
+  return {
+    prompts: path.join(base, 'prompts'),
+    chats: path.join(base, 'chats'),
+  }
+}
 
 async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true })
@@ -31,7 +34,7 @@ async function writeJson(filePath: string, data: unknown) {
 export async function createPrompt(name: string): Promise<Prompt> {
   const id = randomUUID()
   const now = new Date().toISOString()
-  const dir = path.join(PROMPTS_DIR, id)
+  const dir = path.join(getDir().prompts, id)
   await ensureDir(path.join(dir, 'versions'))
 
   const meta: PromptSummary = { id, name, created: now, updated: now, currentVersion: 0 }
@@ -42,7 +45,7 @@ export async function createPrompt(name: string): Promise<Prompt> {
 }
 
 export async function getPrompt(id: string): Promise<Prompt> {
-  const dir = path.join(PROMPTS_DIR, id)
+  const dir = path.join(getDir().prompts, id)
   const [meta, draft] = await Promise.all([
     readJson<PromptSummary>(path.join(dir, 'meta.json')),
     readJson<PromptState>(path.join(dir, 'draft.json')),
@@ -52,7 +55,7 @@ export async function getPrompt(id: string): Promise<Prompt> {
 
 export async function updatePromptDraft(id: string, draft: PromptState): Promise<void> {
   const now = new Date().toISOString()
-  const dir = path.join(PROMPTS_DIR, id)
+  const dir = path.join(getDir().prompts, id)
   await writeJson(path.join(dir, 'draft.json'), draft)
   // touch updated
   const meta = await readJson<PromptSummary>(path.join(dir, 'meta.json'))
@@ -60,7 +63,7 @@ export async function updatePromptDraft(id: string, draft: PromptState): Promise
 }
 
 export async function updatePromptName(id: string, name: string): Promise<void> {
-  const dir = path.join(PROMPTS_DIR, id)
+  const dir = path.join(getDir().prompts, id)
   const meta = await readJson<PromptSummary>(path.join(dir, 'meta.json'))
   await writeJson(path.join(dir, 'meta.json'), {
     ...meta,
@@ -70,10 +73,10 @@ export async function updatePromptName(id: string, name: string): Promise<void> 
 }
 
 export async function listPrompts(): Promise<PromptSummary[]> {
-  await ensureDir(PROMPTS_DIR)
-  const entries = await fs.readdir(PROMPTS_DIR)
+  await ensureDir(getDir().prompts)
+  const entries = await fs.readdir(getDir().prompts)
   const summaries = await Promise.all(
-    entries.map(id => readJson<PromptSummary>(path.join(PROMPTS_DIR, id, 'meta.json')).catch(() => null))
+    entries.map(id => readJson<PromptSummary>(path.join(getDir().prompts, id, 'meta.json')).catch(() => null))
   )
   return summaries.filter(Boolean).sort((a, b) =>
     new Date(b!.updated).getTime() - new Date(a!.updated).getTime()
@@ -81,7 +84,7 @@ export async function listPrompts(): Promise<PromptSummary[]> {
 }
 
 export async function deletePrompt(id: string): Promise<void> {
-  await fs.rm(path.join(PROMPTS_DIR, id), { recursive: true, force: true })
+  await fs.rm(path.join(getDir().prompts, id), { recursive: true, force: true })
 }
 
 export async function savePromptVersion(id: string, note?: string): Promise<PromptVersion> {
@@ -93,7 +96,7 @@ export async function savePromptVersion(id: string, note?: string): Promise<Prom
     committed: new Date().toISOString(),
     note,
   }
-  const dir = path.join(PROMPTS_DIR, id)
+  const dir = path.join(getDir().prompts, id)
   await writeJson(path.join(dir, 'versions', `v${version}.json`), pv)
   const meta = await readJson<PromptSummary>(path.join(dir, 'meta.json'))
   await writeJson(path.join(dir, 'meta.json'), {
@@ -106,12 +109,12 @@ export async function savePromptVersion(id: string, note?: string): Promise<Prom
 
 export async function getPromptVersion(id: string, version: number): Promise<PromptVersion> {
   return readJson<PromptVersion>(
-    path.join(PROMPTS_DIR, id, 'versions', `v${version}.json`)
+    path.join(getDir().prompts, id, 'versions', `v${version}.json`)
   )
 }
 
 export async function listPromptVersions(id: string): Promise<PromptVersion[]> {
-  const dir = path.join(PROMPTS_DIR, id, 'versions')
+  const dir = path.join(getDir().prompts, id, 'versions')
   await ensureDir(dir)
   const files = await fs.readdir(dir)
   const versions = await Promise.all(
@@ -125,7 +128,7 @@ export async function listPromptVersions(id: string): Promise<PromptVersion[]> {
 export async function createChat(title: string, promptId: string, promptVersion: number): Promise<Chat> {
   const id = randomUUID()
   const now = new Date().toISOString()
-  const dir = path.join(CHATS_DIR, id)
+  const dir = path.join(getDir().chats, id)
   await ensureDir(dir)
 
   const chat: Chat = { id, title, created: now, updated: now, promptId, promptVersion }
@@ -137,26 +140,26 @@ export async function createChat(title: string, promptId: string, promptVersion:
 }
 
 export async function getChat(id: string): Promise<Chat> {
-  return readJson<Chat>(path.join(CHATS_DIR, id, 'meta.json'))
+  return readJson<Chat>(path.join(getDir().chats, id, 'meta.json'))
 }
 
 export async function updateChatMeta(id: string, patch: Partial<Pick<Chat, 'title' | 'updated' | 'promptVersion'>>): Promise<void> {
   const chat = await getChat(id)
-  await writeJson(path.join(CHATS_DIR, id, 'meta.json'), { ...chat, ...patch })
+  await writeJson(path.join(getDir().chats, id, 'meta.json'), { ...chat, ...patch })
 }
 
 export async function deleteChat(id: string): Promise<void> {
-  await fs.rm(path.join(CHATS_DIR, id), { recursive: true, force: true })
+  await fs.rm(path.join(getDir().chats, id), { recursive: true, force: true })
 }
 
 export async function listChats(): Promise<ChatSummary[]> {
-  await ensureDir(CHATS_DIR)
-  const entries = await fs.readdir(CHATS_DIR)
+  await ensureDir(getDir().chats)
+  const entries = await fs.readdir(getDir().chats)
   const chats = await Promise.all(
     entries.map(async id => {
-      const chat = await readJson<Chat>(path.join(CHATS_DIR, id, 'meta.json')).catch(() => null)
+      const chat = await readJson<Chat>(path.join(getDir().chats, id, 'meta.json')).catch(() => null)
       if (!chat) return null
-      const prompt = await readJson<PromptSummary>(path.join(PROMPTS_DIR, chat.promptId, 'meta.json')).catch(() => null)
+      const prompt = await readJson<PromptSummary>(path.join(getDir().prompts, chat.promptId, 'meta.json')).catch(() => null)
       return {
         ...chat,
         promptName: prompt?.name ?? 'Unknown',
@@ -169,13 +172,13 @@ export async function listChats(): Promise<ChatSummary[]> {
 }
 
 export async function appendMessage(chatId: string, msg: ChatMessage): Promise<void> {
-  const filePath = path.join(CHATS_DIR, chatId, 'messages.jsonl')
+  const filePath = path.join(getDir().chats, chatId, 'messages.jsonl')
   await fs.appendFile(filePath, JSON.stringify(msg) + '\n')
   await updateChatMeta(chatId, { updated: new Date().toISOString() })
 }
 
 export async function listMessages(chatId: string): Promise<ChatMessage[]> {
-  const filePath = path.join(CHATS_DIR, chatId, 'messages.jsonl')
+  const filePath = path.join(getDir().chats, chatId, 'messages.jsonl')
   const raw = await fs.readFile(filePath, 'utf-8').catch(() => '')
   return raw
     .split('\n')
