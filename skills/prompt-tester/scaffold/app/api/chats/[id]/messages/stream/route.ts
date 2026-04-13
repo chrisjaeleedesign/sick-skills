@@ -133,16 +133,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             throw new Error(`OpenRouter error: ${err}`)
           }
 
-          const reader = response.body!.getReader()
+          if (!response.body) throw new Error('OpenRouter returned empty body for streaming response')
+          const reader = response.body.getReader()
           const dec = new TextDecoder()
           let fullText = ''
+          let sseBuffer = ''
 
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
-            const chunk = dec.decode(value)
-            const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
-            for (const line of lines) {
+            sseBuffer += dec.decode(value, { stream: true })
+            const parts = sseBuffer.split('\n')
+            sseBuffer = parts.pop() ?? ''
+            for (const line of parts) {
+              if (!line.startsWith('data: ')) continue
               const data = line.slice(6).trim()
               if (data === '[DONE]') continue
               try {
