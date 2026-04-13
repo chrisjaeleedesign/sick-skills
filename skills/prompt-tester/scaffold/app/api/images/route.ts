@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   // Reject path traversal
   const resolved = path.resolve(IMAGES_DIR, file)
-  if (!resolved.startsWith(IMAGES_DIR)) {
+  if (!resolved.startsWith(IMAGES_DIR + path.sep)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
