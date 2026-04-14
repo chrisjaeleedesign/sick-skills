@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useWorkbench } from '@/app/lib/workbench-context'
+import { ThemeToggle } from './theme-toggle'
 
 function groupByDate(chats: { id: string; title: string; updated: string; promptName: string; promptVersion: number }[]) {
   const now = new Date()
@@ -71,6 +72,10 @@ export function ChatsSidebar() {
             ))}
           </div>
         ))}
+      </div>
+
+      <div className="border-t border-[var(--color-border)] px-4 py-3 flex items-center justify-end -mx-3 mt-2">
+        <ThemeToggle />
       </div>
     </div>
   )
