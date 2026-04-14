@@ -185,3 +185,34 @@ export async function listMessages(chatId: string): Promise<ChatMessage[]> {
     .filter(line => line.trim())
     .map(line => JSON.parse(line) as ChatMessage)
 }
+
+export async function truncateFromMessage(
+  chatId: string,
+  messageId: string
+): Promise<ChatMessage[]> {
+  const messages = await listMessages(chatId)
+  const idx = messages.findIndex(m => m.id === messageId)
+  if (idx === -1) return messages
+  const kept = messages.slice(0, idx)
+  // Rewrite the JSONL file
+  const filePath = path.join(getDir().chats, chatId, 'messages.jsonl')
+  const content = kept.map(m => JSON.stringify(m)).join('\n') + (kept.length > 0 ? '\n' : '')
+  await fs.writeFile(filePath, content, 'utf8')
+  await updateChatMeta(chatId, { updated: new Date().toISOString() })
+  return kept
+}
+
+export async function copyMessagesTo(
+  sourceChatId: string,
+  targetChatId: string,
+  upToMessageId: string
+): Promise<void> {
+  const source = await listMessages(sourceChatId)
+  const idx = source.findIndex(m => m.id === upToMessageId)
+  if (idx === -1) throw new Error(`Message ${upToMessageId} not found in source chat`)
+  const copied = source.slice(0, idx + 1) // inclusive
+  const targetPath = path.join(getDir().chats, targetChatId, 'messages.jsonl')
+  const content = copied.map(m => JSON.stringify(m)).join('\n') + '\n'
+  await fs.writeFile(targetPath, content, 'utf8')
+  await updateChatMeta(targetChatId, { updated: new Date().toISOString() })
+}
