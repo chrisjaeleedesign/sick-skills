@@ -67,6 +67,7 @@ export interface Chat {
   updated: string
   promptId: string
   promptVersion: number
+  branchOf?: { chatId: string; messageId: string }
 }
 
 export interface ChatMessage {
@@ -92,4 +93,5 @@ export interface ChatSummary {
   promptId: string
   promptName: string
   promptVersion: number
+  branchOf?: { chatId: string; messageId: string }
 }

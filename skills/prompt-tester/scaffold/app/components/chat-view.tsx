@@ -1,11 +1,17 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useWorkbench } from '@/app/lib/workbench-context'
 import { MessageList } from './message-list'
 import { Composer } from './composer'
 
 export function ChatView() {
-  const { activeChat, activePrompt, messages, isStreaming, streamingText, streamingImages, sendMessage, rerunFromMessage, stopStream } = useWorkbench()
+  const { activeChat, activePrompt, messages, isStreaming, streamingText, streamingImages, sendMessage, rerunFromMessage, branchFromMessage, openChat, stopStream } = useWorkbench()
+
+  const handleBranch = useCallback(async (messageId: string) => {
+    const chat = await branchFromMessage(messageId)
+    await openChat(chat.id)
+  }, [branchFromMessage, openChat])
 
   if (!activeChat) {
     return (
@@ -30,6 +36,7 @@ export function ChatView() {
         streamingImages={streamingImages}
         model={activePrompt?.draft.model ?? ''}
         onRerun={rerunFromMessage}
+        onBranch={handleBranch}
       />
 
       {/* Composer */}

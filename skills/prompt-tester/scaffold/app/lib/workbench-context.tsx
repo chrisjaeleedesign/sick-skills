@@ -29,6 +29,7 @@ interface WorkbenchContextValue {
 
   sendMessage(text: string): Promise<void>
   rerunFromMessage(userMessageId: string, text: string): Promise<void>
+  branchFromMessage(messageId: string): Promise<Chat>
   stopStream(): void
 }
 
@@ -198,6 +199,16 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     await sendMessage(text)
   }, [activeChat, sendMessage])
 
+  const branchFromMessage = useCallback(async (messageId: string): Promise<Chat> => {
+    if (!activeChat) throw new Error('No active chat')
+    const chat = await apiPost<Chat>(
+      `/api/chats/${activeChat.id}/branch`,
+      { afterMessageId: messageId }
+    )
+    await loadChats()
+    return chat
+  }, [activeChat, loadChats])
+
   const stopStream = useCallback(() => {
     abortRef.current?.()
   }, [])
@@ -207,7 +218,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       chats, activeChat, activePrompt, messages, isStreaming, streamingText, streamingImages,
       loadChats, createChat, openChat, deleteChat,
       setPromptName, setModel, setSystemInstructions, updateSettings, saveAsVersion,
-      sendMessage, rerunFromMessage, stopStream,
+      sendMessage, rerunFromMessage, branchFromMessage, stopStream,
     }}>
       {children}
     </WorkbenchContext.Provider>

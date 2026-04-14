@@ -143,9 +143,27 @@ export async function getChat(id: string): Promise<Chat> {
   return readJson<Chat>(path.join(getDir().chats, id, 'meta.json'))
 }
 
-export async function updateChatMeta(id: string, patch: Partial<Pick<Chat, 'title' | 'updated' | 'promptVersion'>>): Promise<void> {
+export async function updateChatMeta(id: string, patch: Partial<Pick<Chat, 'title' | 'updated' | 'promptVersion' | 'branchOf'>>): Promise<void> {
   const chat = await getChat(id)
   await writeJson(path.join(getDir().chats, id, 'meta.json'), { ...chat, ...patch })
+}
+
+/**
+ * Create a new chat branched from an existing one, populated with messages up to `afterMessageId`.
+ * The new chat references the source via `branchOf`.
+ */
+export async function createBranchChat(
+  sourceChatId: string,
+  afterMessageId: string,
+  title?: string
+): Promise<Chat> {
+  const source = await getChat(sourceChatId)
+  if (!source) throw new Error(`Source chat ${sourceChatId} not found`)
+  const branchTitle = title ?? `${source.title} (branch)`
+  const newChat = await createChat(branchTitle, source.promptId, source.promptVersion)
+  await updateChatMeta(newChat.id, { branchOf: { chatId: sourceChatId, messageId: afterMessageId } })
+  await copyMessagesTo(sourceChatId, newChat.id, afterMessageId)
+  return { ...newChat, branchOf: { chatId: sourceChatId, messageId: afterMessageId } }
 }
 
 export async function deleteChat(id: string): Promise<void> {
