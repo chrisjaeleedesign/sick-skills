@@ -6,6 +6,7 @@ import { appendMessage, updateChatMeta, listMessages } from '@/app/lib/storage'
 import { resolveModel, isImageModel } from '@/app/lib/models'
 import { IMAGES_DIR } from '@/app/lib/paths'
 import type { ChatMessage, PromptState, OutputImage } from '@/app/lib/workbench-types'
+import { callOpenRouter } from '@/app/lib/openrouter'
 
 export const runtime = 'nodejs'
 
@@ -58,25 +59,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         if (isImageModel(promptState.model)) {
           // Image models: non-streaming call, images in response body
-          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: modelId.replace('openrouter/', ''),
-              messages: apiMessages,
-              temperature: promptState.settings.temperature,
-              ...(promptState.settings.variations != null && { n: promptState.settings.variations }),
-              ...(promptState.settings.aspectRatio != null && { aspect_ratio: promptState.settings.aspectRatio }),
-            }),
-          })
+          const extra: Record<string, unknown> = {}
+          if (promptState.settings.variations != null) extra.n = promptState.settings.variations
+          if (promptState.settings.aspectRatio != null) extra.aspect_ratio = promptState.settings.aspectRatio
 
-          if (!response.ok) {
-            const err = await response.text()
-            throw new Error(`OpenRouter error: ${err}`)
-          }
+          const response = await callOpenRouter({
+            apiKey,
+            modelId,
+            messages: apiMessages,
+            temperature: promptState.settings.temperature,
+            extra,
+          })
 
           const json = await response.json()
           const msg = json.choices?.[0]?.message
@@ -117,24 +110,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           send('done', { messageId: asstMsgId, duration })
         } else {
           // Text models: streaming
-          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: modelId.replace('openrouter/', ''),
-              messages: apiMessages,
-              temperature: promptState.settings.temperature,
-              stream: true,
-            }),
+          const response = await callOpenRouter({
+            apiKey,
+            modelId,
+            messages: apiMessages,
+            temperature: promptState.settings.temperature,
+            stream: true,
           })
-
-          if (!response.ok) {
-            const err = await response.text()
-            throw new Error(`OpenRouter error: ${err}`)
-          }
 
           if (!response.body) throw new Error('OpenRouter returned empty body for streaming response')
           const reader = response.body.getReader()
