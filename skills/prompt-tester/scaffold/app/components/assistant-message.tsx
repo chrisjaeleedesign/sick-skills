@@ -1,6 +1,7 @@
 'use client'
 
 import type { ChatMessage } from '@/app/lib/workbench-types'
+import { MessageMeta } from './message-meta'
 import { TextOutput } from './text-output'
 
 interface Props {
@@ -21,7 +22,7 @@ export function AssistantMessage({ message, streaming, streamingText, streamingI
 
   return (
     <div className="max-w-2xl">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-3)] mb-1.5 flex items-center gap-2">
+      <MessageMeta>
         <span>{model}</span>
         <span className="text-[var(--color-border-2)]">·</span>
         <span>{version}</span>
@@ -41,7 +42,7 @@ export function AssistantMessage({ message, streaming, streamingText, streamingI
             <span>{duration}</span>
           </>
         ) : null}
-      </div>
+      </MessageMeta>
       {content ? (
         <TextOutput content={content} />
       ) : message.outputError ? (
