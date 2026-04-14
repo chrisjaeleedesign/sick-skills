@@ -12,13 +12,20 @@
   "jest": {
     "preset": "ts-jest/presets/default-esm",
     "testEnvironment": "node",
-    "extensionsToTreatAsEsm": [".ts"],
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/app/$1",
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", { "useESM": true }]
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
     }
   },
   "dependencies": {
@@ -28,7 +35,7 @@
     "next": "^15",
     "react": "^19",
     "react-dom": "^19",
-    "react-markdown": "^9"
+    "react-markdown": "^9.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
