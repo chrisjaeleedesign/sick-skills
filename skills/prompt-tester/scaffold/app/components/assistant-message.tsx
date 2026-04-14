@@ -9,9 +9,10 @@ interface Props {
   streaming?: boolean
   streamingText?: string
   streamingImages?: string[]
+  onRerun?: () => void
 }
 
-export function AssistantMessage({ message, streaming, streamingText, streamingImages }: Props) {
+export function AssistantMessage({ message, streaming, streamingText, streamingImages, onRerun }: Props) {
   const content = streaming ? streamingText ?? '' : (message.outputText ?? '')
   const images = streaming
     ? (streamingImages ?? [])
@@ -21,8 +22,23 @@ export function AssistantMessage({ message, streaming, streamingText, streamingI
   const duration = message.duration ? `${(message.duration / 1000).toFixed(1)}s` : null
 
   return (
-    <div className="max-w-2xl">
-      <MessageMeta>
+    <div className="group max-w-2xl">
+      <MessageMeta
+        actions={
+          onRerun && !streaming ? (
+            <button
+              onClick={onRerun}
+              aria-label="Rerun this response"
+              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded text-[var(--color-text-3)] hover:text-[var(--color-text-1)] hover:bg-[var(--color-hover)] transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+            </button>
+          ) : null
+        }
+      >
         <span>{model}</span>
         <span className="text-[var(--color-border-2)]">·</span>
         <span>{version}</span>

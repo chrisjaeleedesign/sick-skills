@@ -5,7 +5,7 @@ import { MessageList } from './message-list'
 import { Composer } from './composer'
 
 export function ChatView() {
-  const { activeChat, activePrompt, messages, isStreaming, streamingText, streamingImages, sendMessage, stopStream } = useWorkbench()
+  const { activeChat, activePrompt, messages, isStreaming, streamingText, streamingImages, sendMessage, rerunFromMessage, stopStream } = useWorkbench()
 
   if (!activeChat) {
     return (
@@ -29,6 +29,7 @@ export function ChatView() {
         streamingText={streamingText}
         streamingImages={streamingImages}
         model={activePrompt?.draft.model ?? ''}
+        onRerun={rerunFromMessage}
       />
 
       {/* Composer */}
