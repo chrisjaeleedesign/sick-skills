@@ -5,6 +5,7 @@ import type {
   Chat, ChatSummary, Prompt, PromptVersion,
   ChatMessage, Settings,
 } from './workbench-types'
+import { apiGet, apiPost, apiPut, apiDelete } from './api'
 
 interface WorkbenchContextValue {
   chats: ChatSummary[]
@@ -51,30 +52,21 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   const isStreamingRef = useRef(false)
 
   const loadChats = useCallback(async () => {
-    const res = await fetch('/api/chats')
-    setChats(await res.json())
+    setChats(await apiGet<ChatSummary[]>('/api/chats'))
   }, [])
 
   const createChat = useCallback(async (title?: string) => {
-    const res = await fetch('/api/chats', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: title ?? 'New chat' }),
-    })
-    const chat: Chat = await res.json()
+    const chat = await apiPost<Chat>('/api/chats', { title: title ?? 'New chat' })
     await loadChats()
     return chat
   }, [loadChats])
 
   const openChat = useCallback(async (id: string) => {
-    const [chatRes, msgsRes] = await Promise.all([
-      fetch(`/api/chats/${id}`),
-      fetch(`/api/chats/${id}/messages`),
+    const [chat, msgs] = await Promise.all([
+      apiGet<Chat>(`/api/chats/${id}`),
+      apiGet<ChatMessage[]>(`/api/chats/${id}/messages`),
     ])
-    const chat: Chat = await chatRes.json()
-    const msgs: ChatMessage[] = await msgsRes.json()
-    const promptRes = await fetch(`/api/prompts/${chat.promptId}`)
-    const prompt: Prompt = await promptRes.json()
+    const prompt = await apiGet<Prompt>(`/api/prompts/${chat.promptId}`)
 
     setActiveChat(chat)
     setActivePrompt(prompt)
@@ -82,7 +74,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const deleteChat = useCallback(async (id: string) => {
-    await fetch(`/api/chats/${id}`, { method: 'DELETE' })
+    await apiDelete(`/api/chats/${id}`)
     if (activeChat?.id === id) {
       setActiveChat(null)
       setActivePrompt(null)
@@ -95,11 +87,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   const persistDraft = useCallback((prompt: Prompt) => {
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
     draftTimerRef.current = setTimeout(async () => {
-      await fetch(`/api/prompts/${prompt.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: prompt.name, draft: prompt.draft }),
-      })
+      await apiPut(`/api/prompts/${prompt.id}`, { name: prompt.name, draft: prompt.draft })
     }, 500)
   }, [])
 
@@ -130,8 +118,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
   const saveAsVersion = useCallback(async (): Promise<PromptVersion> => {
     if (!activePrompt) throw new Error('No active prompt')
-    const res = await fetch(`/api/prompts/${activePrompt.id}/versions`, { method: 'POST' })
-    const version: PromptVersion = await res.json()
+    const version = await apiPost<PromptVersion>(`/api/prompts/${activePrompt.id}/versions`)
     setActivePrompt(prev => prev ? { ...prev, currentVersion: version.version } : prev)
     return version
   }, [activePrompt])
@@ -185,8 +172,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
             }
             if ('duration' in evt) {
               // stream done — reload messages
-              const msgsRes = await fetch(`/api/chats/${activeChat.id}/messages`)
-              setMessages(await msgsRes.json())
+              setMessages(await apiGet<ChatMessage[]>(`/api/chats/${activeChat.id}/messages`))
               setStreamingText('')
               setStreamingImages([])
               await loadChats()
