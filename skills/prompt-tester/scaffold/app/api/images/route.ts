@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import path from 'path'
+import { IMAGES_DIR } from '@/app/lib/paths'
 
 export const runtime = 'nodejs'
-
-const IMAGES_DIR = path.resolve(process.cwd(), '..', '..', '..', '.agents', 'workbench', 'images')
 
 const MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',

@@ -4,11 +4,10 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { appendMessage, updateChatMeta, listMessages } from '@/app/lib/storage'
 import { resolveModel, isImageModel } from '@/app/lib/models'
+import { IMAGES_DIR } from '@/app/lib/paths'
 import type { ChatMessage, PromptState, OutputImage } from '@/app/lib/workbench-types'
 
 export const runtime = 'nodejs'
-
-const IMAGES_DIR = path.resolve(process.cwd(), '..', '..', '..', '.agents', 'workbench', 'images')
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: chatId } = await params
