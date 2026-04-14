@@ -45,7 +45,7 @@ export function AssistantMessage({ message, streaming, streamingText, streamingI
       {content ? (
         <TextOutput content={content} />
       ) : message.outputError ? (
-        <div className="text-[13px] text-red-500">{message.outputError}</div>
+        <div className="text-[13px] text-[var(--color-error)]">{message.outputError}</div>
       ) : null}
       {images.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
