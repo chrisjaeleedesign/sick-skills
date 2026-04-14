@@ -1,6 +1,7 @@
 'use client'
 
 import type { ChatMessage } from '@/app/lib/workbench-types'
+import { BranchIcon, MessageActionButton, RerunIcon } from './message-action-button'
 import { MessageMeta } from './message-meta'
 import { TextOutput } from './text-output'
 
@@ -29,30 +30,14 @@ export function AssistantMessage({ message, streaming, streamingText, streamingI
           !streaming ? (
             <>
               {onRerun ? (
-                <button
-                  onClick={onRerun}
-                  aria-label="Rerun this response"
-                  className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded text-[var(--color-text-3)] hover:text-[var(--color-text-1)] hover:bg-[var(--color-hover)] transition-all"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="23 4 23 10 17 10" />
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                  </svg>
-                </button>
+                <MessageActionButton onClick={onRerun} ariaLabel="Rerun this response">
+                  <RerunIcon />
+                </MessageActionButton>
               ) : null}
               {onBranch ? (
-                <button
-                  onClick={onBranch}
-                  aria-label="Branch conversation from this message"
-                  className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded text-[var(--color-text-3)] hover:text-[var(--color-text-1)] hover:bg-[var(--color-hover)] transition-all"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="6" y1="3" x2="6" y2="15" />
-                    <circle cx="18" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
-                </button>
+                <MessageActionButton onClick={onBranch} ariaLabel="Branch conversation from this message">
+                  <BranchIcon />
+                </MessageActionButton>
               ) : null}
             </>
           ) : null

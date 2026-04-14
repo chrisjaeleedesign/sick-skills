@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
-  /** Rendered on the right side; used for hover action buttons in the future */
+  /** Rendered on the right side; typically hover-revealed action buttons. */
   actions?: ReactNode
 }
 
