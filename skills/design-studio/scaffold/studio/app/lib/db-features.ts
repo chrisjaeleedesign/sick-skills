@@ -6,32 +6,41 @@ import type { Feature, ConnectionType, FeatureConnection } from "./types";
 // Feature queries
 // ---------------------------------------------------------------------------
 
-export function queryFeatures(params?: { area?: string }): Feature[] {
+export function queryFeatures(params?: { area?: string; project?: string }): Feature[] {
   const db = getDb();
-  let sql = "SELECT * FROM features";
+  const conditions: string[] = [];
   const values: Record<string, string> = {};
+
   if (params?.area) {
-    sql += " WHERE area = @area";
+    conditions.push("area = @area");
     values.area = params.area;
   }
-  sql += " ORDER BY name";
+  // Escape hatch: project="*" means "all projects" — skip the filter.
+  if (params?.project && params.project !== "*") {
+    conditions.push("project = @project");
+    values.project = params.project;
+  }
+
+  const where = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
+  const sql = `SELECT * FROM features${where} ORDER BY name`;
   return db.prepare(sql).all(values) as Feature[];
 }
 
 export function insertFeature(f: {
   area: string; name: string; description?: string; notes?: string;
-  priority?: string; status?: string; x?: number; y?: number;
+  priority?: string; status?: string; x?: number; y?: number; project?: string;
 }): Feature {
   const db = getDb();
   const ts = now();
   const id = genId("feat");
   db.prepare(`
-    INSERT INTO features (id, area, name, description, notes, priority, status, x, y, created_at, updated_at)
-    VALUES (@id, @area, @name, @description, @notes, @priority, @status, @x, @y, @created_at, @updated_at)
+    INSERT INTO features (id, area, name, description, notes, priority, status, x, y, project, created_at, updated_at)
+    VALUES (@id, @area, @name, @description, @notes, @priority, @status, @x, @y, @project, @created_at, @updated_at)
   `).run({
     id, area: f.area, name: f.name, description: f.description ?? "",
     notes: f.notes ?? "", priority: f.priority ?? "", status: f.status ?? "",
-    x: f.x ?? 0, y: f.y ?? 0, created_at: ts, updated_at: ts,
+    x: f.x ?? 0, y: f.y ?? 0, project: f.project ?? "default",
+    created_at: ts, updated_at: ts,
   });
   return db.prepare("SELECT * FROM features WHERE id = @id").get({ id }) as Feature;
 }

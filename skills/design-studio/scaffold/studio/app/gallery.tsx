@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -12,6 +11,7 @@ import {
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
+  type DragOverEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -113,8 +113,7 @@ function SortableCard({ id, children }: { id: string; children: React.ReactNode 
 // Gallery
 // ---------------------------------------------------------------------------
 
-export function Gallery({ manifest, project = "default", projects = [] }: { manifest: Manifest; project?: string; projects?: string[] }) {
-  const router = useRouter();
+export function Gallery({ manifest, project = "default" }: { manifest: Manifest; project?: string }) {
   const [sections, setSections] = useState<Section[]>(manifest.sections);
   const [families, setFamilies] = useState<Record<string, Family>>(manifest.families);
   const [mounted, setMounted] = useState(false);
@@ -200,6 +199,76 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
     save({ sections: arrayMove(sections, oldIndex, newIndex) });
   }
 
+  // Card drag handlers (unified across all sections)
+  function findSectionForSlug(slug: string): string | null {
+    for (const section of sections) {
+      if (section.items.includes(slug)) return section.id;
+    }
+    return null;
+  }
+
+  function handleCardDragStart(event: DragStartEvent) {
+    setActiveDragId(event.active.id as string);
+  }
+
+  function handleCardDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeSlug = active.id as string;
+    const overSlug = over.id as string;
+
+    const sourceSectionId = findSectionForSlug(activeSlug);
+    const destSectionId = findSectionForSlug(overSlug);
+
+    if (!sourceSectionId || !destSectionId || sourceSectionId === destSectionId) return;
+
+    setSections((prev) =>
+      prev.map((s) => {
+        if (s.id === sourceSectionId) {
+          return { ...s, items: s.items.filter((slug) => slug !== activeSlug) };
+        }
+        if (s.id === destSectionId) {
+          const overIndex = s.items.indexOf(overSlug);
+          const newItems = [...s.items];
+          newItems.splice(overIndex, 0, activeSlug);
+          return { ...s, items: newItems };
+        }
+        return s;
+      })
+    );
+  }
+
+  function handleCardDragEnd(event: DragEndEvent) {
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id === over.id) {
+      save({ sections });
+      return;
+    }
+
+    const activeSlug = active.id as string;
+    const overSlug = over.id as string;
+    const sectionId = findSectionForSlug(activeSlug);
+    const overSectionId = findSectionForSlug(overSlug);
+
+    if (sectionId && sectionId === overSectionId) {
+      const section = sections.find((s) => s.id === sectionId);
+      if (!section) return;
+      const oldIdx = section.items.indexOf(activeSlug);
+      const newIdx = section.items.indexOf(overSlug);
+      if (oldIdx === -1 || newIdx === -1) return;
+      save({
+        sections: sections.map((s) =>
+          s.id === sectionId ? { ...s, items: arrayMove(s.items, oldIdx, newIdx) } : s
+        ),
+      });
+    } else {
+      save({ sections });
+    }
+  }
+
   function trashFamily(slug: string) {
     const nextFamilies = { ...families, [slug]: { ...families[slug], archived: true } };
     const nextSections = sections.map((s) => ({
@@ -273,15 +342,6 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
   const toolbarTarget = document.getElementById("header-toolbar");
   const toolbar = toolbarTarget && createPortal(
     <>
-      {projects.length > 0 && (
-        <select
-          value={project}
-          onChange={(e) => router.push(`/?project=${encodeURIComponent(e.target.value)}`)}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-text-primary outline-none"
-        >
-          {projects.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-      )}
       <button onClick={addSection} className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-2">
         <Plus className="h-3.5 w-3.5" /> Section
       </button>
@@ -319,61 +379,31 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
     toolbarTarget
   );
 
-  // Render a section's card grid with per-section drag-reorder
+  // Render a section's card grid (SortableContext only — DndContext is provided by parent)
 
-  function renderSectionGrid(sectionId: string, slugs: string[], onReorder?: (newSlugs: string[]) => void) {
-    function handleDragStart(event: DragStartEvent) {
-      setActiveDragId(event.active.id as string);
-    }
-
-    function handleDragEnd(event: DragEndEvent) {
-      setActiveDragId(null);
-      const { active, over } = event;
-      if (!over || active.id === over.id || !onReorder) return;
-      const oldIdx = slugs.indexOf(active.id as string);
-      const newIdx = slugs.indexOf(over.id as string);
-      if (oldIdx === -1 || newIdx === -1) return;
-      onReorder(arrayMove(slugs, oldIdx, newIdx));
-    }
-
-    const activeFamily = activeDragId ? families[activeDragId] : null;
-
+  function renderSectionGrid(slugs: string[]) {
     return (
-      <DndContext id={`cards-${sectionId}`} sensors={cardSensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveDragId(null)}>
-        <SortableContext items={slugs} strategy={rectSortingStrategy}>
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
-            {slugs.map((slug) => {
-              const family = families[slug];
-              if (!family) return null;
-              return (
-                <SortableCard key={slug} id={slug}>
-                  <FamilyCard
-                    family={family}
-                    isCurrent={currentFamily === slug}
-                    currentVersion={currentVersion}
-                    showThumbnail={showThumbnails}
-                    isSelected={selectedSlugs.has(slug)}
-                    onSelect={handleSelect}
-                    onTrash={trashFamily}
-                  />
-                </SortableCard>
-              );
-            })}
-          </div>
-        </SortableContext>
-        <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
-          {activeFamily ? (
-            <div style={{ opacity: 0.9, cursor: "grabbing" }}>
-              <FamilyCard
-                family={activeFamily}
-                isCurrent={currentFamily === activeDragId}
-                currentVersion={currentVersion}
-                showThumbnail={showThumbnails}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      <SortableContext items={slugs} strategy={rectSortingStrategy}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+          {slugs.map((slug) => {
+            const family = families[slug];
+            if (!family) return null;
+            return (
+              <SortableCard key={slug} id={slug}>
+                <FamilyCard
+                  family={family}
+                  isCurrent={currentFamily === slug}
+                  currentVersion={currentVersion}
+                  showThumbnail={showThumbnails}
+                  isSelected={selectedSlugs.has(slug)}
+                  onSelect={handleSelect}
+                  onTrash={trashFamily}
+                />
+              </SortableCard>
+            );
+          })}
+        </div>
+      </SortableContext>
     );
   }
 
@@ -390,6 +420,7 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
         </div>
       ) : (
         <DndContext id="gallery-sections-dnd" sensors={sectionSensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+          <DndContext id="cards-all" sensors={cardSensors} collisionDetection={closestCenter} onDragStart={handleCardDragStart} onDragOver={handleCardDragOver} onDragEnd={handleCardDragEnd} onDragCancel={() => setActiveDragId(null)}>
           <SortableContext items={sections.filter((s) => visibleSections.has(s.id)).map((s) => `section:${s.id}`)} strategy={verticalListSortingStrategy}>
             {sections.filter((s) => visibleSections.has(s.id)).map((section) => {
               const sectionSlugs = section.items.filter((slug) => families[slug] && !families[slug].archived);
@@ -438,9 +469,7 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
                             exit={{ opacity: 0, height: 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            {renderSectionGrid(section.id, sectionSlugs, (newSlugs) => {
-                              save({ sections: sections.map((s) => s.id === section.id ? { ...s, items: newSlugs } : s) });
-                            })}
+                            {renderSectionGrid(sectionSlugs)}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -457,9 +486,23 @@ export function Gallery({ manifest, project = "default", projects = [] }: { mani
                 <span className="text-sm font-medium text-text-tertiary">Unsorted</span>
                 <span className="text-[10px] text-text-tertiary">{unsortedSlugs.length}</span>
               </div>
-              {renderSectionGrid("unsorted", unsortedSlugs)}
+              {renderSectionGrid(unsortedSlugs)}
             </div>
           )}
+
+          <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
+            {activeDragId && families[activeDragId] ? (
+              <div style={{ opacity: 0.9, cursor: "grabbing" }}>
+                <FamilyCard
+                  family={families[activeDragId]}
+                  isCurrent={currentFamily === activeDragId}
+                  currentVersion={currentVersion}
+                  showThumbnail={showThumbnails}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+          </DndContext>
 
           {visibleSections.has("__trash") && trashedFamilies.length > 0 && (
             <div className="mb-8 pl-[18px]">

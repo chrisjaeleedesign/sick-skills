@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Plus, Loader2 } from "lucide-react";
 import type { Board } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
 import type { Color } from "@/app/lib/types";
 import { BoardCard } from "./board-card";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,9 +26,7 @@ const BOARD_COLORS: Color[] = ["red", "blue", "emerald", "amber", "purple", "pin
 
 export default function BoardsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const project = searchParams.get("project");
-  const projectSuffix = project ? `?project=${encodeURIComponent(project)}` : "";
+  const { project, suffix: projectSuffix } = useProjectQuery();
 
   const [boards, setBoards] = useState<BoardWithPreview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +40,8 @@ export default function BoardsPage() {
   const fetchBoards = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/entries/boards?preview=true");
+      const url = `/api/entries/boards?preview=true${project ? `&project=${encodeURIComponent(project)}` : ""}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       setBoards(data.boards ?? []);
@@ -49,7 +49,7 @@ export default function BoardsPage() {
       console.error("Failed to fetch boards:", err);
     }
     setLoading(false);
-  }, []);
+  }, [project]);
 
   useEffect(() => {
     fetchBoards();
@@ -59,7 +59,8 @@ export default function BoardsPage() {
     if (!newBoardName.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch("/api/entries/boards", {
+      const url = `/api/entries/boards${project ? `?project=${encodeURIComponent(project)}` : ""}`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

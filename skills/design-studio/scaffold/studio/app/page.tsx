@@ -12,5 +12,5 @@ export default async function GalleryPage({
   const projects = listProjects();
   const project = projectParam && projects.includes(projectParam) ? projectParam : projects[0] || "default";
   const manifest = readManifest(project);
-  return <Gallery manifest={manifest} project={project} projects={projects} />;
+  return <Gallery manifest={manifest} project={project} />;
 }

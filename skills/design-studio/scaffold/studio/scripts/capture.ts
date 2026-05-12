@@ -32,6 +32,7 @@ const outPath = join(process.cwd(), `../${screenshotPath}`);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: preset.width, height: preset.height } });
 await page.goto(`http://localhost:${port}/prototypes/${family}/v${version}?capture=true&device=${device}`, { waitUntil: "networkidle" });
+await page.waitForTimeout(2000);
 await page.screenshot({ path: outPath });
 await browser.close();
 console.log(`Saved ${outPath}`);

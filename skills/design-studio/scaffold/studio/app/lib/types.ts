@@ -14,6 +14,7 @@ export interface Feature {
   status: string;
   x: number;
   y: number;
+  project: string;
   created_at: string;
   updated_at: string;
 }
@@ -133,6 +134,7 @@ export interface Board {
   description: string;
   color?: Color;
   columns: number;
+  project: string;
   created_at: string;
   updated_at: string;
 }
@@ -151,6 +153,7 @@ export interface SavedFilter {
   id: string;
   name: string;
   filter_json: FilterState;
+  project: string;
   created_at: string;
 }
 

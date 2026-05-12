@@ -13,6 +13,7 @@ function deserializeBoard(row: Record<string, unknown>): Board {
     description: (row.description as string) ?? "",
     color: (row.color as Color) ?? undefined,
     columns: (row.columns as number) ?? 6,
+    project: (row.project as string) ?? "default",
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -39,20 +40,22 @@ export function createBoard(input: {
   description?: string;
   color?: Color;
   columns?: number;
+  project?: string;
 }): Board {
   const db = getDb();
   const id = genId("board");
   const ts = now();
 
   db.prepare(`
-    INSERT INTO boards (id, name, description, color, columns, created_at, updated_at)
-    VALUES (@id, @name, @description, @color, @columns, @created_at, @updated_at)
+    INSERT INTO boards (id, name, description, color, columns, project, created_at, updated_at)
+    VALUES (@id, @name, @description, @color, @columns, @project, @created_at, @updated_at)
   `).run({
     id,
     name: input.name,
     description: input.description ?? "",
     color: input.color ?? null,
     columns: input.columns ?? 6,
+    project: input.project ?? "default",
     created_at: ts,
     updated_at: ts,
   });
@@ -66,8 +69,15 @@ export function getBoard(id: string): Board | undefined {
   return row ? deserializeBoard(row) : undefined;
 }
 
-export function listBoards(): Board[] {
-  const rows = getDb().prepare("SELECT * FROM boards ORDER BY created_at DESC").all() as Record<string, unknown>[];
+export function listBoards(project?: string): Board[] {
+  // Escape hatch: project="*" means "all projects" — skip the filter.
+  if (!project || project === "*") {
+    const rows = getDb().prepare("SELECT * FROM boards ORDER BY created_at DESC").all() as Record<string, unknown>[];
+    return rows.map(deserializeBoard);
+  }
+  const rows = getDb()
+    .prepare("SELECT * FROM boards WHERE project = ? ORDER BY created_at DESC")
+    .all(project) as Record<string, unknown>[];
   return rows.map(deserializeBoard);
 }
 
@@ -164,9 +174,9 @@ export function bulkUpdateBoardLayout(
   tx();
 }
 
-export function listBoardsWithPreviews(): (Board & { itemCount: number; previewPaths: string[] })[] {
+export function listBoardsWithPreviews(project?: string): (Board & { itemCount: number; previewPaths: string[] })[] {
   const db = getDb();
-  const boards = listBoards();
+  const boards = listBoards(project);
   const countStmt = db.prepare("SELECT COUNT(*) as c FROM board_items WHERE board_id = ?");
   const previewStmt = db.prepare(`
     SELECT a.path FROM board_items bi

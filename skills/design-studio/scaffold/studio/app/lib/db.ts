@@ -330,6 +330,21 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    id: 9,
+    name: "add-project-scoping",
+    run: (db) => {
+      // SQLite ALTER TABLE ADD COLUMN with NOT NULL DEFAULT backfills existing
+      // rows with the default value. No manual UPDATE needed.
+      try { db.exec("ALTER TABLE boards ADD COLUMN project TEXT NOT NULL DEFAULT 'default'"); } catch { /* already exists */ }
+      try { db.exec("ALTER TABLE features ADD COLUMN project TEXT NOT NULL DEFAULT 'default'"); } catch { /* already exists */ }
+      try { db.exec("ALTER TABLE saved_filters ADD COLUMN project TEXT NOT NULL DEFAULT 'default'"); } catch { /* already exists */ }
+
+      db.exec("CREATE INDEX IF NOT EXISTS idx_boards_project ON boards(project)");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_features_project ON features(project)");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_saved_filters_project ON saved_filters(project)");
+    },
+  },
 ];
 
 function runMigrations(db: Database.Database): void {

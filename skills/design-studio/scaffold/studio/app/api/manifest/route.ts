@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readManifest, writeManifest } from "@/app/lib/manifest";
 import type { Section, Family, Settings } from "@/app/lib/manifest";
+import { getProject } from "@/app/lib/request";
 
 type ManifestAction =
   | { action?: undefined; sections?: Section[]; families?: Record<string, Family>; settings?: Partial<Settings> }
@@ -13,11 +14,6 @@ function assignToFocusedSection(manifest: { sections: Section[] }, slug: string)
   const focused = manifest.sections.find((s) => s.focus);
   if (!focused) return;
   if (!focused.items.includes(slug)) focused.items.push(slug);
-}
-
-function getProject(request: Request): string {
-  const { searchParams } = new URL(request.url);
-  return searchParams.get("project") || "default";
 }
 
 export async function GET(request: Request) {

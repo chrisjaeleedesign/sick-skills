@@ -18,6 +18,7 @@ import { getBoardsForEntry } from "@/app/lib/db-boards";
 import { storeEmbedding } from "@/app/lib/db-embeddings";
 import { generateEmbedding } from "@/app/lib/embeddings";
 import { handleAction } from "@/app/lib/route-handler";
+import { getProject, getProjectFilter } from "@/app/lib/request";
 import type { EntryQueryParams, SourceType } from "@/app/lib/types";
 
 /** Best-effort embedding: generate and store, but never fail the request. */
@@ -73,9 +74,7 @@ export async function GET(request: Request) {
           ? rawFamily.split(",").filter(Boolean)
           : rawFamily)
       : undefined,
-    project: searchParams.get("project")
-      ? searchParams.get("project")!.split(",").filter(Boolean)
-      : undefined,
+    project: getProjectFilter(request),
     tags: searchParams.get("tags")?.split(",").filter(Boolean) ?? undefined,
     pinned: searchParams.has("pinned") ? searchParams.get("pinned") === "true" : undefined,
     hidden: searchParams.has("hidden") ? searchParams.get("hidden") === "true" : undefined,
@@ -136,10 +135,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = await request.json();
   const db = getDb();
+  const project = getProject(request);
 
   return handleAction(body, {
     "create-entry": async (b) => {
-      const result = createEntry(b.entry as Parameters<typeof createEntry>[0]);
+      const incoming = b.entry as Parameters<typeof createEntry>[0];
+      // If the body doesn't supply a project, fall back to the request's
+      // ?project= (default "default"). The "*" escape hatch is meaningless
+      // on writes, so treat it as no override.
+      const entry = incoming.project || project === "*"
+        ? incoming
+        : { ...incoming, project };
+      const result = createEntry(entry);
       await embedRevision(result.revision.id, result.revision.body);
       return result;
     },

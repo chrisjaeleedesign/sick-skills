@@ -14,10 +14,12 @@ import {
   bulkUpdateBoardLayout,
 } from "@/app/lib/db-boards";
 import { handleAction } from "@/app/lib/route-handler";
+import { getProject } from "@/app/lib/request";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
+  const project = getProject(request);
 
   if (id) {
     const board = getBoard(id);
@@ -29,18 +31,25 @@ export async function GET(request: Request) {
   }
 
   if (searchParams.get("preview") === "true") {
-    return NextResponse.json({ boards: listBoardsWithPreviews() });
+    return NextResponse.json({ boards: listBoardsWithPreviews(project) });
   }
 
-  return NextResponse.json({ boards: listBoards() });
+  return NextResponse.json({ boards: listBoards(project) });
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
+  const project = getProject(request);
 
   return handleAction(body, {
     "create-board": (b) => {
-      const board = createBoard(b.board as Parameters<typeof createBoard>[0]);
+      const incoming = b.board as Parameters<typeof createBoard>[0];
+      // Default project to the request's ?project= when the body omits it.
+      // The "*" escape hatch is meaningless on writes — store under "default".
+      const boardInput = incoming.project || project === "*"
+        ? incoming
+        : { ...incoming, project };
+      const board = createBoard(boardInput);
       return { board };
     },
     "update-board": (b) => {

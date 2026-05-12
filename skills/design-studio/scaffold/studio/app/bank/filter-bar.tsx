@@ -5,6 +5,7 @@ import { Search, X, Star, Save, Image, FileText, Camera, Link2, Layers, EyeOff }
 import type { Color } from "@/app/lib/types";
 import { COLOR_PALETTE } from "@/app/lib/types";
 import { FilterPopover, SelectItem } from "./filter-popover";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 // ---------------------------------------------------------------------------
 // Filter config
@@ -105,6 +106,7 @@ interface SavedFilter {
 // ---------------------------------------------------------------------------
 
 export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
+  const { project } = useProjectQuery();
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -142,9 +144,10 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch metadata on mount
+  // Fetch metadata when project changes
   useEffect(() => {
-    fetch("/api/entries/meta")
+    const url = project ? `/api/entries/meta?project=${encodeURIComponent(project)}` : "/api/entries/meta";
+    fetch(url)
       .then((r) => r.json())
       .then((data: MetaData) => {
         setAvailableFamilies(data.families ?? []);
@@ -152,15 +155,16 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
         setAvailableTags(data.tags ?? []);
       })
       .catch(console.error);
-  }, []);
+  }, [project]);
 
-  // Fetch saved filters on mount
+  // Fetch saved filters when project changes
   useEffect(() => {
-    fetch("/api/saved-filters")
+    const url = project ? `/api/saved-filters?project=${encodeURIComponent(project)}` : "/api/saved-filters";
+    fetch(url)
       .then((r) => r.json())
       .then((data) => setSavedFilters(data.filters ?? []))
       .catch(console.error);
-  }, []);
+  }, [project]);
 
   // Build query params and notify parent
   const buildParams = useCallback(() => {
@@ -246,7 +250,8 @@ export function FilterBar({ onFilterChange, compact }: FilterBarProps) {
       customUntil,
     };
     try {
-      const res = await fetch("/api/saved-filters", {
+      const url = `/api/saved-filters${project ? `?project=${encodeURIComponent(project)}` : ""}`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", name, filter_json: state }),

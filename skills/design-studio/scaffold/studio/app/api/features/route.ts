@@ -5,11 +5,13 @@ import {
   getAllConnections, addConnection, removeConnection, updateConnectionNote,
 } from "@/app/lib/db-features";
 import { handleAction } from "@/app/lib/route-handler";
+import { getProject } from "@/app/lib/request";
 import type { ConnectionType } from "@/app/lib/types";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const params = { area: searchParams.get("area") ?? undefined };
+  const project = getProject(request);
+  const params = { area: searchParams.get("area") ?? undefined, project };
   const features = queryFeatures(params);
   const connections = getAllConnections();
   const areas = featureAreas();
@@ -18,9 +20,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
+  const project = getProject(request);
 
   return handleAction(body, {
-    create: (b) => ({ feature: insertFeature(b.feature as Parameters<typeof insertFeature>[0]) }),
+    create: (b) => {
+      const incoming = b.feature as Parameters<typeof insertFeature>[0];
+      const featureInput = incoming.project || project === "*"
+        ? incoming
+        : { ...incoming, project };
+      return { feature: insertFeature(featureInput) };
+    },
     update: (b) => { updateFeature(b.id as string, b.feature as Partial<Parameters<typeof updateFeature>[1]>); },
     delete: (b) => { deleteFeature(b.id as string); },
     "update-positions": (b) => { updateFeaturePositions(b.updates as Parameters<typeof updateFeaturePositions>[0]); },

@@ -15,6 +15,7 @@ import {
 import type { Family } from "@/app/lib/manifest";
 import { COLOR_PALETTE } from "@/app/lib/types";
 import { timeAgo } from "@/app/lib/utils";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 export function FamilyCard({
   family,
@@ -38,6 +39,7 @@ export function FamilyCard({
   onSelect?: (slug: string, e: React.MouseEvent) => void;
 }) {
   const latest = family.versions[family.versions.length - 1];
+  const { suffix } = useProjectQuery();
   const [thumbExpanded, setThumbExpanded] = useState(true);
   const [thumbError, setThumbError] = useState(false);
   useEffect(() => setThumbError(false), [family.slug]);
@@ -94,7 +96,7 @@ export function FamilyCard({
 
       {/* Header — links to latest version */}
       <Link
-        href={`/prototypes/${family.slug}/v${latest.number}`}
+        href={`/prototypes/${family.slug}/v${latest.number}${suffix}`}
         className="block hover:opacity-90 transition-opacity"
       >
         <div className="flex items-baseline justify-between pr-6">
@@ -137,7 +139,7 @@ export function FamilyCard({
             </button>
           </div>
           {thumbExpanded && (
-            <Link href={`/prototypes/${family.slug}/v${latest.number}`}>
+            <Link href={`/prototypes/${family.slug}/v${latest.number}${suffix}`}>
               <img
                 src={`/api/screenshot/${family.slug}/${latest.number}`}
                 alt={family.name}
@@ -157,7 +159,7 @@ export function FamilyCard({
           return (
             <Link
               key={v.number}
-              href={`/prototypes/${family.slug}/v${v.number}`}
+              href={`/prototypes/${family.slug}/v${v.number}${suffix}`}
               className={`flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors ${
                 isCurrentVersion ? "bg-surface-2" : "hover:bg-surface-1"
               }`}

@@ -9,6 +9,7 @@ import { EditPanel } from "./edit-panel";
 import { buildTree, TreeRow } from "./tree";
 import type { Feature, FeatureConnection } from "@/app/lib/types";
 import { Separator } from "@/app/components/badges";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 interface FeaturesProps {
   initialFeatures: Feature[];
@@ -47,8 +48,9 @@ function getHighlightedSet(selectedId: string, conns: FeatureConnection[]): Set<
   return set;
 }
 
-async function apiPost(body: Record<string, unknown>) {
-  const res = await fetch("/api/features", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+async function apiPost(body: Record<string, unknown>, project: string | null = null) {
+  const url = project ? `/api/features?project=${encodeURIComponent(project)}` : "/api/features";
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return res.json();
 }
 
@@ -184,6 +186,7 @@ function ConnectionPopover({ position, targetName, onSave, onCancel }: {
 // --- Main component ---
 
 export function Features({ initialFeatures, initialConnections, initialAreas }: FeaturesProps) {
+  const { project } = useProjectQuery();
   const [features, setFeatures] = useState<Feature[]>(initialFeatures);
   const [connections, setConnections] = useState<FeatureConnection[]>(initialConnections);
   const [areas] = useState<string[]>(initialAreas);
@@ -230,7 +233,7 @@ export function Features({ initialFeatures, initialConnections, initialAreas }: 
 
   const scheduleSave = useCallback((updates: { id: string; x: number; y: number }[]) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => apiPost({ action: "update-positions", updates }), 500);
+    saveTimer.current = setTimeout(() => apiPost({ action: "update-positions", updates }, project), 500);
   }, []);
 
   function onCanvasMouseDown(e: React.MouseEvent) {
@@ -269,22 +272,22 @@ export function Features({ initialFeatures, initialConnections, initialAreas }: 
 
   async function handleCreate() {
     const nf = { name: "New Feature", area: areaFilter !== "all" ? areaFilter : areas[0] ?? "", description: "", notes: "", priority: "", status: "", x: (-panOffset.x + 400) | 0, y: (-panOffset.y + 300) | 0 };
-    try { const r = await apiPost({ action: "create", feature: nf }); setFeatures((p) => [...p, r.feature]); setEditingId(r.feature.id); } catch (err) { console.error(err); }
+    try { const r = await apiPost({ action: "create", feature: nf }, project); setFeatures((p) => [...p, r.feature]); setEditingId(r.feature.id); } catch (err) { console.error(err); }
   }
 
   async function handleUpdate(id: string, updates: Partial<Feature>) {
     setFeatures((p) => p.map((f) => (f.id === id ? { ...f, ...updates } : f)));
-    try { await apiPost({ action: "update", id, feature: updates }); } catch (err) { console.error(err); }
+    try { await apiPost({ action: "update", id, feature: updates }, project); } catch (err) { console.error(err); }
   }
 
   async function handleAddConn(aId: string, bId: string, type: "parent" | "related", note: string) {
     setConnections((p) => [...p, { a_id: aId, b_id: bId, type, note, created_at: new Date().toISOString() }]);
-    try { await apiPost({ action: "add-connection", a_id: aId, b_id: bId, type, note }); } catch (err) { console.error(err); }
+    try { await apiPost({ action: "add-connection", a_id: aId, b_id: bId, type, note }, project); } catch (err) { console.error(err); }
   }
 
   async function handleRemoveConn(aId: string, bId: string) {
     setConnections((p) => p.filter((c) => !(c.a_id === aId && c.b_id === bId)));
-    try { await apiPost({ action: "remove-connection", a_id: aId, b_id: bId }); } catch (err) { console.error(err); }
+    try { await apiPost({ action: "remove-connection", a_id: aId, b_id: bId }, project); } catch (err) { console.error(err); }
   }
 
   const treeNodes = mode === "list" ? buildTree(filtered, filteredConns) : [];

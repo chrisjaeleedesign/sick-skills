@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -11,15 +11,14 @@ import { BankItem } from "@/app/bank/bank-item";
 import type { BankItemData } from "@/app/bank/bank-item";
 import { EntryDetail } from "@/app/components/entry-detail";
 import { BankDrawer } from "../bank-drawer";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 const PANEL_WIDTH = 520;
 
 export default function BoardDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const searchParams = useSearchParams();
-  const project = searchParams.get("project");
-  const projectSuffix = project ? `?project=${encodeURIComponent(project)}` : "";
+  const { suffix: projectSuffix } = useProjectQuery();
 
   const [board, setBoard] = useState<Board | null>(null);
   const [entries, setEntries] = useState<BankItemData[]>([]);

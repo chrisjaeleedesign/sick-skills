@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { DEVICE_PRESETS, DEVICE_ICONS, type DevicePreset } from "@/app/lib/constants";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 /** Height of the root layout header (px) — keeps calc() in sync with layout.tsx */
 const HEADER_HEIGHT = 57;
@@ -17,6 +18,7 @@ export default function PrototypeLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { suffix } = useProjectQuery();
   const [familyInfo, setFamilyInfo] = useState<{
     name: string;
     description: string;
@@ -108,7 +110,7 @@ export default function PrototypeLayout({
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-border bg-surface-0 px-4 py-2">
         <Link
-          href={familyInfo?.project && familyInfo.project !== "default" ? `/?project=${familyInfo.project}` : "/"}
+          href={`/${suffix}`}
           className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -125,14 +127,14 @@ export default function PrototypeLayout({
             <div className="flex items-center gap-1">
               <button
                 disabled={familyInfo.version <= 1}
-                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version - 1}`)}
+                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version - 1}${suffix}`)}
                 className="rounded p-1 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 disabled:opacity-30 disabled:pointer-events-none transition-colors"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
               <select
                 value={familyInfo.version}
-                onChange={(e) => familySlug && router.push(`/prototypes/${familySlug}/v${e.target.value}`)}
+                onChange={(e) => familySlug && router.push(`/prototypes/${familySlug}/v${e.target.value}${suffix}`)}
                 className="appearance-none rounded bg-surface-2 px-2 py-0.5 text-[11px] font-mono text-text-primary outline-none cursor-pointer"
               >
                 {familyInfo.versions.map((v) => (
@@ -143,7 +145,7 @@ export default function PrototypeLayout({
               </select>
               <button
                 disabled={familyInfo.version >= familyInfo.versions.length}
-                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version + 1}`)}
+                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version + 1}${suffix}`)}
                 className="rounded p-1 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 disabled:opacity-30 disabled:pointer-events-none transition-colors"
               >
                 <ChevronRight className="h-3.5 w-3.5" />

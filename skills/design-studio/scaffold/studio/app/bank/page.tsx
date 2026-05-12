@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Masonry } from "./masonry";
@@ -10,12 +9,12 @@ import type { BankItemData } from "./bank-item";
 import { FilterBar } from "./filter-bar";
 import { EntryDetail } from "@/app/components/entry-detail";
 import { useBankItems } from "./use-bank-items";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 const PANEL_WIDTH = 520;
 
 export default function BankPage() {
-  const searchParams = useSearchParams();
-  const project = searchParams.get("project");
+  const { project } = useProjectQuery();
 
   const { items, setItems, loading, fetchItems } = useBankItems();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -27,8 +26,9 @@ export default function BankPage() {
 
   const fetchWithProject = useCallback((params: Record<string, string> = {}) => {
     const merged: Record<string, string> = { limit: "500", ...params };
+    if (project) merged.project = project;
     return fetchItems(merged);
-  }, [fetchItems]);
+  }, [fetchItems, project]);
 
   useEffect(() => {
     if (hasSynced.current) return;

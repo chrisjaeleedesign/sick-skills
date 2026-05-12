@@ -7,6 +7,7 @@ import type { Entry, Revision } from "@/app/lib/types";
 import type { Family } from "@/app/lib/manifest";
 import { KindBadge, ImportanceBadge } from "@/app/components/badges";
 import { apiFetch } from "@/app/lib/api";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 // ---------------------------------------------------------------------------
 // Entry card (compact, expandable for revision history)
@@ -77,7 +78,7 @@ function EntryCard({ entry }: { entry: EntryWithRevisions }) {
 // Quick-add input
 // ---------------------------------------------------------------------------
 
-function QuickAdd({ familySlugs, onAdded }: { familySlugs: string[]; onAdded: () => void }) {
+function QuickAdd({ familySlugs, project, onAdded }: { familySlugs: string[]; project: string | null; onAdded: () => void }) {
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -87,7 +88,8 @@ function QuickAdd({ familySlugs, onAdded }: { familySlugs: string[]; onAdded: ()
     if (!body || submitting) return;
     setSubmitting(true);
     try {
-      await fetch("/api/entries", {
+      const url = project ? `/api/entries?project=${encodeURIComponent(project)}` : "/api/entries";
+      await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,6 +100,7 @@ function QuickAdd({ familySlugs, onAdded }: { familySlugs: string[]; onAdded: ()
             family: familySlugs[0],
             tags: [],
             source: "gallery-sidebar",
+            ...(project ? { project } : {}),
           },
         }),
       });
@@ -138,6 +141,7 @@ export function GallerySidebar({
   selectedFamilies: Family[];
   onClose: () => void;
 }) {
+  const { project } = useProjectQuery();
   const [linkedEntries, setLinkedEntries] = useState<EntryWithRevisions[]>([]);
   const [relatedEntries, setRelatedEntries] = useState<EntryWithRevisions[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,6 +151,8 @@ export function GallerySidebar({
   const familyNames = selectedFamilies.map(f => f.name);
   const familyKey = useMemo(() => familySlugs.join(","), [familySlugs]);
 
+  const projectParam = project ? `&project=${encodeURIComponent(project)}` : "";
+
   const fetchEntries = useCallback(async () => {
     if (familySlugs.length === 0) return;
     setLoading(true);
@@ -154,7 +160,7 @@ export function GallerySidebar({
       // Fetch linked entries (by family match)
       const linkedResults = await Promise.all(
         familySlugs.map(slug =>
-          apiFetch<EntryWithRevisions[]>(`/api/entries?family=${encodeURIComponent(slug)}&limit=20`)
+          apiFetch<EntryWithRevisions[]>(`/api/entries?family=${encodeURIComponent(slug)}&limit=20${projectParam}`)
             .catch((err) => { console.error(err); return [] as EntryWithRevisions[]; })
         )
       );
@@ -173,7 +179,7 @@ export function GallerySidebar({
       if (firstFamily) {
         const searchText = `${firstFamily.name} ${firstFamily.description}`;
         const related = await apiFetch<EntryWithRevisions[]>(
-          `/api/entries/search?q=${encodeURIComponent(searchText)}&limit=10`
+          `/api/entries/search?q=${encodeURIComponent(searchText)}&limit=10${projectParam}`
         ).catch((err) => { console.error(err); return [] as EntryWithRevisions[]; });
         // Filter out already-linked entries
         const linkedIds = new Set(deduped.map(t => t.id));
@@ -261,6 +267,7 @@ export function GallerySidebar({
       <div className="border-t border-border px-4 py-3">
         <QuickAdd
           familySlugs={familySlugs}
+          project={project}
           onAdded={() => setRefreshKey(k => k + 1)}
         />
       </div>

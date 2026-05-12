@@ -7,6 +7,7 @@ import { Masonry } from "@/app/bank/masonry";
 import { BankItem } from "@/app/bank/bank-item";
 import { FilterBar } from "@/app/bank/filter-bar";
 import { useBankItems } from "@/app/bank/use-bank-items";
+import { useProjectQuery } from "@/app/lib/hooks";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,20 +26,30 @@ interface BankDrawerProps {
 // ---------------------------------------------------------------------------
 
 export function BankDrawer({ open, onClose, boardId, onItemAdded, existingItemIds }: BankDrawerProps) {
+  const { project } = useProjectQuery();
   const { items, loading, fetchItems } = useBankItems();
   const filterParams = useRef<Record<string, string>>({});
 
-  // Fetch when drawer opens
+  const fetchWithProject = useCallback(
+    (params: Record<string, string>) => {
+      const merged: Record<string, string> = { limit: "100", ...params };
+      if (project) merged.project = project;
+      return fetchItems(merged);
+    },
+    [fetchItems, project],
+  );
+
+  // Fetch when drawer opens or project changes
   useEffect(() => {
-    if (open) fetchItems({ limit: "100", ...filterParams.current });
-  }, [open, fetchItems]);
+    if (open) fetchWithProject(filterParams.current);
+  }, [open, fetchWithProject]);
 
   const handleFilterChange = useCallback(
     (params: Record<string, string>) => {
       filterParams.current = params;
-      fetchItems({ limit: "100", ...params });
+      fetchWithProject(params);
     },
-    [fetchItems],
+    [fetchWithProject],
   );
 
   const handleAddItem = useCallback(

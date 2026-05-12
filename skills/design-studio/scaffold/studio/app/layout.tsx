@@ -3,9 +3,11 @@
 import "./globals.css";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Moon, Sun, ListChecks, LayoutGrid } from "lucide-react";
 import { Agentation } from "agentation";
+import { useProjectQuery } from "@/app/lib/hooks";
+import { ProjectPicker } from "@/app/components/project-picker";
 
 export default function RootLayout({
   children,
@@ -15,9 +17,7 @@ export default function RootLayout({
   const [capture, setCapture] = useState(false);
   const [dark, setDark] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const project = searchParams.get("project");
-  const projectSuffix = project ? `?project=${encodeURIComponent(project)}` : "";
+  const { suffix: projectSuffix } = useProjectQuery();
 
   useEffect(() => {
     setCapture(new URLSearchParams(window.location.search).get("capture") === "true");
@@ -52,7 +52,9 @@ export default function RootLayout({
                   Design Studio
                 </span>
               </Link>
-              <div id="header-toolbar" className="flex flex-1 items-center justify-end gap-2" />
+              <div id="header-toolbar" className="flex flex-1 items-center justify-end gap-2">
+                <ProjectPicker />
+              </div>
               <Link
                 href={`/bank${projectSuffix}`}
                 className="flex h-8 items-center gap-1.5 rounded-md px-2.5 hover:bg-surface-2 transition-colors"
