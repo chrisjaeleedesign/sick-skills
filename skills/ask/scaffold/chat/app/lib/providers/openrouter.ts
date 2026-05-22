@@ -14,9 +14,61 @@ function getApiKey(): string {
   return key;
 }
 
+interface ImagePart {
+  type: string;
+  image_url: { url: string };
+}
+
+/**
+ * Non-streaming call. Returns text and any generated images.
+ */
+async function callNonStreaming(
+  messages: ApiMessage[],
+  model: string,
+  thinking?: string
+): Promise<{ text: string; images: string[] }> {
+  const apiKey = getApiKey();
+
+  const payload: Record<string, unknown> = {
+    model,
+    messages,
+  };
+
+  if (thinking) {
+    payload.reasoning = { effort: thinking };
+  }
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `OpenRouter API error ${response.status}: ${errorText.slice(0, 500)}`
+    );
+  }
+
+  const data = await response.json();
+  const msg = data.choices?.[0]?.message ?? {};
+  const text: string = msg.content ?? "";
+  const rawImages: ImagePart[] = msg.images ?? [];
+  const images = rawImages
+    .map((img) => img.image_url?.url)
+    .filter((url): url is string => !!url && url.startsWith("data:image/"));
+
+  return { text, images };
+}
+
 /**
  * Streaming call to OpenRouter.
- * Yields StreamChunk objects.
+ * Yields StreamChunk objects. Falls back to non-streaming for image models
+ * that return images instead of streamed text.
  */
 export async function* callStreaming(
   messages: ApiMessage[],
@@ -56,6 +108,7 @@ export async function* callStreaming(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let yieldedText = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -69,6 +122,7 @@ export async function* callStreaming(
       if (!line.startsWith("data: ")) continue;
       const dataStr = line.slice(6);
       if (dataStr === "[DONE]") {
+        if (!yieldedText) break;
         yield { type: "done" };
         return;
       }
@@ -94,9 +148,22 @@ export async function* callStreaming(
           yield { type: "reasoning", content: delta.reasoning };
         }
         if (delta.content) {
+          yieldedText = true;
           yield { type: "text", content: delta.content };
         }
       }
+    }
+  }
+
+  // Image models return content=null with an images array.
+  // If streaming yielded no text, fall back to non-streaming.
+  if (!yieldedText) {
+    const result = await callNonStreaming(messages, model, thinking);
+    if (result.text) {
+      yield { type: "text", content: result.text };
+    }
+    for (const imageDataUrl of result.images) {
+      yield { type: "image", content: imageDataUrl };
     }
   }
 
@@ -104,40 +171,13 @@ export async function* callStreaming(
 }
 
 /**
- * Non-streaming call.
+ * Non-streaming call (public API — returns just the text).
  */
 export async function call(
   messages: ApiMessage[],
   model: string,
   thinking?: string
 ): Promise<string> {
-  const apiKey = getApiKey();
-
-  const payload: Record<string, unknown> = {
-    model,
-    messages,
-  };
-
-  if (thinking) {
-    payload.reasoning = { effort: thinking };
-  }
-
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `OpenRouter API error ${response.status}: ${errorText.slice(0, 500)}`
-    );
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const result = await callNonStreaming(messages, model, thinking);
+  return result.text;
 }

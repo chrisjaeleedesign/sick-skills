@@ -22,7 +22,7 @@ export default function RootLayout({
   const { conversations, projects, fetchConversations, createConversation, deleteConversation } =
     useConversations(activeProject ?? undefined);
   const { meta, messages, refetch, setMessages } = useConversation(activeConversation);
-  const { sendMessage, streaming, streamingText, reasoningText, stopStreaming } =
+  const { sendMessage, streaming, streamingText, reasoningText, streamingImages, stopStreaming } =
     useChat(activeConversation);
 
   // Dark mode from system preference
@@ -48,7 +48,7 @@ export default function RootLayout({
   }, [createConversation, activeProject]);
 
   const handleSend = useCallback(
-    (content: string) => {
+    (content: string, attachments?: { data: string; mime: string; name: string }[]) => {
       // Optimistically add user message to the list
       setMessages((prev) => [
         ...prev,
@@ -63,6 +63,7 @@ export default function RootLayout({
       sendMessage({
         content,
         model: selectedModel,
+        attachments,
         onDone: () => {
           // Refetch to get the saved exchange
           refetch();
@@ -131,6 +132,7 @@ export default function RootLayout({
                 streamingText={streaming ? streamingText : undefined}
                 streamingModel={selectedModel}
                 reasoningText={streaming ? reasoningText : undefined}
+                streamingImages={streaming ? streamingImages : undefined}
               />
               <ChatInput
                 models={models}

@@ -118,6 +118,7 @@ export function useChat(filepath: string | null) {
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [reasoningText, setReasoningText] = useState("");
+  const [streamingImages, setStreamingImages] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
@@ -126,13 +127,15 @@ export function useChat(filepath: string | null) {
       model?: string;
       systemPrompt?: string;
       thinking?: string;
-      onDone?: (fullText: string) => void;
+      attachments?: { data: string; mime: string; name: string }[];
+      onDone?: (fullText: string, images: string[]) => void;
     }) => {
       if (!filepath || streaming) return;
 
       setStreaming(true);
       setStreamingText("");
       setReasoningText("");
+      setStreamingImages([]);
 
       const abort = new AbortController();
       abortRef.current = abort;
@@ -147,6 +150,7 @@ export function useChat(filepath: string | null) {
             filepath,
             systemPrompt: opts.systemPrompt,
             thinking: opts.thinking,
+            attachments: opts.attachments,
           }),
           signal: abort.signal,
         });
@@ -162,6 +166,7 @@ export function useChat(filepath: string | null) {
         const decoder = new TextDecoder();
         let buffer = "";
         let fullText = "";
+        const images: string[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -181,6 +186,9 @@ export function useChat(filepath: string | null) {
                 setStreamingText(fullText);
               } else if (chunk.type === "reasoning" && chunk.content) {
                 setReasoningText((prev) => prev + chunk.content);
+              } else if (chunk.type === "image" && chunk.content) {
+                images.push(chunk.content);
+                setStreamingImages([...images]);
               } else if (chunk.type === "error") {
                 throw new Error(chunk.content);
               }
@@ -191,7 +199,7 @@ export function useChat(filepath: string | null) {
           }
         }
 
-        opts.onDone?.(fullText);
+        opts.onDone?.(fullText, images);
       } catch (e) {
         if ((e as Error).name === "AbortError") return;
         console.error("Chat error:", e);
@@ -208,5 +216,5 @@ export function useChat(filepath: string | null) {
     setStreaming(false);
   }, []);
 
-  return { sendMessage, streaming, streamingText, reasoningText, stopStreaming };
+  return { sendMessage, streaming, streamingText, reasoningText, streamingImages, stopStreaming };
 }

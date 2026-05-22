@@ -1,12 +1,34 @@
 /* ── POST /api/chat — streaming chat endpoint (SSE) ── */
 
 import { NextRequest } from "next/server";
+import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { join, dirname } from "path";
 import { loadConfig, resolveModel } from "@/app/lib/config";
-import { loadConversation, appendExchange } from "@/app/lib/conversations";
+import { loadConversation, appendExchange, conversationDir } from "@/app/lib/conversations";
 import { buildMessagesForApi } from "@/app/lib/messages";
 import { callStreaming as openaiStream } from "@/app/lib/providers/openai";
 import { callStreaming as openrouterStream } from "@/app/lib/providers/openrouter";
-import type { StreamChunk } from "@/app/lib/types";
+import type { ApiMessage, StreamChunk } from "@/app/lib/types";
+
+/** Save a base64 data URL image to disk, return the file path. */
+function saveImage(dataUrl: string, index: number): string {
+  const dirPath = join(conversationDir(), "images");
+  if (!existsSync(dirPath)) {
+    mkdirSync(dirPath, { recursive: true });
+  }
+
+  const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+  if (!match) return "";
+
+  const ext = match[1];
+  const b64 = match[2];
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const filename = `${timestamp}_${index}.${ext}`;
+  const filepath = join(dirPath, filename);
+
+  writeFileSync(filepath, Buffer.from(b64, "base64"));
+  return filepath;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -16,12 +38,14 @@ export async function POST(req: NextRequest) {
     filepath,
     systemPrompt,
     thinking,
+    attachments,
   } = body as {
     content: string;
     model?: string;
     filepath: string;
     systemPrompt?: string;
     thinking?: string;
+    attachments?: { data: string; mime: string; name: string }[];
   };
 
   if (!content || !filepath) {
@@ -57,12 +81,13 @@ export async function POST(req: NextRequest) {
     // New or missing conversation — start fresh
   }
 
-  // Build API messages
+  // Build API messages, including any attached images
   const apiMessages = buildMessagesForApi({
     history,
     systemPrompt,
     currentContent: content,
     summary: meta?.summary ?? undefined,
+    attachments,
   });
 
   // Pick streaming function based on provider
@@ -73,6 +98,7 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       const textParts: string[] = [];
+      const imagePaths: string[] = [];
 
       try {
         const gen: AsyncGenerator<StreamChunk> = streamFn(
@@ -84,6 +110,10 @@ export async function POST(req: NextRequest) {
         for await (const chunk of gen) {
           if (chunk.type === "text" && chunk.content) {
             textParts.push(chunk.content);
+          } else if (chunk.type === "image" && chunk.content) {
+            // Save image to disk, send path to client (and data URL for rendering)
+            const savedPath = saveImage(chunk.content, imagePaths.length);
+            if (savedPath) imagePaths.push(savedPath);
           }
 
           controller.enqueue(
@@ -93,16 +123,20 @@ export async function POST(req: NextRequest) {
 
         // Save the exchange to the conversation file
         const fullText = textParts.join("");
-        if (fullText) {
+        if (fullText || imagePaths.length > 0) {
+          const assistantMsg: Record<string, unknown> = {
+            type: "assistant",
+            sender: modelId,
+            model: modelId,
+            content: fullText,
+          };
+          if (imagePaths.length > 0) {
+            assistantMsg.images = imagePaths;
+          }
           appendExchange(
             filepath,
             { type: "user", sender: "user", content },
-            {
-              type: "assistant",
-              sender: modelId,
-              model: modelId,
-              content: fullText,
-            }
+            assistantMsg as { type: "assistant"; sender: string; model: string; content: string }
           );
         }
       } catch (e) {

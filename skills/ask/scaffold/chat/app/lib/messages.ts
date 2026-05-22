@@ -1,6 +1,6 @@
 /* ── Build API messages from conversation history ── */
 
-import type { ConversationMessage, ApiMessage } from "./types";
+import type { ConversationMessage, ApiMessage, ContentPart } from "./types";
 
 const SUMMARY_CHAR_THRESHOLD = 80_000;
 const RECENT_EXCHANGES_TO_KEEP = 4;
@@ -14,14 +14,17 @@ function estimateChars(messages: ConversationMessage[]): number {
  *
  * When history exceeds ~80K chars, keeps only the last 4 exchanges verbatim
  * and prepends a summary of older messages (if provided).
+ *
+ * Attachments (base64 data URLs) are encoded as image_url content parts.
  */
 export function buildMessagesForApi(opts: {
   history: ConversationMessage[];
   systemPrompt?: string;
   currentContent: string;
   summary?: string;
+  attachments?: { data: string; mime: string; name: string }[];
 }): ApiMessage[] {
-  const { history, systemPrompt, currentContent, summary } = opts;
+  const { history, systemPrompt, currentContent, summary, attachments } = opts;
   const apiMessages: ApiMessage[] = [];
 
   if (systemPrompt) {
@@ -51,7 +54,21 @@ export function buildMessagesForApi(opts: {
     apiMessages.push({ role, content: msg.content });
   }
 
-  apiMessages.push({ role: "user", content: currentContent });
+  // Build current user message with optional image attachments
+  if (attachments && attachments.length > 0) {
+    const parts: ContentPart[] = [{ type: "text", text: currentContent }];
+    for (const att of attachments) {
+      if (att.mime.startsWith("image/")) {
+        parts.push({
+          type: "image_url",
+          image_url: { url: att.data },
+        });
+      }
+    }
+    apiMessages.push({ role: "user", content: parts });
+  } else {
+    apiMessages.push({ role: "user", content: currentContent });
+  }
 
   return apiMessages;
 }

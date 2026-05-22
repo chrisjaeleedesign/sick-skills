@@ -14,6 +14,7 @@ export interface ProviderConfig {
 
 export interface AppConfig {
   default_model: string;
+  last_updated?: string;
   aliases: Record<string, string>;
   providers: Record<string, ProviderConfig>;
 }
@@ -51,6 +52,7 @@ export interface AssistantMessage {
   exchange: number;
   persona?: string;
   system_prompt?: string;
+  images?: string[];
 }
 
 export type ConversationMessage = UserMessage | AssistantMessage;
@@ -71,7 +73,7 @@ export interface ContentPart {
 /* ── Streaming chunk types ── */
 
 export interface StreamChunk {
-  type: "reasoning" | "text" | "done" | "error";
+  type: "reasoning" | "text" | "image" | "done" | "error";
   content?: string;
 }
 

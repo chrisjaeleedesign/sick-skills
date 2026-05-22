@@ -17,6 +17,8 @@ Use Glob to check for `.agents/chat/package.json` in the current working directo
 
 **Regardless of `.agents/chat/` state:**
 - If `$ARGUMENTS` is "help" → display **HELP** text below
+- If `$ARGUMENTS` matches an intent to update/refresh models ("update models", "refresh models", "get latest models", "sync models", "what models are available") → route to **UPDATE-MODELS**
+- If `$ARGUMENTS` matches an intent to generate or edit images ("generate an image", "create an image", "draw", "make a picture", "image of", "illustrate", "edit this image", "make this look like", "turn this into") → route to **IMAGE-GEN**
 
 **If `.agents/chat/` does NOT exist:**
 - If `$ARGUMENTS` is empty or blank → route to **UI-INIT** (setup + run)
@@ -42,6 +44,8 @@ When ambiguous between UI-RUN and CLI: if the user mentions "browser", "web", "u
 | UI-RUN | Read and follow [prompts/ui-run.md](prompts/ui-run.md) |
 | UI-STATUS | Read and follow [prompts/ui-status.md](prompts/ui-status.md) |
 | CLI | Read [references/cli.md](references/cli.md) for the full CLI reference, then execute the request |
+| UPDATE-MODELS | Read and follow [prompts/update-models.md](prompts/update-models.md) |
+| IMAGE-GEN | Read and follow [prompts/image-gen.md](prompts/image-gen.md) |
 | STATUS | Show state briefly — server running? how many conversations? suggest next action |
 
 ## CLI Quick Start
@@ -95,6 +99,8 @@ When routing to CLI, further classify the intent:
 | `sonnet` | OpenRouter | Claude Sonnet 4.6 | Fast, balanced responses |
 | `opus` | OpenRouter | Claude Opus 4.6 | Complex writing, nuanced analysis |
 | `gemini` | OpenRouter | Gemini 3.1 Pro | Long context, multimodal |
+| `nanobanana` | OpenRouter | Nano Banana 2 (Gemini 3.1 Flash Image) | Image generation + editing |
+| `gpt-image` | OpenRouter | GPT-5 Image | Image generation |
 
 ## Important
 

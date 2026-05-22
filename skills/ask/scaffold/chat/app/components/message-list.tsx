@@ -9,6 +9,7 @@ interface MessageListProps {
   streamingText?: string;
   streamingModel?: string;
   reasoningText?: string;
+  streamingImages?: string[];
 }
 
 export default function MessageList({
@@ -16,17 +17,18 @@ export default function MessageList({
   streamingText,
   streamingModel,
   reasoningText,
+  streamingImages,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText]);
+  }, [messages, streamingText, streamingImages]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
-        {messages.length === 0 && !streamingText && (
+        {messages.length === 0 && !streamingText && !streamingImages?.length && (
           <div className="flex flex-col items-center justify-center gap-2 py-20 text-text-tertiary">
             <div className="text-4xl">💬</div>
             <p className="text-sm">Start a conversation</p>
@@ -40,6 +42,7 @@ export default function MessageList({
             content={msg.content}
             model={msg.type === "assistant" ? msg.model : undefined}
             persona={msg.type === "assistant" ? msg.persona : undefined}
+            images={msg.type === "assistant" ? (msg as { images?: string[] }).images : undefined}
           />
         ))}
 
@@ -50,11 +53,12 @@ export default function MessageList({
           </div>
         )}
 
-        {streamingText && (
+        {(streamingText || (streamingImages && streamingImages.length > 0)) && (
           <MessageBubble
             role="assistant"
-            content={streamingText}
+            content={streamingText ?? ""}
             model={streamingModel}
+            images={streamingImages}
             streaming
           />
         )}

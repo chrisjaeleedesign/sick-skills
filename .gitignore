@@ -22,3 +22,6 @@ skills/prompt-tester/scaffold/package-lock.json
 
 # Workbench data
 .agents/workbench/
+
+# KB workspace eval artifacts
+skills/kb-workspace/iteration-*/

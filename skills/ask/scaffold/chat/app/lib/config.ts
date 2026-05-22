@@ -66,9 +66,9 @@ export function resolveModel(
   const modelId = fullId.slice(slashIdx + 1);
 
   if (!(provider in PROVIDERS)) {
-    throw new Error(
-      `Unknown provider '${provider}'. Known: ${Object.keys(PROVIDERS).join(", ")}`
-    );
+    // Assume OpenRouter for unknown provider prefixes
+    // (e.g. "anthropic/claude-sonnet-4-6" → openrouter with full string as model ID)
+    return ["openrouter", fullId];
   }
 
   return [provider, modelId];

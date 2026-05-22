@@ -418,10 +418,18 @@ def main():
 
     # --- Call provider ---
     try:
-        response_text = call_model(model_str, config, api_messages, thinking=args.thinking)
+        response = call_model(model_str, config, api_messages, thinking=args.thinking)
     except Exception as e:
         print(f"Error calling {provider_name}/{model_id}: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Handle image responses (dict with text + images) vs plain text
+    if isinstance(response, dict):
+        response_text = response.get("text", "")
+        response_images = response.get("images", [])
+    else:
+        response_text = response
+        response_images = []
 
     # --- Save exchange ---
     # Per-message fields: each message tracks its own model, persona, system_prompt
@@ -439,6 +447,8 @@ def main():
         "model": model_id,
         "content": response_text,
     }
+    if response_images:
+        assistant_msg["images"] = response_images
     if persona_name:
         assistant_msg["persona"] = persona_name
     if system_prompt:
@@ -448,7 +458,10 @@ def main():
     append_exchange(conv_path, user_msg, assistant_msg, args.tag)
 
     # --- Output ---
-    print(response_text)
+    if response_text:
+        print(response_text)
+    for img_path in response_images:
+        print(f"[Image saved: {img_path}]")
     print(f"\n---\nconversation: {conv_path}")
 
 

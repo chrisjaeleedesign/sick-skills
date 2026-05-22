@@ -47,11 +47,10 @@ def resolve_model(model_str, config):
     model_id = parts[1]
 
     if provider not in PROVIDERS:
-        print(
-            f"Error: unknown provider '{provider}'. Known: {', '.join(PROVIDERS.keys())}",
-            file=sys.stderr,
-        )
-        sys.exit(2)
+        # Assume OpenRouter for unknown provider prefixes
+        # (e.g. "anthropic/claude-sonnet-4-6" → openrouter with model "anthropic/claude-sonnet-4-6")
+        model_id = full_id
+        provider = "openrouter"
 
     return provider, model_id
 

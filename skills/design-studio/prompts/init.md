@@ -4,32 +4,62 @@ You are setting up a `.agents/design/` workspace in the user's project.
 
 ## Steps
 
-1. **Copy scaffold** from this skill's `scaffold/` directory into `.agents/design/`:
-   - The scaffold mirrors the full `.agents/design/` directory structure
-   - Read each file from the scaffold and write it to the corresponding path under `.agents/design/`
-   - Top-level files: `manifest.json`, `journal-conventions.md`
-   - Top-level directories: `references/` (with `.gitkeep`), `studio/`
-   - Studio config files: `studio/package.json`, `studio/next.config.ts`, `studio/postcss.config.mjs`, `studio/tsconfig.json`
-   - Studio app files: `studio/app/globals.css`, `studio/app/layout.tsx`, `studio/app/page.tsx`, `studio/app/gallery.tsx`, `studio/app/family-card.tsx`, `studio/app/journal-modal.tsx`
-   - Studio lib files: `studio/app/lib/manifest.ts`, `studio/app/lib/constants.ts`, `studio/app/lib/types.ts`, `studio/app/lib/db.ts`, `studio/app/lib/grid.ts`
-   - Studio features page: `studio/app/features/page.tsx`, `studio/app/features/features.tsx`
-   - Studio features API: `studio/app/api/features/route.ts`
-   - Studio API routes: `studio/app/api/manifest/route.ts`, `studio/app/api/journal/route.ts`, `studio/app/api/journal/meta/route.ts`, `studio/app/api/screenshot/[family]/[version]/route.ts`
-   - Studio scripts: `studio/scripts/capture.ts`, `studio/scripts/journal-log.ts`
-   - Studio prototypes: `studio/app/prototypes/layout.tsx`, `studio/app/prototypes/example-dashboard/v1/page.tsx`
+1. **Safety guard.** If `.agents/design/` already exists in the user's project,
+   STOP. Tell the user: "Your project already has `.agents/design/`. Run
+   `/design-studio` (the dispatcher will route to UPDATE) or remove the
+   directory first." Do NOT overwrite an existing install.
 
-2. **Install dependencies:**
+2. **Copy the scaffold in one shot.** The skill's `scaffold/` directory mirrors
+   the full `.agents/design/` layout exactly. Resolve `${SKILL_DIR}` as the
+   directory containing this skill's `SKILL.md` (typically
+   `~/.claude/skills/design-studio` or its symlink target). Then run:
+
    ```bash
-   cd .agents/design/studio && bun install
+   mkdir -p .agents
+   cp -R "${SKILL_DIR}/scaffold/" .agents/design
    ```
 
-3. **Update .gitignore:** Append `.agents/design/` to the project's `.gitignore` if not already present.
+   Notes:
+   - The trailing slash on `scaffold/` is important — it copies the *contents*
+     of scaffold into `.agents/design`, so you end up with
+     `.agents/design/studio/...`, `.agents/design/manifest.json`, etc.
+   - `cp -R` preserves `.gitkeep`, nested directories, and all files without
+     enumeration. Never maintain a file list here; it drifts out of date with
+     the scaffold (e.g. the scaffold renamed `journal` → `entries` without
+     this prompt being updated, producing partial installs).
+   - If `cp -R` fails (permission error, missing scaffold, etc.), surface the
+     error verbatim and stop. Do not fall back to a partial manual copy.
 
-4. **Report:** Tell the user their design workspace is ready. Mention `/design-studio run` to start the server at localhost:3001.
+3. **Install dependencies, but skip Playwright's browser download.**
+   `scripts/capture.ts` uses Playwright to screenshot prototypes; the
+   install-time browser download (~450MB Chromium) pegs all cores on Intel
+   Macs for 5–10 minutes and nobody needs it until they actually run capture.
 
-5. **Chain:** If the original `$ARGUMENTS` contained design intent (not just "init" or empty), proceed to [create.md](create.md) with that intent.
+   ```bash
+   cd .agents/design/studio
+   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun install
+   ```
+
+   Tell the user:
+   > "Skipped Playwright's Chromium download to keep install fast. If you
+   > later want `bun run capture` to work, run
+   > `cd .agents/design/studio && npx playwright install chromium` — budget
+   > ~10 min on Intel Macs because the install pegs all cores."
+
+4. **Update `.gitignore`.** Append `.agents/design/` if not already present
+   (grep before appending, don't duplicate).
+
+5. **Report.** One-line status per prior step, then a summary:
+   "Design workspace ready at `.agents/design/`. Run `/design-studio run` to
+   start the server at localhost:3001."
+
+6. **Chain.** If the original `$ARGUMENTS` contained design intent (not just
+   "init" or empty), proceed to [create.md](create.md) with that intent.
 
 ## Constraints
 
-- Do NOT start the dev server automatically. The user will do that via `/design-studio run`.
+- Do NOT start the dev server automatically. The user controls that via
+  `/design-studio run`.
 - Keep output brief. One status line per step, then the summary.
+- Do NOT bypass Step 1's existing-directory guard. Overwriting a real install
+  destroys `manifest.json`, `journal.db`, and prototype work.

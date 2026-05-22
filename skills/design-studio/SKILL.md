@@ -27,6 +27,26 @@ User's request: $ARGUMENTS
 
 Use Glob to check for `.agents/design/manifest.json` in the current working directory.
 
+### Step 1.5: Stale-generation check
+
+If Step 1 found a manifest, probe the installed studio's shape before routing.
+The skill was refactored in April 2026 from `thoughts + journal` tables/routes
+to `entries + bank`. Installs created before that refactor will silently 500
+on every SQLite-backed API because the migration path can't be reentered.
+
+Use Glob to check for:
+- `.agents/design/studio/app/api/entries/route.ts` (**current** generation marker)
+- `.agents/design/studio/app/api/thoughts/route.ts` (**obsolete** generation marker)
+
+Decision table:
+
+| entries/ | thoughts/ | Action |
+|----------|-----------|--------|
+| present  | absent    | Current generation — proceed to Step 2 normally. |
+| absent   | present   | **Obsolete generation** — STOP routing. Tell the user: "Your `.agents/design/studio/` was installed before the April 2026 refactor (uses old `thoughts + journal` schema; current scaffold uses `entries + bank`). APIs will 500 until we upgrade. Routing to UPDATE." Then route to **UPDATE** regardless of `$ARGUMENTS`. |
+| both     | both      | Partial/corrupt install — route to UPDATE with a warning. |
+| neither  | neither   | Treat as missing install — route to INIT. |
+
 ### Step 2: Route based on intent
 
 **Regardless of `.agents/design/` state:**

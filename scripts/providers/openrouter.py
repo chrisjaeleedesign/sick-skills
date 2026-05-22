@@ -2,16 +2,38 @@
 OpenRouter provider — calls the OpenRouter chat completions API.
 
 Supports text and multimodal (image, video) inputs via the standard
-OpenAI-compatible message format.
+OpenAI-compatible message format. Handles image generation responses
+from models like Nano Banana 2 and GPT-5 Image.
 """
 
+import base64
 import json
 import os
 import sys
+from datetime import datetime
+from pathlib import Path
 
 import requests
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+def _save_images(images):
+    """Save base64-encoded images to disk. Returns list of saved file paths."""
+    img_dir = Path(".agents/model-calls/images")
+    img_dir.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for i, img in enumerate(images):
+        url = img.get("image_url", {}).get("url", "")
+        if not url.startswith("data:image/"):
+            continue
+        header, b64data = url.split(",", 1)
+        ext = header.split("/")[1].split(";")[0]
+        filename = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{i}.{ext}"
+        filepath = img_dir / filename
+        filepath.write_bytes(base64.b64decode(b64data))
+        saved.append(str(filepath.resolve()))
+    return saved
 
 
 def call(messages, model, system_prompt=None, attachments=None, thinking=None):
@@ -69,11 +91,20 @@ def call(messages, model, system_prompt=None, attachments=None, thinking=None):
     data = response.json()
 
     try:
-        return data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
     except (KeyError, IndexError) as e:
         print(f"Error: unexpected response format: {e}", file=sys.stderr)
         print(f"Response: {data}", file=sys.stderr)
         raise RuntimeError(f"Unexpected OpenRouter response format: {e}")
+
+    text = msg.get("content") or ""
+    images = msg.get("images", [])
+
+    if images:
+        saved_paths = _save_images(images)
+        return {"text": text, "images": saved_paths}
+
+    return text
 
 
 def call_streaming(messages, model, thinking=None):
@@ -81,7 +112,11 @@ def call_streaming(messages, model, thinking=None):
     Call OpenRouter with streaming enabled. Yields dicts:
       {"type": "reasoning", "content": "..."}
       {"type": "text", "content": "..."}
+      {"type": "image", "content": "/path/to/saved.png"}
       {"type": "done"}
+
+    Image models don't stream usefully, so we detect empty streams
+    and fall back to a non-streaming call to capture image output.
 
     Args:
         messages: List of message dicts in OpenAI chat format.
@@ -116,6 +151,8 @@ def call_streaming(messages, model, thinking=None):
             f"OpenRouter API error {response.status_code}: {error_detail}"
         )
 
+    yielded_text = False
+
     for raw_line in response.iter_lines():
         line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
         if not line or not line.startswith("data: "):
@@ -131,14 +168,25 @@ def call_streaming(messages, model, thinking=None):
         for choice in event.get("choices", []):
             delta = choice.get("delta", {})
 
-            # Reasoning content (OpenRouter uses "reasoning" field in delta)
             reasoning = delta.get("reasoning")
             if reasoning:
                 yield {"type": "reasoning", "content": reasoning}
 
-            # Text content
             content = delta.get("content")
             if content:
+                yielded_text = True
                 yield {"type": "text", "content": content}
+
+    # Image models return content=null with an images array in non-streaming mode.
+    # If streaming yielded no text, fall back to a non-streaming call.
+    if not yielded_text:
+        result = call(messages, model, thinking=thinking)
+        if isinstance(result, dict) and result.get("images"):
+            if result.get("text"):
+                yield {"type": "text", "content": result["text"]}
+            for img_path in result["images"]:
+                yield {"type": "image", "content": img_path}
+        elif isinstance(result, str) and result:
+            yield {"type": "text", "content": result}
 
     yield {"type": "done"}
