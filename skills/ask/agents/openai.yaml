@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ask"
+  short_description: "Get external model perspectives"
+  default_prompt: "Use $ask to get a second opinion on this plan."

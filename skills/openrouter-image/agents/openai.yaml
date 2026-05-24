@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenRouter Image"
+  short_description: "Generate images through OpenRouter"
+  default_prompt: "Use $openrouter-image to generate an image through OpenRouter."
