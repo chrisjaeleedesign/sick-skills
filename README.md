@@ -1,11 +1,15 @@
 # sick-skills
 
-Global skills for Claude Code. Each skill is a self-contained directory under `skills/` that gets symlinked into `~/.claude/skills/` for global availability.
+Global agent skills. Each skill is a self-contained directory under `skills/` that gets symlinked into agent skill directories for global availability.
 
 ## Skills
 
-- **wiggum** — Autonomous development loop. Scaffolds phased implementation plans, runs headless workers, and commits per phase. Invoke with `/wiggum`.
-- **discussion** — Thinking partner mode. Explore ideas, challenge assumptions, and design before writing code. Invoke with `/discussion`.
+- **ask** — External text-model perspectives with personas, flows, attachments, and JSONL conversation history.
+- **design-studio** — Interactive UI prototype gallery and design exploration tools.
+- **gws** — Google Workspace CLI wrapper for Drive, Docs, and Sheets operations.
+- **kb** — Shared Google Drive knowledge-base lookup and update flow.
+- **openrouter-image** — OpenRouter image generation and editing through the shared model runtime.
+- **wiggum** — Autonomous development loop. Scaffolds phased implementation plans, runs workers, and commits per phase.
 
 ## Install
 
@@ -13,7 +17,7 @@ Global skills for Claude Code. Each skill is a self-contained directory under `s
 bash install.sh
 ```
 
-This symlinks each skill in `skills/` to your global `~/.claude/skills/` directory. Safe to re-run — already-linked skills are skipped.
+This symlinks each skill in `skills/` to configured global skill directories. Safe to re-run; already-linked skills are skipped.
 
 ## Adding a new skill
 
