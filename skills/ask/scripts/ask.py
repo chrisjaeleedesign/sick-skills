@@ -39,7 +39,7 @@ from core import (
     resolve_content,
     resolve_model,
 )
-from messages import build_messages_for_api
+from model_runtime.messages import build_messages_for_api
 
 # Load .env from repo root
 load_env(REPO_ROOT)

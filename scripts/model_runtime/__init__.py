@@ -18,10 +18,12 @@ from .config import (
     resolve_model,
     resolve_model_info,
 )
+from .messages import build_messages_for_api
 
 __all__ = [
     "ModelResolution",
     "PROVIDERS",
+    "build_messages_for_api",
     "call_model",
     "call_model_normalized",
     "call_model_streaming",

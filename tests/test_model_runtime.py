@@ -22,7 +22,6 @@ warnings.filterwarnings(
     message="urllib3 v2 only supports OpenSSL.*",
 )
 
-from messages import build_messages_for_api
 from model_runtime import (
     call_model_normalized,
     collect_attachments,
@@ -33,6 +32,7 @@ from model_runtime import (
     resolve_model_info,
 )
 from model_runtime.artifacts import save_data_url_images
+from model_runtime.messages import build_messages_for_api
 
 
 def load_module(name, path):

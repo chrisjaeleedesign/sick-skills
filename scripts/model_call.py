@@ -6,7 +6,6 @@ import json
 import sys
 from pathlib import Path
 
-from messages import build_messages_for_api
 from model_runtime import (
     call_model,
     collect_attachments,
@@ -17,6 +16,7 @@ from model_runtime import (
     resolve_content,
     resolve_model_info,
 )
+from model_runtime.messages import build_messages_for_api
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent

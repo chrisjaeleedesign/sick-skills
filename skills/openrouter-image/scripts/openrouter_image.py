@@ -13,7 +13,6 @@ REPO_ROOT = SKILL_DIR.parent.parent
 
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from messages import build_messages_for_api
 from model_runtime import (
     call_model,
     collect_attachments,
@@ -24,6 +23,7 @@ from model_runtime import (
     resolve_content,
     resolve_model_info,
 )
+from model_runtime.messages import build_messages_for_api
 
 load_env(REPO_ROOT)
 
