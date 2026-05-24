@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-ask.py — Call external models via OpenRouter or OpenAI.
+ask.py - Call external text models via OpenRouter or OpenAI.
 
-A general-purpose pipe for coding agents to call external models.
+A pipe for coding agents to get external-model perspectives.
 Handles CLI parsing, conversation file management, provider routing,
-and multimodal attachments. Providers are thin modules that just make
-API calls and return text.
+and multimodal attachments.
 
 Usage:
     python3 ask.py --model gpt5 --content "What do you think?"
@@ -33,11 +32,12 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from core import (
     call_model,
     collect_attachments,
+    default_config_path,
     load_config,
     load_env,
+    model_has_capability,
     resolve_content,
     resolve_model,
-    PROVIDERS,
 )
 from messages import build_messages_for_api
 
@@ -244,7 +244,7 @@ def show_conversation(path):
 def parse_args():
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
-        description="Call external models via OpenRouter or OpenAI."
+        description="Call external text models via OpenRouter or OpenAI."
     )
     parser.add_argument(
         "--model",
@@ -328,7 +328,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    config = load_config(SKILL_DIR / "config.yaml")
+    config = load_config(default_config_path(REPO_ROOT))
 
     # --- Handle --show ---
     if args.show:
@@ -346,6 +346,15 @@ def main():
 
     # --- Resolve model ---
     model_str = args.model or config.get("default_model", "gpt5")
+    if (
+        model_has_capability(model_str, config, "image")
+        and not model_has_capability(model_str, config, "text")
+    ):
+        print(
+            "Error: ask is for text perspectives. Use openrouter-image for image models.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
     provider_name, model_id = resolve_model(model_str, config)
 
     # --- Resolve content ---

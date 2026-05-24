@@ -1,146 +1,98 @@
 ---
 name: ask
-description: "Get perspectives from external models, personas, or structured thinking flows — via CLI or a browser chat UI. Use whenever the user wants a second opinion, fresh take, multi-model comparison, structured exploration, or says things like 'ask gpt5', 'what would a security engineer think', 'let's think through this', 'go wide', 'challenge this', or 'DeepThink'. Also use when the user wants to: open a chat UI, start a web-based conversation, talk to models in a browser, manage chat projects, or says 'open the chat', 'start the chat app', 'launch the chat', 'web chat'. Also use when another skill needs to call an external model."
+description: "Get text perspectives from external models, personas, or structured thinking flows. Use when the user explicitly wants a second opinion, a named model take, multi-model comparison, or a perspective such as devil's advocate, pragmatist, security reviewer, product thinker, or similar. Do not use for generic reasoning, browser chat UI, image generation, model registry maintenance, or broad phrases like 'let's think through this' unless the user clearly asks for an external model."
 ---
 
 # ask
 
-Get a perspective — from an external model, through a persona lens, via a structured thinking flow, or in a browser chat UI. One skill, shared conversation logs, composable pieces.
+Get text-only perspective from external models. Keep this skill narrow: it is for asking another model, usually with enough context to make that model useful.
 
 User's request: $ARGUMENTS
 
-## Step 0: Check State
+## Route
 
-Use Glob to check for `.agents/chat/package.json` in the current working directory.
+- If `$ARGUMENTS` is `help`, show the help text below.
+- If the user asks to generate or edit an image, do not use this skill. Use `openrouter-image` only when the user specifically wants OpenRouter image models; otherwise use Codex's built-in image generation path.
+- If the user asks for a browser chat UI, say this skill no longer owns one.
+- If the user asks to update, refresh, or list available models, inspect `config/models.yaml` directly. Do not route through `ask`.
+- If the user asks a normal question without requesting an external model or perspective, answer normally.
+- If the user asks for a second opinion, named model, persona, comparison, or structured perspective, use the CLI.
 
-## Step 1: Route Based on Intent
+## CLI
 
-**Regardless of `.agents/chat/` state:**
-- If `$ARGUMENTS` is "help" → display **HELP** text below
-- If `$ARGUMENTS` matches an intent to update/refresh models ("update models", "refresh models", "get latest models", "sync models", "what models are available") → route to **UPDATE-MODELS**
-- If `$ARGUMENTS` matches an intent to generate or edit images ("generate an image", "create an image", "draw", "make a picture", "image of", "illustrate", "edit this image", "make this look like", "turn this into") → route to **IMAGE-GEN**
-
-**If `.agents/chat/` does NOT exist:**
-- If `$ARGUMENTS` is empty or blank → route to **UI-INIT** (setup + run)
-- If `$ARGUMENTS` implies wanting the browser chat → route to **UI-INIT**, then chain to **UI-RUN**
-- If `$ARGUMENTS` is a question or model request → route to **CLI** (the CLI works without the web UI)
-
-**If `.agents/chat/` exists:**
-
-Read `$ARGUMENTS` naturally and determine which route matches:
-
-- **UI-RUN** — User wants to see or open the chat UI. ("open the chat", "launch it", "run the web ui", "start the server", "let me chat in the browser", "fire it up", "I want the web interface")
-- **UI-STATUS** — User wants to know what conversations exist or if the server is running. ("what conversations do I have", "is the chat running", "show me my projects", "status")
-- **CLI** — User wants to call a model right now from the terminal. This is any question, request for a perspective, or explicit model/persona flags. ("ask gpt5 about X", "what would a security engineer think", "challenge this", "go wide on caching", "--model sonnet", "is this thread-safe")
-- **STATUS** — The input is empty. Show current state: whether server is running, number of conversations, and suggest either `/ask open` or `/ask [question]`.
-
-When ambiguous between UI-RUN and CLI: if the user mentions "browser", "web", "ui", "open", "launch", or implies wanting a visual interface, route to UI-RUN. If they have a specific question or topic, route to CLI. **Default: CLI** — most users invoking `/ask` with content want a model response, not to start a server.
-
-## Step 2: Execute Route
-
-| Route | Action |
-|-------|--------|
-| UI-INIT | Read and follow [prompts/ui-init.md](prompts/ui-init.md) |
-| UI-RUN | Read and follow [prompts/ui-run.md](prompts/ui-run.md) |
-| UI-STATUS | Read and follow [prompts/ui-status.md](prompts/ui-status.md) |
-| CLI | Read [references/cli.md](references/cli.md) for the full CLI reference, then execute the request |
-| UPDATE-MODELS | Read and follow [prompts/update-models.md](prompts/update-models.md) |
-| IMAGE-GEN | Read and follow [prompts/image-gen.md](prompts/image-gen.md) |
-| STATUS | Show state briefly — server running? how many conversations? suggest next action |
-
-## CLI Quick Start
-
-For CLI usage, read the full reference at [references/cli.md](references/cli.md). The basics:
+Read [references/cli.md](references/cli.md), then call:
 
 ```bash
-# Simple question
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --model gpt5 --content "What's the best approach for rate limiting?"
-
-# With a persona
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --model gpt5 --persona devils-advocate \
-  --content "Challenge this architecture decision"
-
-# Continue a conversation
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --continue .agents/model-calls/2026-03-30_arch-review.jsonl \
-  --content "What about the scaling concerns?"
+python3 <ask-skill-dir>/scripts/ask.py --model gpt5 --content "Question here"
 ```
 
-**The principle: the simpler the ask, the less you bother the user.** Questions with one right answer just go. Questions with tradeoffs get a brief check-in. Open exploration gets a flow suggestion.
+Use the real path to this skill directory. In this repo it is usually:
 
-### CLI Intent Sub-Routing
+```bash
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py --model gpt5 --content "Question here"
+```
 
-When routing to CLI, further classify the intent:
+## Intent Handling
 
-**Simple question, one right answer** → just call the model and return the answer. No ceremony.
+Simple second opinion:
+- Call one model.
+- Return the useful answer and the conversation file path.
 
-**Comparison or tradeoff question** → suggest going wide or checking in first.
-- Suggest: "There are good arguments on both sides here. Want me to go wide and get a few different takes, or just give you my recommendation?"
+Specific perspective:
+- Use `--persona` with a built-in persona or a short inline description.
 
-**Wants a specific perspective** → use a persona.
+Comparison:
+- Run separate calls for the requested models or personas.
+- Synthesize the differences yourself after collecting outputs.
 
-**Broad exploration, open-ended** → suggest or start a flow.
-- "DeepThink" or "UltraThink" → start a wide flow with parallel persona calls
+Flow:
+- Use `--flow` only as metadata. Read the matching file in `flows/` and execute the steps yourself.
 
-**Explicit flags** → respect them, skip the routing.
-
-**Ambiguous** → ask briefly.
+Attachments:
+- Use `--attach` for screenshots, images, videos, or text files the external model needs.
+- Copy unstable pasted-image temp files into a stable workspace path before attaching.
 
 ## Models
 
-| Alias | Provider | Model | Best for |
-|-------|----------|-------|----------|
-| `gpt5` | OpenAI | GPT-5.4 | Vision, multimodal, general reasoning (default) |
-| `mini` | OpenAI | GPT-5.4-mini | Fast, efficient responses |
-| `codex` | OpenAI | GPT-5.3-Codex | Complex software engineering |
-| `spark` | OpenAI | GPT-5.3-Codex-Spark | Ultra-fast (1000+ tok/s), real-time iteration. Text-only. |
-| `sonnet` | OpenRouter | Claude Sonnet 4.6 | Fast, balanced responses |
-| `opus` | OpenRouter | Claude Opus 4.6 | Complex writing, nuanced analysis |
-| `gemini` | OpenRouter | Gemini 3.1 Pro | Long context, multimodal |
-| `nanobanana` | OpenRouter | Nano Banana 2 (Gemini 3.1 Flash Image) | Image generation + editing |
-| `gpt-image` | OpenRouter | GPT-5 Image | Image generation |
+Text aliases live in `config/models.yaml`.
+
+| Alias | Provider | Best for |
+|-------|----------|----------|
+| `gpt5` | OpenAI via Codex auth | Default reasoning and multimodal review |
+| `mini` | OpenAI via Codex auth | Fast inexpensive summaries |
+| `codex` | OpenAI via Codex auth | Software engineering analysis |
+| `spark` | OpenAI via Codex auth | Fast iteration |
+| `sonnet` | OpenRouter | Balanced external critique |
+| `opus` | OpenRouter | Nuanced analysis and writing |
+| `gemini` | OpenRouter | Long context and multimodal review |
+
+Image aliases such as `nanobanana` and `gpt-image` are for `openrouter-image`, not `ask`.
 
 ## Important
 
-1. **The called model has ZERO project context.** Include everything it needs in `--content` and `--system-prompt`.
-2. **Use `--continue` for follow-ups** rather than starting a new conversation.
-3. **Use `--branch` to explore alternatives.** The original stays untouched.
+1. The called model has no ambient project context. Put the needed facts in `--content`, `--system-prompt`, and `--attach`.
+2. Use `--continue` for follow-ups rather than starting a new conversation.
+3. Use `--branch` for alternative directions.
+4. Conversation files are JSONL under `.agents/model-calls/`.
 
-## Conversation Files
+## First-Time Setup
 
-Stored as JSONL in `.agents/model-calls/`. Shared between CLI and web UI — start in the browser, continue from the terminal, or vice versa.
-
-## First-Time OpenAI Setup
-
-OpenAI models use tokens from `~/.codex/auth.json` (created by `codex login`). If tokens are expired, the script runs `codex login` automatically. No API key needed — uses your ChatGPT subscription.
-
----
+OpenAI aliases use `~/.codex/auth.json` from `codex login`.
+OpenRouter aliases require `OPENROUTER_API_KEY` in the repo `.env` or shell environment.
 
 ## HELP Text
 
-> **ask** — multi-model perspectives, CLI and browser
+> **ask** - external text-model perspectives
 >
-> ### Browser Chat
-> ```
-> /ask open                    # Start chat UI at localhost:3002
-> /ask                         # Same — sets up on first run
-> /ask status                  # Show conversations and server state
-> ```
->
-> ### CLI (from within Claude Code)
-> ```
-> /ask is this function thread-safe?
+> ```bash
+> /ask ask gpt5 to review this plan
 > /ask what would a security engineer think about this auth flow?
-> /ask go wide on how to handle caching
-> /ask --model sonnet challenge this architecture
+> /ask go wide with pragmatist and devil's advocate takes
 > ```
 >
-> ### Features
-> - **Multi-model**: gpt5, sonnet, opus, spark, gemini, and more
-> - **Personas**: devils-advocate, pragmatist, visionary, or any custom perspective
-> - **Flows**: wide (fan out), challenge (steelman), double-diamond
-> - **Streaming**: Real-time responses in both CLI and browser
-> - **Shared history**: JSONL files in `.agents/model-calls/` — CLI and browser share conversations
-> - **Thinking mode**: `--thinking high` for deep reasoning on complex problems
+> Features:
+> - Text model calls through shared runtime
+> - Personas from `personas/`
+> - Flow metadata from `flows/`
+> - JSONL conversation history in `.agents/model-calls/`
+> - Attachments via `--attach`

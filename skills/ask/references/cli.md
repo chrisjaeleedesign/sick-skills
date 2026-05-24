@@ -1,21 +1,22 @@
 # CLI Reference
 
-Full reference for calling external models via the `ask.py` script.
+Full reference for calling external text models through `ask.py`.
 
 ## Arguments
 
 | Arg | Required | Description |
 |-----|----------|-------------|
-| `--model` | No | Model alias or `provider/model-id`. Default: `gpt5` |
-| `--content` | Yes | The prompt. Literal string, file path (if exists), or `-` for stdin |
+| `--model` | No | Model alias or `provider/model-id`. Default comes from `config/models.yaml` |
+| `--content` | Yes | Prompt: literal string, file path, or `-` for stdin |
 | `--system-prompt` | No | Path to system instruction file |
-| `--persona` | No | Persona name (from `personas/`) or inline description string |
-| `--flow` | No | Flow name (recorded in metadata) |
-| `--attach` | No | Repeatable. Path to image/video/file attachment |
-| `--id` | No | Name for the conversation file |
-| `--tag` | No | Repeatable. Categorization tag |
-| `--continue` | No | Path to conversation file to continue |
-| `--branch` | No | Path to conversation file to branch from |
+| `--persona` | No | Persona name from `personas/` or inline description |
+| `--flow` | No | Flow name recorded in metadata |
+| `--attach` | No | Repeatable attachment path |
+| `--id` | No | Conversation file id |
+| `--title` | No | Human-readable conversation title |
+| `--tag` | No | Repeatable categorization tag |
+| `--continue` | No | Conversation file to continue |
+| `--branch` | No | Conversation file to branch from |
 | `--from` | With `--branch` | Exchange number to branch from |
 | `--show` | No | Pretty-print a conversation file |
 | `--thinking` | No | Reasoning effort: `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
@@ -24,96 +25,99 @@ Full reference for calling external models via the `ask.py` script.
 
 ```bash
 # Simple question
-python3 ~/.claude/skills/ask/scripts/ask.py \
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
   --model gpt5 --content "What's the best approach for rate limiting?"
 
-# With a persona
-python3 ~/.claude/skills/ask/scripts/ask.py \
-  --model gpt5 --persona devils-advocate \
+# Built-in persona
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
+  --model sonnet --persona devils-advocate \
   --content "Challenge this architecture decision" \
   --id arch-review --tag architecture
 
 # Custom inline persona
-python3 ~/.claude/skills/ask/scripts/ask.py \
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
   --model spark --persona "a grumpy DBA who hates unnecessary joins" \
   --content "Review this schema"
 
-# With a flow
-python3 ~/.claude/skills/ask/scripts/ask.py \
+# Flow metadata
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
   --flow wide --model gpt5 \
   --content "How should we handle caching?" \
   --id caching-exploration
 
 # Continue a conversation
-python3 ~/.claude/skills/ask/scripts/ask.py \
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
   --continue .agents/model-calls/2026-03-30_arch-review.jsonl \
   --content "What about the scaling concerns?"
 
 # Branch from exchange 2
-python3 ~/.claude/skills/ask/scripts/ask.py \
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
   --branch .agents/model-calls/2026-03-30_arch-review.jsonl \
   --from 2 --content "What if we used event sourcing instead?"
 
 # Show a conversation
-python3 ~/.claude/skills/ask/scripts/ask.py \
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
   --show .agents/model-calls/2026-03-30_arch-review.jsonl
 ```
 
 ## Personas
 
-Personas shape how a model responds by setting a perspective lens.
+Personas shape the response lens.
 
-**Pre-baked personas** (in `personas/` directory):
-- `devils-advocate` — challenge assumptions, find holes
-- `pragmatist` — feasibility, effort, what actually ships
-- `visionary` — long-term implications, possibilities
+Built-ins:
+- `devils-advocate` - challenge assumptions and find holes
+- `pragmatist` - feasibility, effort, what actually ships
+- `visionary` - long-term implications and possibilities
 
-**Custom personas** — pass any description inline:
-- `--persona "a first-time user who's never seen this product"`
-- `--persona "a compliance officer worried about GDPR"`
+Custom personas can be inline:
 
-For guidance on writing good personas, read `personas/crafting-guide.md`.
+```bash
+--persona "a first-time user who's never seen this product"
+```
+
+For persona-writing guidance, read `personas/crafting-guide.md`.
 
 ## Flows
 
-Flows structure multi-step thinking conversations. The script records the flow name in metadata; you manage the actual steps by following the flow file.
+Flows are lightweight orchestration notes. The script records the flow name in metadata; the calling agent still reads and executes the flow file.
 
-**Pre-baked flows** (in `flows/` directory):
-- `wide` — fan out for multiple perspectives, synthesize, ask user which resonates
-- `challenge` — argue against a position, then steelman the result
-- `double-diamond` — discover → define → develop → deliver
+Built-ins:
+- `wide` - fan out for multiple perspectives and synthesize
+- `challenge` - argue against a position, then steelman
+- `double-diamond` - discover, define, develop, deliver
 
-For guidance on designing custom flows, read `flows/crafting-guide.md`.
+For flow guidance, read `flows/crafting-guide.md`.
 
 ## Output
 
-The response prints directly to stdout. After the response, a separator line shows the conversation file path:
+The response prints to stdout. The final line includes the conversation file path:
 
-```
+```text
 [model response here]
 
 ---
 conversation: .agents/model-calls/2026-03-30_arch-review.jsonl
 ```
 
-**Always capture the conversation file path** — you'll need it for `--continue` or `--branch`.
+Keep the conversation path for `--continue` or `--branch`.
 
-## Images and Attachments
+## Attachments
 
-When the user pastes or references an image, copy it to a stable location first (temp paths get cleaned up), then pass with `--attach`:
+When the user references an image or file, attach a stable path:
 
 ```bash
+mkdir -p .agents/media
 cp /var/folders/.../paste-image.png .agents/media/screenshot.png
-python3 ~/.claude/skills/ask/scripts/ask.py \
+python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py \
   --model gpt5 \
-  --content "What do you think of this UI design?" \
+  --content "Review this UI." \
   --attach .agents/media/screenshot.png
 ```
 
 ## Thinking Mode
 
-`--thinking high` or `--thinking xhigh` enables deep reasoning on models that support it (gpt5, codex).
+`--thinking high` or `--thinking xhigh` enables deeper reasoning on models that support it.
 
-- Reasoning progress streams to stderr as `[thinking] ...` lines
-- Calls can take a long time — set Bash `timeout=600000` (10 minutes)
-- Reserve for problems that benefit from extended reasoning
+- Reasoning progress may stream to stderr.
+- Calls can take a long time.
+- Reserve this for problems that benefit from extended reasoning.
