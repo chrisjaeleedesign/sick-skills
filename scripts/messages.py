@@ -72,9 +72,11 @@ def summarize_messages(messages, config, call_model_fn):
     )
 
     try:
+        summarizer_model = config.get("default_summarizer_model", "spark")
         summary = call_model_fn(
-            "spark", config,
-            [{"role": "user", "content": summary_prompt}]
+            summarizer_model,
+            config,
+            [{"role": "user", "content": summary_prompt}],
         )
         return summary.strip()
     except Exception as e:

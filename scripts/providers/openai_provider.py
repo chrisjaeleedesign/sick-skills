@@ -7,12 +7,12 @@ to refresh. No separate auth flow needed.
 """
 
 import json
+import base64
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-import jwt
 import requests
 
 # Codex auth token locations (checked in order)
@@ -53,26 +53,39 @@ def _load_codex_auth():
         return None
 
 
+def _decode_jwt_payload(access_token):
+    """Decode a JWT payload without verifying the signature."""
+    try:
+        parts = access_token.split(".")
+        if len(parts) < 2:
+            return {}
+        payload = parts[1]
+        padding = "=" * (-len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(payload + padding)
+        return json.loads(decoded)
+    except (json.JSONDecodeError, ValueError):
+        return {}
+
+
 def _is_token_expired(access_token):
     """Check if a JWT access token is expired (with 5 min buffer)."""
+    payload = _decode_jwt_payload(access_token)
+    if not payload:
+        return True
     try:
-        payload = jwt.decode(access_token, options={"verify_signature": False})
         exp = payload.get("exp", 0)
         return time.time() > (exp - 300)
-    except jwt.DecodeError:
+    except TypeError:
         return True
 
 
 def _extract_account_id(access_token):
     """Extract chatgpt_account_id from the JWT access token."""
-    try:
-        payload = jwt.decode(access_token, options={"verify_signature": False})
-        auth_claim = payload.get("https://api.openai.com/auth", {})
-        if isinstance(auth_claim, dict):
-            return auth_claim.get("chatgpt_account_id")
-        return None
-    except jwt.DecodeError:
-        return None
+    payload = _decode_jwt_payload(access_token)
+    auth_claim = payload.get("https://api.openai.com/auth", {})
+    if isinstance(auth_claim, dict):
+        return auth_claim.get("chatgpt_account_id")
+    return None
 
 
 def _run_codex_login():

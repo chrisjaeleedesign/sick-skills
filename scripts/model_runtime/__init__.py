@@ -1,23 +1,26 @@
-"""Compatibility exports for the shared model runtime."""
+"""Shared model runtime for sick-skills."""
 
-from model_runtime import (
+from .attachments import collect_attachments, resolve_content
+from .client import (
     PROVIDERS,
     call_model,
     call_model_normalized,
     call_model_streaming,
-    collect_attachments,
+    normalize_response,
+)
+from .config import (
+    ModelResolution,
     default_config_path,
     default_model_for_role,
     load_config,
     load_env,
     model_has_capability,
-    normalize_response,
-    resolve_content,
     resolve_model,
     resolve_model_info,
 )
 
 __all__ = [
+    "ModelResolution",
     "PROVIDERS",
     "call_model",
     "call_model_normalized",

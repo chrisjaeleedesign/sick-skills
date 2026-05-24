@@ -1,0 +1,44 @@
+default_model: gpt5
+default_summarizer_model: mini
+default_image_model: nanobanana
+
+aliases:
+  # OpenAI via Codex backend.
+  gpt5:
+    id: openai/gpt-5.4
+    capabilities: [text, vision, streaming, reasoning]
+  mini:
+    id: openai/gpt-5.4-mini
+    capabilities: [text, streaming]
+  codex:
+    id: openai/gpt-5.3-codex
+    capabilities: [text, streaming, reasoning]
+  spark:
+    id: openai/gpt-5.3-codex-spark
+    capabilities: [text, streaming]
+
+  # OpenRouter text models.
+  sonnet:
+    id: openrouter/anthropic/claude-sonnet-4-6
+    capabilities: [text, vision, streaming, reasoning]
+  opus:
+    id: openrouter/anthropic/claude-opus-4-6
+    capabilities: [text, vision, streaming, reasoning]
+  gemini:
+    id: openrouter/google/gemini-3.1-pro
+    capabilities: [text, vision, streaming, reasoning]
+
+  # OpenRouter image models.
+  nanobanana:
+    id: openrouter/google/gemini-3.1-flash-image-preview
+    capabilities: [image, vision]
+  gpt-image:
+    id: openrouter/openai/gpt-5-image
+    capabilities: [image, vision]
+
+providers:
+  openai:
+    auth: codex-oauth
+    token_source: ~/.codex/auth.json
+  openrouter:
+    env_key: OPENROUTER_API_KEY

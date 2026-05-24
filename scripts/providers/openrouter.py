@@ -6,34 +6,14 @@ OpenAI-compatible message format. Handles image generation responses
 from models like Nano Banana 2 and GPT-5 Image.
 """
 
-import base64
 import json
 import os
 import sys
-from datetime import datetime
-from pathlib import Path
 
 import requests
+from model_runtime.artifacts import save_data_url_images
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-
-
-def _save_images(images):
-    """Save base64-encoded images to disk. Returns list of saved file paths."""
-    img_dir = Path(".agents/model-calls/images")
-    img_dir.mkdir(parents=True, exist_ok=True)
-    saved = []
-    for i, img in enumerate(images):
-        url = img.get("image_url", {}).get("url", "")
-        if not url.startswith("data:image/"):
-            continue
-        header, b64data = url.split(",", 1)
-        ext = header.split("/")[1].split(";")[0]
-        filename = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{i}.{ext}"
-        filepath = img_dir / filename
-        filepath.write_bytes(base64.b64decode(b64data))
-        saved.append(str(filepath.resolve()))
-    return saved
 
 
 def call(messages, model, system_prompt=None, attachments=None, thinking=None):
@@ -101,7 +81,7 @@ def call(messages, model, system_prompt=None, attachments=None, thinking=None):
     images = msg.get("images", [])
 
     if images:
-        saved_paths = _save_images(images)
+        saved_paths = save_data_url_images(images)
         return {"text": text, "images": saved_paths}
 
     return text
