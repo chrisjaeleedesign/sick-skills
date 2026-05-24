@@ -32,6 +32,8 @@ Use the real path to this skill directory. In this repo it is usually:
 python3 /Volumes/Misc/sick-skills/skills/ask/scripts/ask.py --model gpt5 --content "Question here"
 ```
 
+Run commands from the user's active workspace. New and branched conversations are saved under the current working directory's `.agents/model-calls/`. The CLI refuses to create default conversation files when run from `/Volumes/Misc/sick-skills`.
+
 ## Intent Handling
 
 Simple second opinion:
@@ -73,7 +75,7 @@ Image aliases such as `nanobanana` and `gpt-image` are for `openrouter-image`, n
 1. The called model has no ambient project context. Put the needed facts in `--content`, `--system-prompt`, and `--attach`.
 2. Use `--continue` for follow-ups rather than starting a new conversation.
 3. Use `--branch` for alternative directions.
-4. Conversation files are JSONL under `.agents/model-calls/`.
+4. Conversation files are JSONL under the active workspace's `.agents/model-calls/`.
 
 ## First-Time Setup
 

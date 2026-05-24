@@ -62,9 +62,23 @@ def resolve_persona(persona_arg):
 # --- Conversation file management ---
 
 
+def current_workspace_dir():
+    """Return caller workspace, refusing the skill repo as default storage."""
+    cwd = Path.cwd().resolve()
+    repo_root = REPO_ROOT.resolve()
+    if cwd == repo_root or repo_root in cwd.parents:
+        print(
+            "Error: refusing to save ask conversations under the skill repo by default. "
+            "Run this command from the target workspace.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    return cwd
+
+
 def conversation_dir():
     """Get the model-calls directory in the current workspace."""
-    d = Path.cwd() / ".agents" / "model-calls"
+    d = current_workspace_dir() / ".agents" / "model-calls"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

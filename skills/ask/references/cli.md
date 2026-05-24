@@ -2,6 +2,8 @@
 
 Full reference for calling external text models through `ask.py`.
 
+Run `ask.py` from the target workspace. New and branched conversations are saved under the current working directory's `.agents/model-calls/`; the CLI refuses to create default conversations from the `sick-skills` repo.
+
 ## Arguments
 
 | Arg | Required | Description |

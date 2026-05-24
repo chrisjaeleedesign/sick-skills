@@ -325,6 +325,17 @@ class CliBoundaryTests(unittest.TestCase):
             REPO_ROOT / "skills" / "ask" / "scripts" / "ask.py",
         )
 
+        with ChangeDir(REPO_ROOT):
+            with patch.object(
+                sys,
+                "argv",
+                ["ask.py", "--content", "question"],
+            ):
+                with patch("sys.stderr", io.StringIO()):
+                    with self.assertRaises(SystemExit) as cm:
+                        ask.main()
+        self.assertEqual(cm.exception.code, 2)
+
         with tempfile.TemporaryDirectory() as tmp:
             with ChangeDir(tmp):
                 with patch.object(ask, "call_model", return_value="first"):
