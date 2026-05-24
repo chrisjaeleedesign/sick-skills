@@ -60,7 +60,11 @@ python3 /Volumes/Misc/sick-skills/skills/openrouter-image/scripts/openrouter_ima
 
 ## Output
 
-Images are saved under `.agents/model-calls/images/` by default. Return the absolute image path(s) to the user. In Codex desktop, show the image with Markdown when useful:
+Images are saved under the current working directory's `.agents/model-calls/images/` by default. Run the command from the user's active workspace, not from the skill repo, unless the user explicitly wants outputs under the skill repo.
+
+The CLI refuses to use the default output path when it is run from `/Volumes/Misc/sick-skills`; pass `--output-dir` only if the user explicitly wants that.
+
+Return the absolute image path(s) to the user. In Codex desktop, show the image with Markdown when useful:
 
 ```markdown
 ![generated image](/absolute/path/to/image.png)
@@ -70,5 +74,5 @@ Images are saved under `.agents/model-calls/images/` by default. Return the abso
 
 - State the image type, subject, composition, style, lighting, and constraints.
 - For edits, attach the source image and explicitly say what must stay unchanged.
-- Use `--output-dir` when the user wants images somewhere other than `.agents/model-calls/images/`.
+- Use `--output-dir` when the user wants images somewhere other than the active workspace's `.agents/model-calls/images/`.
 - Do not invent a browser UI or separate testing flow.

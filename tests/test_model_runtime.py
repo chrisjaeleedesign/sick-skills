@@ -425,19 +425,52 @@ class CliBoundaryTests(unittest.TestCase):
             "call_model",
             return_value={"text": "caption", "images": ["/tmp/image.png"]},
         ):
-            with patch.object(
-                sys,
-                "argv",
-                ["openrouter_image.py", "--content", "draw", "--json"],
-            ):
-                out = io.StringIO()
-                with patch("sys.stdout", out):
-                    image_cli.main()
+            with tempfile.TemporaryDirectory() as tmp:
+                with ChangeDir(tmp):
+                    with patch.object(
+                        sys,
+                        "argv",
+                        ["openrouter_image.py", "--content", "draw", "--json"],
+                    ):
+                        out = io.StringIO()
+                        with patch("sys.stdout", out):
+                            image_cli.main()
 
         data = json.loads(out.getvalue())
         self.assertEqual(data["provider"], "openrouter")
         self.assertEqual(data["requested_model"], "nanobanana")
         self.assertEqual(data["images"], ["/tmp/image.png"])
+
+        with ChangeDir(REPO_ROOT):
+            with patch.object(
+                sys,
+                "argv",
+                ["openrouter_image.py", "--content", "draw"],
+            ):
+                with patch("sys.stderr", io.StringIO()):
+                    with self.assertRaises(SystemExit) as cm:
+                        image_cli.main()
+        self.assertEqual(cm.exception.code, 2)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with ChangeDir(tmp):
+                with patch.object(
+                    image_cli,
+                    "call_model",
+                    return_value={"text": "", "images": [str(Path(tmp) / "image.png")]},
+                ):
+                    with patch.object(
+                        sys,
+                        "argv",
+                        ["openrouter_image.py", "--content", "draw"],
+                    ):
+                        with patch("sys.stdout", io.StringIO()):
+                            image_cli.main()
+
+                self.assertEqual(
+                    Path(os.environ["MODEL_RUNTIME_IMAGE_DIR"]),
+                    (Path(tmp) / ".agents" / "model-calls" / "images").resolve(),
+                )
 
         with patch.object(
             sys,

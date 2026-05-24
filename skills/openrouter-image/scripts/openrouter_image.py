@@ -28,6 +28,19 @@ from model_runtime.messages import build_messages_for_api
 load_env(REPO_ROOT)
 
 
+def default_output_dir():
+    """Save images relative to the caller's workspace by default."""
+    cwd = Path.cwd().resolve()
+    if cwd == REPO_ROOT.resolve():
+        print(
+            "Error: refusing to save image outputs under the skill repo by default. "
+            "Run this command from the target workspace or pass --output-dir.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    return cwd / ".agents" / "model-calls" / "images"
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Generate or edit images through OpenRouter image models."
@@ -51,7 +64,10 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         default=None,
-        help="Directory for saved images. Default: .agents/model-calls/images.",
+        help=(
+            "Directory for saved images. Default: "
+            "<current-working-directory>/.agents/model-calls/images."
+        ),
     )
     parser.add_argument(
         "--json",
@@ -74,8 +90,8 @@ def main():
         )
         sys.exit(2)
 
-    if args.output_dir:
-        os.environ["MODEL_RUNTIME_IMAGE_DIR"] = str(Path(args.output_dir).resolve())
+    output_dir = Path(args.output_dir).resolve() if args.output_dir else default_output_dir()
+    os.environ["MODEL_RUNTIME_IMAGE_DIR"] = str(output_dir)
 
     content = resolve_content(args.content)
     if not content.strip():
