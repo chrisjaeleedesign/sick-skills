@@ -15,7 +15,7 @@ set -euo pipefail
 # Per target, this script:
 #   1. Resolves the target to its real path (handles e.g. ~/.claude → ~/.agents)
 #   2. Skips the target if its parent agent dir is missing
-#   3. Loops over every subdirectory in skills/ that contains a SKILL.md
+#   3. Finds skills in skills/<name>/SKILL.md and skills/<namespace>/<name>/SKILL.md
 #   4. Per skill: backs up real dirs, repoints stale symlinks, skips correct ones
 #   5. Verifies each symlink by checking SKILL.md is readable through it
 #   6. Prunes orphan symlinks that point into this repo but no longer have a source
@@ -77,6 +77,55 @@ else
     targets=("${DEFAULT_TARGETS[@]}")
 fi
 
+skill_names=()
+skill_sources=()
+
+add_skill_source() {
+    local source="$1"
+    local skill_name
+    local i
+
+    source="${source%/}"
+    skill_name="$(basename "$source")"
+
+    for ((i = 0; i < ${#skill_names[@]}; i++)); do
+        if [ "${skill_names[$i]}" = "$skill_name" ]; then
+            echo "error: duplicate skill name '$skill_name'" >&2
+            echo "  first: ${skill_sources[$i]}" >&2
+            echo "  second: $source" >&2
+            exit 1
+        fi
+    done
+
+    skill_names+=("$skill_name")
+    skill_sources+=("$source")
+}
+
+discover_skills() {
+    local skill_dir
+    local nested_dir
+
+    skill_names=()
+    skill_sources=()
+
+    for skill_dir in "$SKILLS_SRC"/*/; do
+        [ -d "$skill_dir" ] || continue
+
+        if [ -f "$skill_dir/SKILL.md" ]; then
+            add_skill_source "$skill_dir"
+            continue
+        fi
+
+        for nested_dir in "$skill_dir"*/; do
+            [ -d "$nested_dir" ] || continue
+            [ -f "$nested_dir/SKILL.md" ] || continue
+            add_skill_source "$nested_dir"
+        done
+    done
+}
+
+discover_skills
+
 echo "Repo skills:    $SKILLS_SRC"
 echo "Targets (${#targets[@]}):"
 for t in "${targets[@]}"; do echo "  - $t"; done
@@ -106,21 +155,13 @@ install_into() {
 
     echo "── Installing into: $target_dir"
 
-    # Build set of valid source skill names (those with SKILL.md)
-    local valid_names=()
-    local skill_dir skill_name
-    for skill_dir in "$SKILLS_SRC"/*/; do
-        [ -d "$skill_dir" ] || continue
-        skill_name="$(basename "$skill_dir")"
-        if [ ! -f "$skill_dir/SKILL.md" ]; then
-            echo "  ⤳ $skill_name — skipping (no SKILL.md)"
-            continue
-        fi
-        valid_names+=("$skill_name")
+    local i skill_name source
+    for ((i = 0; i < ${#skill_names[@]}; i++)); do
+        skill_name="${skill_names[$i]}"
+        source="${skill_sources[$i]}"
 
-        local target source current expected
+        local target current expected
         target="$target_dir/$skill_name"
-        source="$SKILLS_SRC/$skill_name"
 
         # Case 1: Already a symlink
         if [ -L "$target" ]; then
@@ -174,7 +215,7 @@ install_into() {
         # Is this entry's name still a valid source skill?
         local is_valid=0
         local v
-        for v in "${valid_names[@]:-}"; do
+        for v in "${skill_names[@]:-}"; do
             [ "$v" = "$entry_name" ] && { is_valid=1; break; }
         done
         if [ $is_valid -eq 0 ]; then

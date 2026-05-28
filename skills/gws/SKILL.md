@@ -111,7 +111,7 @@ Google URLs contain the IDs you need:
 
 ## For Other Skills
 
-Any skill that needs Google Workspace access should reference this skill. The agent uses `gws` CLI commands directly via bash — no wrapper scripts needed. All gws commands return structured JSON that can be parsed directly.
+Any skill that needs Google Workspace access should reference this skill. Agents can use `gws` CLI commands directly via bash, or a skill can wrap fragile recurring flows in deterministic helper scripts. All gws commands return structured JSON that can be parsed directly.
 
 If you're building a skill that depends on gws:
 1. Check auth with `which gws && gws auth status` as a precondition

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grug Simplify Code"
+  short_description: "Remove code complexity without killing behavior"
+  default_prompt: "Use $grug-simplify-code to make this code brutally simple while keeping the behavior that matters."

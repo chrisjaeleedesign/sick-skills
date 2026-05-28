@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Like Chris"
+  short_description: "Turns rough thoughts into Chris-style prose"
+  default_prompt: "Use $write-like-chris to turn these rough notes into a concise essay draft in my voice."

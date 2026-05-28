@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify and Test Code"
+  short_description: "Simplify code while proving behavior still works"
+  default_prompt: "Use $simplify-and-test-code to simplify this code while preserving behavior and proving the real workflow works."

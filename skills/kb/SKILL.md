@@ -1,92 +1,65 @@
 ---
 name: kb
-description: "Query, reference, and update a shared Google Drive knowledge base. Use this skill whenever the user says things like 'check the kb', 'reference our knowledge base', 'what do our docs say', 'check our shared docs', 'look up in our docs', 'reference our docs', 'what does our internal documentation say', 'sync the kb', 'refresh the manifest', 'update the kb', or any variation of asking about team knowledge, shared documentation, company guidelines, product direction docs. Also use when the user asks you to check existing docs before writing something, or when another skill needs to look up shared project knowledge. Even short phrases like 'check the kb' or 'reference the knowledge base' should trigger this skill."
+description: "Query, reference, and update a shared Google Drive knowledge base using a workspace-local `.agents/kb/config.json` and the global `gws` CLI skill. Use when the user says to check, query, sync, refresh, update, or reference the KB/knowledge base/shared docs, or asks what internal docs say."
 ---
 
 # kb
 
-A shared knowledge base backed by Google Drive. Humans write and edit docs naturally; agents read, query, and contribute through the gws skill — never direct edits.
+Shared knowledge base workflow backed by Google Drive.
 
-This skill depends on the **gws skill** for all Google Drive, Docs, and Sheets operations.
+This skill depends on the global `gws` skill and the `gws` CLI for Google Drive, Docs, and Sheets access. Use this skill for KB behavior; use `gws` for generic Google Workspace operations.
 
-## Precondition
+## Preconditions
 
-Before routing, check two things:
-
-### 1. gws auth
-
-```bash
-which gws && gws auth status
-```
-
-If gws is not installed or not authenticated, tell the user: "The kb skill needs the gws CLI to access Google Drive. Please run the gws skill to get set up first."
-
-Do not attempt to walk through gws setup here — that's the gws skill's job.
-
-### 2. KB config
-
-Check if `.agents/kb/config.json` exists in the current working directory:
-
-```bash
-cat .agents/kb/config.json
-```
-
-If the file exists, it contains:
-```json
-{
-  "folder_id": "<google-drive-folder-id>",
-  "manifest_sheet_id": "<spreadsheet-id>",
-  "folder_url": "<original-url>"
-}
-```
-
-If the file **doesn't exist**, ask the user for their Google Drive folder URL or ID. Then:
-
-1. Extract the folder ID from the URL (segment after `/folders/`)
-2. Validate by listing it: `gws drive files list --params '{"q": "'"'"'<FOLDER_ID>'"'"' in parents and trashed = false", "pageSize": 1}'`
-3. Save the config:
+1. Check auth:
    ```bash
-   mkdir -p .agents/kb
-   cat > .agents/kb/config.json << 'CONF'
-   {"folder_id": "<id>", "manifest_sheet_id": "", "folder_url": "<url>"}
-   CONF
+   which gws && gws auth status
    ```
-4. Then proceed to update the manifest (follow `prompts/update.md`)
+   If missing or unauthenticated, use the `gws` skill for setup.
 
-## Intent Routing
+2. Check project config:
+   ```bash
+   cat .agents/kb/config.json
+   ```
+   Required fields:
+   - `folder_id`
+   - `manifest_sheet_id`
+   - `folder_url`
 
-**Update / sync** — the user wants to refresh the manifest or just connected a folder.
-- "update the kb", "sync", "refresh the knowledge base", "index the docs"
-- Also route here if this is the first time after connecting a folder
-→ Read and follow `prompts/update.md`
+## Query
 
-**Query (default)** — the user has a question the KB might answer.
-- Any question about project knowledge, guidelines, processes, decisions
-- "what does our brand guide say about...", "check the KB for...", "what's our policy on..."
-- This is the most common path — if in doubt, treat it as a query
-→ Read and follow `prompts/query.md`
+Use this when the user asks what the KB/shared docs say:
 
-**Ambiguous** — if you genuinely can't tell, ask briefly:
-> "Are you looking to query the KB or update the manifest?"
-
-## Manifest Format
-
-The `_kb_manifest` is a Google Sheet that indexes all docs in the KB folder. It has these columns:
-
-| Column | Purpose |
-|--------|---------|
-| Title | Document name |
-| Type | doc, sheet, slides, pdf, other |
-| Doc ID | Google Drive file ID |
-| Summary | AI-generated 2-3 sentence summary |
-| Tags | Comma-separated tags (optional) |
-| Last Modified | ISO 8601 timestamp |
-| Status | "active" or "removed" |
-
-## Typical flows
-
+```bash
+node /Volumes/Misc/sick-skills/skills/kb/scripts/kb-query.mjs --config .agents/kb/config.json --question "<question>" --limit 3
 ```
-/kb                                            → query (if there's a question in context)
-/kb update                                     → update manifest
-/kb what's our brand voice for emails?         → query
+
+Answer from the returned sources. Cite source names. If no active source matches, say so directly and suggest running an update if docs may have changed.
+
+## Update
+
+Use dry-run first:
+
+```bash
+node /Volumes/Misc/sick-skills/skills/kb/scripts/kb-update.mjs --config .agents/kb/config.json --dry-run
 ```
+
+Write only when the dry-run is expected:
+
+```bash
+node /Volumes/Misc/sick-skills/skills/kb/scripts/kb-update.mjs --config .agents/kb/config.json --write
+```
+
+The update script:
+- uses shared-drive flags for Drive operations
+- skips `_kb_manifest` and folders
+- preserves removed rows instead of deleting history
+- updates the manifest only with explicit `--write`
+
+## Manifest Schema
+
+The `_kb_manifest` sheet has:
+
+`Title`, `Type`, `Doc ID`, `Summary`, `Tags`, `Last Modified`, `Status`
+
+Only `active` rows are used for normal queries. `removed` rows are historical context and should not be cited as current truth.

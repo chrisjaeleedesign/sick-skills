@@ -25,7 +25,7 @@ aliases:
     id: openrouter/anthropic/claude-opus-4-6
     capabilities: [text, vision, streaming, reasoning]
   gemini:
-    id: openrouter/google/gemini-3.1-pro
+    id: openrouter/google/gemini-3.5-flash
     capabilities: [text, vision, streaming, reasoning]
 
   # OpenRouter image models.
