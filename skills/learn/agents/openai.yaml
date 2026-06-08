@@ -1,0 +1,4 @@
+interface:
+  display_name: "Learn"
+  short_description: "Build durable technical understanding"
+  default_prompt: "Use $learn to walk me through this from beginner mental models toward reusable judgment."

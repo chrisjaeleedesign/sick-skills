@@ -1,0 +1,15 @@
+{
+  "skill_name": "learn",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Walk me through why we are choosing R2 instead of Railway volumes. Teach me as we go.",
+      "expected_output": "Builds a reusable mental model: category, current constraints, tradeoffs, useful history, and a rule of thumb."
+    },
+    {
+      "id": 1,
+      "prompt": "I am new to web dev. Help me understand what Vite is in this app.",
+      "expected_output": "Explains from beginner concepts toward reusable judgment without a rigid lesson format."
+    }
+  ]
+}

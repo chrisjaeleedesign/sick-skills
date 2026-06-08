@@ -1,0 +1,7 @@
+interface:
+  display_name: "Market Research"
+  short_description: "Create local source-grounded research briefs."
+  default_prompt: "Use $market-research to create a local research brief for this idea, company, product, or market question."
+
+policy:
+  allow_implicit_invocation: true
