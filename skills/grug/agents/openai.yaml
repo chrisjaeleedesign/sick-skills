@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grug"
+  short_description: "Make complexity smaller and systems easier to understand."
+  default_prompt: "Use $grug to keep this work simple, boring, understandable, and safe to change."

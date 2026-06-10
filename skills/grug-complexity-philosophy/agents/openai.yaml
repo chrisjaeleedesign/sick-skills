@@ -1,4 +1,0 @@
-interface:
-  display_name: "Grug Complexity Philosophy"
-  short_description: "Bias work toward simple durable systems"
-  default_prompt: "Use $grug-complexity-philosophy to keep this work simple, understandable, and safe to change."
