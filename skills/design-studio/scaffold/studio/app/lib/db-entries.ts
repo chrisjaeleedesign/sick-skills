@@ -246,7 +246,10 @@ export function queryEntries(params: EntryQueryParams = {}, opts?: { withRevisio
     {
       extraConditions: [...searchConditions, ...extraConditions],
       extraBindings: [...searchBindings, ...extraBindings],
-      defaultOrder: params.search ? "rank" : "COALESCE(entries.sort_order, 999999) ASC, entries.created_at DESC",
+      // rowid tie-break: created_at has millisecond precision, so entries
+      // created in the same ms (common in tests/bulk imports) need a
+      // deterministic order — most recently inserted first.
+      defaultOrder: params.search ? "rank" : "COALESCE(entries.sort_order, 999999) ASC, entries.created_at DESC, entries.rowid DESC",
     },
   );
 

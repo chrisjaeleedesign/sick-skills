@@ -4,10 +4,11 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
-    "capture": "tsx scripts/capture.ts",
-    "start": "next start -p 3001",
+    "serve": "bun run build:server && node dist/server.mjs",
+    "build:server": "bun build server.ts --target=node --format=esm --external better-sqlite3 --external sqlite-vec --outfile dist/server.mjs",
+    "build:prototype": "bun build.ts",
+    "build:gallery": "vite build gallery",
+    "capture": "bun build scripts/capture.ts --target=node --format=esm --external playwright --external better-sqlite3 --external sqlite-vec --outfile dist/capture.mjs && node dist/capture.mjs",
     "test": "vitest run",
     "sync:push": "bash scripts/sync-studio.sh push",
     "sync:pull": "bash scripts/sync-studio.sh pull",
@@ -24,7 +25,6 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
     "motion": "^12.38.0",
-    "next": "^16.1.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sqlite-vec": "^0.1.7"

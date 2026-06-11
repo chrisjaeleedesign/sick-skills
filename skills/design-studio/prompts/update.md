@@ -6,28 +6,36 @@ You are updating the studio app code in `.agents/design/studio/` to the latest v
 
 1. **Verify `.agents/design/` exists** — if not, tell the user to run `/design-studio` first to initialize.
 
-2. **Copy scaffold files** from this skill's `scaffold/` directory, overwriting existing studio infrastructure:
-   - Read each file from the scaffold and write it to the corresponding path under `.agents/design/`
-   - **Files to update:** `studio/package.json`, `studio/next.config.ts`, `studio/postcss.config.mjs`, `studio/tsconfig.json`, `studio/app/globals.css`, `studio/app/layout.tsx`, `studio/app/page.tsx`, `studio/app/gallery.tsx`, `studio/app/family-card.tsx`, `studio/app/journal-modal.tsx`, `studio/app/lib/manifest.ts`, `studio/app/lib/constants.ts`, `studio/app/lib/journal.ts`, `studio/app/lib/grid.ts`, `studio/app/lib/db.ts`, `studio/app/api/manifest/route.ts`, `studio/app/api/journal/route.ts`, `studio/app/api/journal/meta/route.ts`, `studio/app/api/screenshot/[family]/[version]/route.ts`, `studio/app/prototypes/layout.tsx`, `studio/scripts/capture.ts`, `studio/scripts/journal-log.ts`, `journal-conventions.md`
-
-3. **Preserve user data** — do NOT overwrite:
-   - `.agents/design/manifest.json`
-   - `.agents/design/journal.db`
-   - `.agents/design/journal.jsonl`
-   - `.agents/design/references/` (all screenshot files)
-   - `.agents/design/studio/app/prototypes/` (all prototype subdirectories — do NOT touch any family/version folders, but DO update `studio/app/prototypes/layout.tsx`)
-   - `.agents/design/studio/app/lib/seed-data.ts` (if exists)
-
-4. **Install dependencies:**
+2. **Sync scaffold → install** using the bundled script (rsync with the right
+   include/exclude rules — preferred over hand-copying files):
    ```bash
-   cd .agents/design/studio && bun install
+   cd .agents/design/studio && bash scripts/sync-studio.sh pull          # dry-run first
+   cd .agents/design/studio && bash scripts/sync-studio.sh pull --apply
    ```
+   The script protects prototypes, databases, and per-install artifacts, and
+   runs `bun install` + migrations after pulling.
 
-5. **Check for running server:** Run `lsof -i :<port>` using the port from `.agents/design/manifest.json` settings. If the server is running, warn the user: "The studio server is still running — restart it to pick up the updates."
+   *Legacy installs (pre compile-on-write):* if the install still has
+   `next.config.ts` / `app/api/`, the pull converts it to the new
+   architecture. After pulling, delete the leftover Next files —
+   `next.config.ts`, `next-env.d.ts`, `.next/`, `app/layout.tsx`,
+   `app/page.tsx`, `app/api/`, `app/features/page.tsx`,
+   `app/prototypes/layout.tsx` — then run `bun remove next` and compile the
+   existing prototypes once: `bun build.ts --all`.
 
-6. **Report:**
+3. **Preserve user data** — the sync script already protects these; never delete them manually either:
+   - `.agents/design/projects/` (canonical per-project manifests) and the legacy `.agents/design/manifest.json`
+   - `.agents/design/journal.db`
+   - `.agents/design/references/` (all screenshot files)
+   - `.agents/design/media/`
+   - `.agents/design/studio/app/prototypes/` (all family/version folders)
+   - `.agents/design/studio/dist/prototypes/` (compiled bundles — cheap to rebuild but no reason to delete)
+
+4. **Check for a running server:** `lsof -iTCP:3001 -sTCP:LISTEN`. If the server is running, warn the user: "The studio server is still running — restart it to pick up the updates."
+
+5. **Report:**
    > **Updated** Design Studio to the latest version.
-   > - Prototypes, manifest, journal, and screenshots preserved.
+   > - Prototypes, manifests, journal, and screenshots preserved.
    > - Dependencies reinstalled.
    >
    > Run `/design-studio run` to start (or restart) the server.
@@ -35,5 +43,4 @@ You are updating the studio app code in `.agents/design/studio/` to the latest v
 ## Constraints
 
 - This operation is idempotent — running it multiple times is safe.
-- NEVER modify prototype files or the manifest.
-- If `.agents/design/journal.jsonl` exists but `.agents/design/journal.db` doesn't, the migration will happen automatically when the server starts (handled by `db.ts`).
+- NEVER modify prototype files or the manifests.

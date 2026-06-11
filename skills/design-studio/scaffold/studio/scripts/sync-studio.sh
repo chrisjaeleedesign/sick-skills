@@ -70,10 +70,20 @@ echo ""
 # ---------------------------------------------------------------------------
 
 RSYNC_EXCLUDES=(
-  # Prototypes: only sync layout.tsx, skip everything else (both directions)
+  # Prototypes: the scaffold ships only example-dashboard; installs keep their own (both directions)
   --include='app/prototypes/'
-  --include='app/prototypes/layout.tsx'
+  --include='app/prototypes/example-dashboard/***'
   --exclude='app/prototypes/**'
+  # Prebuilt gallery SPA ships with the scaffold so installs never run Vite;
+  # all other dist artifacts (server.mjs, capture.mjs, prototype bundles) are per-install
+  --include='dist/'
+  --include='dist/gallery/***'
+  --exclude='dist/**'
+  # Transient Tailwind inputs from build.ts (only present if a build crashed)
+  --exclude='.tw-input-*.css'
+  # OS noise and per-install agent config
+  --exclude='.DS_Store'
+  --exclude='.agents/'
   # Build artifacts, dependencies, and scaffold-specific files
   --exclude='.gitignore'
   --exclude='.next/'
@@ -106,9 +116,9 @@ validate_exclusions() {
     fi
   fi
 
-  # Verify layout.tsx exists and will be included
-  if [[ -f "$proto_dir/layout.tsx" ]]; then
-    echo "✓ Inclusion check: prototypes/layout.tsx will be synced"
+  # Verify the example prototype will be included
+  if [[ -d "$proto_dir/example-dashboard" ]]; then
+    echo "✓ Inclusion check: prototypes/example-dashboard will be synced"
   fi
 }
 

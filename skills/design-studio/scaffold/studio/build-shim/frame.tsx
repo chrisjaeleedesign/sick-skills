@@ -1,24 +1,24 @@
-"use client";
-
+/**
+ * Standalone device-frame shim for compiled prototypes.
+ *
+ * Port of app/prototypes/layout.tsx for static bundles: no Next.js, navigation
+ * is plain location changes (each prototype version is its own page). Renders
+ * the prototype toolbar (gallery link, version nav, device presets) plus the
+ * scaled device frame, or — in `?capture=true` mode — just the bare prototype
+ * at exact device dimensions for screenshots.
+ */
 import { useState, useEffect, useRef, useCallback } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
-import { DEVICE_PRESETS, DEVICE_ICONS, type DevicePreset } from "@/app/lib/constants";
-import { useProjectQuery } from "@/app/lib/hooks";
+import { Agentation } from "agentation";
+import { DEVICE_PRESETS, DEVICE_ICONS, type DevicePreset } from "../app/lib/constants";
 
-/** Height of the root layout header (px) — keeps calc() in sync with layout.tsx */
-const HEADER_HEIGHT = 57;
+function useProjectSuffix(): string {
+  const project = new URLSearchParams(window.location.search).get("project");
+  return project ? `?project=${encodeURIComponent(project)}` : "";
+}
 
-export default function PrototypeLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { suffix } = useProjectQuery();
+export default function Frame({ children }: { children: React.ReactNode }) {
+  const suffix = useProjectSuffix();
   const [familyInfo, setFamilyInfo] = useState<{
     name: string;
     description: string;
@@ -27,15 +27,14 @@ export default function PrototypeLayout({
     project: string;
   } | null>(null);
 
-  // Extract family slug from pathname for navigation
-  const slugMatch = pathname?.match(/\/prototypes\/([^/]+)\/v(\d+)/);
+  const slugMatch = window.location.pathname.match(/\/prototypes\/([^/]+)\/v(\d+)/);
   const familySlug = slugMatch?.[1];
 
   useEffect(() => {
     if (!slugMatch) return;
     const [, slug, ver] = slugMatch;
     fetch(`/api/manifest/family/${slug}`)
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {
           setFamilyInfo({
@@ -48,19 +47,13 @@ export default function PrototypeLayout({
         }
       })
       .catch(() => {});
-  }, [pathname]);
-
-  // Force light mode while viewing prototypes.
-  // Prototypes control their own color schemes and must not inherit
-  // the gallery's dark mode toggle from <html class="dark">.
-  useEffect(() => {
-    const html = document.documentElement;
-    const wasDark = html.classList.contains("dark");
-    html.classList.remove("dark");
-    return () => {
-      if (wasDark) html.classList.add("dark");
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const goToVersion = (version: number) => {
+    if (!familySlug) return;
+    window.location.assign(`/prototypes/${familySlug}/v${version}${suffix}`);
+  };
 
   const [captureMode, setCaptureMode] = useState<DevicePreset | null>(null);
   useEffect(() => {
@@ -106,16 +99,16 @@ export default function PrototypeLayout({
   }
 
   return (
-    <div className={`flex flex-col bg-zinc-100`} style={{ height: `calc(100vh - ${HEADER_HEIGHT}px)` }}>
+    <div className="flex flex-col bg-zinc-100" style={{ height: "100vh" }}>
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-border bg-surface-0 px-4 py-2">
-        <Link
+        <a
           href={`/${suffix}`}
           className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Gallery
-        </Link>
+        </a>
         {familyInfo && (
           <>
             <div className="h-4 w-px bg-border" />
@@ -127,14 +120,14 @@ export default function PrototypeLayout({
             <div className="flex items-center gap-1">
               <button
                 disabled={familyInfo.version <= 1}
-                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version - 1}${suffix}`)}
+                onClick={() => goToVersion(familyInfo.version - 1)}
                 className="rounded p-1 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 disabled:opacity-30 disabled:pointer-events-none transition-colors"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
               <select
                 value={familyInfo.version}
-                onChange={(e) => familySlug && router.push(`/prototypes/${familySlug}/v${e.target.value}${suffix}`)}
+                onChange={(e) => goToVersion(Number(e.target.value))}
                 className="appearance-none rounded bg-surface-2 px-2 py-0.5 text-[11px] font-mono text-text-primary outline-none cursor-pointer"
               >
                 {familyInfo.versions.map((v) => (
@@ -145,7 +138,7 @@ export default function PrototypeLayout({
               </select>
               <button
                 disabled={familyInfo.version >= familyInfo.versions.length}
-                onClick={() => familySlug && router.push(`/prototypes/${familySlug}/v${familyInfo.version + 1}${suffix}`)}
+                onClick={() => goToVersion(familyInfo.version + 1)}
                 className="rounded p-1 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 disabled:opacity-30 disabled:pointer-events-none transition-colors"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -209,6 +202,7 @@ export default function PrototypeLayout({
           </div>
         </div>
       </div>
+      <Agentation endpoint="http://localhost:4747" />
     </div>
   );
 }

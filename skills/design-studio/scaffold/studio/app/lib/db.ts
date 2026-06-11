@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS thoughts (
   tags        TEXT NOT NULL DEFAULT '[]',
   color       TEXT,
   pinned      INTEGER NOT NULL DEFAULT 0,
+  importance  TEXT,
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
   layout_w    INTEGER DEFAULT 1,
@@ -343,6 +344,16 @@ const MIGRATIONS: Migration[] = [
       db.exec("CREATE INDEX IF NOT EXISTS idx_boards_project ON boards(project)");
       db.exec("CREATE INDEX IF NOT EXISTS idx_features_project ON features(project)");
       db.exec("CREATE INDEX IF NOT EXISTS idx_saved_filters_project ON saved_filters(project)");
+    },
+  },
+  {
+    id: 10,
+    name: "ensure-entries-sort-order",
+    run: (db) => {
+      // Migration 6 is an "Already applied" stub and SCHEMA_SQL doesn't
+      // include sort_order, so databases created on other machines (or fresh
+      // installs) end up without the column queryEntries orders by.
+      try { db.exec("ALTER TABLE entries ADD COLUMN sort_order INTEGER"); } catch { /* already exists */ }
     },
   },
 ];
