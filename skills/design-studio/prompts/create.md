@@ -38,11 +38,11 @@ You are creating a new prototype family from a design description.
      -d '{"action": "add-family", "family": {
        "name": "Human-readable name",
        "slug": "<slug>",
-       "description": "<user'"'"'s description>",
+       "description": "<the design direction>",
        "createdAt": "<ISO timestamp>",
        "versions": [{
          "number": 1,
-         "direction": "<user'"'"'s description>",
+         "direction": "<the design direction>",
          "parentVersion": null,
          "starred": false,
          "references": [],

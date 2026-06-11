@@ -2,28 +2,11 @@ import Database from "better-sqlite3";
 import { readdirSync, existsSync, copyFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import type { EntryQueryParams } from "./types";
+import { DESIGN_ROOT } from "./design-root";
+import { listProjects, readManifest } from "./manifest";
 
-// Resolve paths relative to the studio directory.
-// process.env.DESIGN_STUDIO_ROOT can override, otherwise we find the studio
-// root by looking for package.json walking up from cwd.
-function findStudioRoot(): string {
-  if (process.env.DESIGN_STUDIO_ROOT) return process.env.DESIGN_STUDIO_ROOT;
-  // The Next.js dev server sets cwd to the studio directory
-  const candidates = [
-    join(process.cwd(), ".."),           // cwd is .design/studio/
-    join(process.cwd(), "../.."),         // cwd is .design/studio/app/
-    join(process.cwd(), ".design"),       // cwd is project root
-  ];
-  for (const dir of candidates) {
-    if (existsSync(join(dir, "journal.db")) || existsSync(join(dir, "manifest.json"))) {
-      return dir;
-    }
-  }
-  // Fallback: assume cwd is studio
-  return join(process.cwd(), "..");
-}
+export { DESIGN_ROOT } from "./design-root";
 
-export const DESIGN_ROOT = findStudioRoot();
 const DB_PATH = join(DESIGN_ROOT, "journal.db");
 
 // ---------------------------------------------------------------------------
@@ -320,7 +303,6 @@ const MIGRATIONS: Migration[] = [
       `);
 
       // Backfill: entries with a family field get project by matching against manifests
-      const { listProjects, readManifest } = require("./manifest");
       for (const proj of listProjects()) {
         const manifest = readManifest(proj);
         const slugs = Object.keys(manifest.families);

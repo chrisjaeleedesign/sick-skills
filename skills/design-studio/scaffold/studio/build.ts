@@ -111,12 +111,11 @@ function allPrototypes(): Array<[string, string]> {
   const out: Array<[string, string]> = [];
   for (const family of readdirSync(PROTOTYPES)) {
     const familyDir = path.join(PROTOTYPES, family);
-    if (!existsSync(path.join(familyDir, ""))) continue;
     let versions: string[];
     try {
       versions = readdirSync(familyDir);
     } catch {
-      continue; // not a directory (e.g. layout.tsx)
+      continue; // not a directory (e.g. .DS_Store)
     }
     for (const v of versions) {
       const m = v.match(/^v(\d+)$/);

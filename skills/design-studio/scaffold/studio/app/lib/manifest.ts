@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "fs";
 import { join, basename } from "path";
-import { DESIGN_ROOT } from "./db";
+import { DESIGN_ROOT } from "./design-root";
 import type { Color } from "./types";
 
 export interface Reference {
