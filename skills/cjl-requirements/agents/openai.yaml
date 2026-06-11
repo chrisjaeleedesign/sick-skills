@@ -1,0 +1,4 @@
+interface:
+  display_name: "CJL Requirements"
+  short_description: "Create and update lightweight version-aware requirements docs."
+  default_prompt: "Create or update a versioned requirements doc for this project."
