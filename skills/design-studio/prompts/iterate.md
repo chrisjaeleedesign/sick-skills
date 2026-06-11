@@ -5,7 +5,7 @@ You are forking a prototype version with a new design direction.
 ## Context
 
 - User's direction: `$ARGUMENTS`
-- Manifest: `.agents/design/manifest.json`
+- Manifest: read via `GET http://localhost:3001/api/manifest?project=<project>` (the canonical file is `.agents/design/projects/<project>.json`; root `manifest.json` is legacy — never write it directly)
 
 ## Steps
 
@@ -43,7 +43,13 @@ You are forking a prototype version with a new design direction.
 
 6. **Acknowledge annotations:** If agentation annotations were consumed, use `agentation_resolve` or `agentation_acknowledge` to mark them as handled.
 
-7. **Update manifest:** Add v(N+1) to the family's versions array:
+7. **Compile the new version:**
+   ```bash
+   cd .agents/design/studio && bun build.ts <family> <N+1>
+   ```
+   Transient build (~1s). If it fails, fix page.tsx before continuing.
+
+8. **Update manifest via the API:** fetch the current manifest, append the new version to the family's `versions` array, and POST it back:
    ```json
    {
      "number": N+1,
@@ -54,18 +60,24 @@ You are forking a prototype version with a new design direction.
      "createdAt": "<ISO timestamp>"
    }
    ```
-   Update `current` to `{ "family": "<family>", "version": N+1 }`.
+   ```bash
+   # POST {"families": <updated families record>} to /api/manifest?project=<project>
+   # then:
+   curl -s -X POST http://localhost:3001/api/manifest \
+     -H "Content-Type: application/json" \
+     -d '{"action": "set-current", "family": "<family>", "version": <N+1>}'
+   ```
 
-8. **Capture screenshot:** Follow [_capture.md](_capture.md) to screenshot the new version.
+9. **Capture screenshot:** Follow [_capture.md](_capture.md) to screenshot the new version.
 
-9. **Report:** Always end with a clickable link to every page that was created or changed. Read the port from `.agents/design/manifest.json` settings. Format:
+10. **Report:** Always end with a clickable link to every page that was created or changed. The port is 3001 unless the manifest settings say otherwise. Format:
 
    > **New version:** [<family name> v<N+1>](http://localhost:<port>/prototypes/<family>/v<N+1>)
    > **Forked from:** [v<N>](http://localhost:<port>/prototypes/<family>/v<N>)
 
    Briefly mention what feedback was addressed and what changed.
 
-10. **Journal capture**
+11. **Journal capture**
 
 Before ending, review this conversation for journal-worthy moments. Read and follow [_journal-entry.md](_journal-entry.md) to create entries for any of:
 

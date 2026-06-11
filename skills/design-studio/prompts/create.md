@@ -5,7 +5,7 @@ You are creating a new prototype family from a design description.
 ## Context
 
 - Design intent from user: `$ARGUMENTS`
-- Manifest location: `.agents/design/manifest.json`
+- Manifest location: `.agents/design/projects/<project>.json` (update via API only; root `manifest.json` is legacy)
 - Prototypes live at: `.agents/design/studio/app/prototypes/<slug>/v<N>/page.tsx`
 
 ## Steps
@@ -16,47 +16,62 @@ You are creating a new prototype family from a design description.
 
 3. **Generate the prototype** by spawning a subagent (general-purpose) with this task:
 
-   > Write a self-contained Next.js page component at `.agents/design/studio/app/prototypes/<slug>/v1/page.tsx`.
+   > Write a self-contained React component (default export) at `.agents/design/studio/app/prototypes/<slug>/v1/page.tsx`.
    >
    > [Include all requirements from [_prototype-constraints.md](_prototype-constraints.md)]
    > - Design direction: [insert user's description]
    >
    > This is a design exploration — be creative, opinionated, and bold. This is NOT production code. Prioritize visual impact and feel over engineering correctness.
 
-4. **Update manifest:** Read `.agents/design/manifest.json`, add the new family and v1:
-   ```json
-   {
-     "name": "Human-readable name",
-     "slug": "<slug>",
-     "description": "<user's description>",
-     "createdAt": "<ISO timestamp>",
-     "versions": [{
-       "number": 1,
-       "direction": "<user's description>",
-       "parentVersion": null,
-       "starred": false,
-       "references": [],
-       "createdAt": "<ISO timestamp>"
-     }]
-   }
+4. **Compile the prototype:**
+   ```bash
+   cd .agents/design/studio && bun build.ts <slug> 1
    ```
-   Set `current` to `{ "family": "<slug>", "version": 1 }`.
+   This is a transient build (~1s) that emits the static bundle the server
+   serves. If it fails, fix the prototype code before continuing — the build
+   error is usually a syntax/import problem in page.tsx.
 
-   Also add the new slug to a section's grid: if any section has `"focus": true`, find the first empty cell in that section (scan row 0 left-to-right, then row 1, etc.). Place the slug at that cell coordinate in the grid record. If the grid is full, increment the section's `rows` by 1 and place at `"newRow:0"`. If no sections exist, skip (the family will appear in Unsorted).
+5. **Update manifest via the API** (server must be running — see [run.md](run.md)):
+   ```bash
+   curl -s -X POST http://localhost:3001/api/manifest \
+     -H "Content-Type: application/json" \
+     -d '{"action": "add-family", "family": {
+       "name": "Human-readable name",
+       "slug": "<slug>",
+       "description": "<user'"'"'s description>",
+       "createdAt": "<ISO timestamp>",
+       "versions": [{
+         "number": 1,
+         "direction": "<user'"'"'s description>",
+         "parentVersion": null,
+         "starred": false,
+         "references": [],
+         "createdAt": "<ISO timestamp>"
+       }]
+     }}'
+   curl -s -X POST http://localhost:3001/api/manifest \
+     -H "Content-Type: application/json" \
+     -d '{"action": "set-current", "family": "<slug>", "version": 1}'
+   ```
+   `add-family` assigns the slug to the focused section automatically.
 
-   If the manifest API supports `add-family` (POST with `{"action": "add-family", "family": {...}}`), use that instead of reading/writing the manifest file directly — it handles grid placement atomically.
+   Do NOT write `.agents/design/manifest.json` directly — that file is a
+   LEGACY artifact. The canonical manifest lives at
+   `.agents/design/projects/<project>.json` and the API is the only safe way
+   to update it. (A past session wrote to the legacy file and the new
+   families silently never appeared in the gallery.)
 
-   **Section ordering:** Sections are rendered in array order (newest first). When creating a new section, prepend it to the `sections` array (or use `{"action": "add-section", "section": {...}}` which prepends automatically).
+   **Section ordering:** Sections are rendered in array order (newest first). Use `{"action": "add-section", "section": {...}}` to create a section — it prepends automatically.
 
-5. **Capture screenshot:** Follow [_capture.md](_capture.md) to screenshot the new prototype. Save to `.agents/design/references/<slug>-v1.png` and add to the version's `references` array.
+6. **Capture screenshot:** Follow [_capture.md](_capture.md) to screenshot the new prototype. Save to `.agents/design/references/<slug>-v1.png` and add to the version's `references` array.
 
-6. **Report:**
+7. **Report:**
 
    > **Created:** [<family name> v1](http://localhost:<port>/prototypes/<slug>/v1)
 
    Remind the user they can use the Agentation toolbar to leave visual feedback directly on the prototype.
 
-7. **Journal capture**
+8. **Journal capture**
 
 Before ending, review this conversation for journal-worthy moments. Read and follow [_journal-entry.md](_journal-entry.md) to create entries for any of:
 

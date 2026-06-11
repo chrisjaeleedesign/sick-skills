@@ -18,7 +18,7 @@ lsof -i :<port>
 
 If not running, start it:
 ```bash
-cd .agents/design/studio && npm run dev -- --port <port> &
+cd .agents/design/studio && bun run serve   # background; PORT=<port> env var overrides the default 3001
 sleep 3
 ```
 
