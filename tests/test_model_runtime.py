@@ -122,7 +122,7 @@ class MessageAndAttachmentTests(unittest.TestCase):
             part = encode_attachment(str(mp3), "audio/mpeg")
             self.assertEqual(part["type"], "input_audio")
             self.assertEqual(part["input_audio"]["format"], "mp3")
-            self.assertTrue(len(part["input_audio"]["data"]) > 0)
+            self.assertEqual(base64.b64decode(part["input_audio"]["data"]), b"\xff\xfb\x90\x00fakemp3data")
 
             wav = tmp_path / "clip.wav"
             wav.write_bytes(b"RIFFfakewav")
@@ -134,6 +134,13 @@ class MessageAndAttachmentTests(unittest.TestCase):
             m4a.write_bytes(b"fakem4a")
             part = encode_attachment(str(m4a), "audio/mp4a-latm")
             self.assertEqual(part["type"], "input_audio")
+
+            # empty audio file (e.g. failed transcode) is rejected, not sent
+            empty = tmp_path / "empty.mp3"
+            empty.write_bytes(b"")
+            with patch("sys.stderr", io.StringIO()):
+                part = encode_attachment(str(empty), "audio/mpeg")
+            self.assertIsNone(part)
 
 
 class ArtifactTests(unittest.TestCase):
