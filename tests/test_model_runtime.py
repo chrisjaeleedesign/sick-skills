@@ -32,7 +32,7 @@ from model_runtime import (
     resolve_model_info,
 )
 from model_runtime.artifacts import save_data_url_images
-from model_runtime.messages import build_messages_for_api
+from model_runtime.messages import build_messages_for_api, encode_attachment
 
 
 def load_module(name, path):
@@ -113,6 +113,27 @@ class MessageAndAttachmentTests(unittest.TestCase):
             self.assertEqual(messages[3]["content"][0], {"type": "text", "text": "current question"})
             self.assertEqual(messages[3]["content"][1]["type"], "text")
             self.assertIn("file context", messages[3]["content"][1]["text"])
+
+    def test_encode_audio_attachment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            mp3 = tmp_path / "clip.mp3"
+            mp3.write_bytes(b"\xff\xfb\x90\x00fakemp3data")
+            part = encode_attachment(str(mp3), "audio/mpeg")
+            self.assertEqual(part["type"], "input_audio")
+            self.assertEqual(part["input_audio"]["format"], "mp3")
+            self.assertTrue(len(part["input_audio"]["data"]) > 0)
+
+            wav = tmp_path / "clip.wav"
+            wav.write_bytes(b"RIFFfakewav")
+            part = encode_attachment(str(wav), "audio/wav")
+            self.assertEqual(part["input_audio"]["format"], "wav")
+
+            # unsupported audio container falls back to mp3 format label
+            m4a = tmp_path / "clip.m4a"
+            m4a.write_bytes(b"fakem4a")
+            part = encode_attachment(str(m4a), "audio/mp4a-latm")
+            self.assertEqual(part["type"], "input_audio")
 
 
 class ArtifactTests(unittest.TestCase):

@@ -51,7 +51,7 @@ Flow:
 - Use `--flow` only as metadata. Read the matching file in `flows/` and execute the steps yourself.
 
 Attachments:
-- Use `--attach` for screenshots, images, videos, or text files the external model needs.
+- Use `--attach` for screenshots, images, videos, audio (mp3/wav), or text files the external model needs.
 - Copy unstable pasted-image temp files into a stable workspace path before attaching.
 
 ## Models

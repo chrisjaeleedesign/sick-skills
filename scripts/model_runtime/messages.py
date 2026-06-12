@@ -34,6 +34,19 @@ def encode_attachment(file_path, mime_type):
             "type": "video_url",
             "video_url": {"url": f"data:{mime_type};base64,{data}"},
         }
+    elif mime_type.startswith("audio/"):
+        # OpenRouter/OpenAI chat audio input: base64 + container format.
+        # Officially supported formats are wav and mp3; the transcription
+        # pipeline always supplies mp3, so default unknown audio to mp3.
+        if "wav" in mime_type:
+            audio_format = "wav"
+        else:
+            audio_format = "mp3"
+        data = base64.b64encode(path.read_bytes()).decode("utf-8")
+        return {
+            "type": "input_audio",
+            "input_audio": {"data": data, "format": audio_format},
+        }
     else:
         # For other file types, include as text if possible
         try:
