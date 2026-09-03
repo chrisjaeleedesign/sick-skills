@@ -1,0 +1,6 @@
+interface:
+  display_name: "Zoom Out"
+  short_description: "Map a code area from one level higher"
+  default_prompt: "Use $zoom-out to map how this area fits into the larger system."
+policy:
+  allow_implicit_invocation: false

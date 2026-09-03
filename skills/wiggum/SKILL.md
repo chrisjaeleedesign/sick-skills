@@ -1,6 +1,7 @@
 ---
 name: wiggum
 description: "Scaffold and operate a .wiggum autonomous implementation loop: create specs/plans, run phased build iterations, refine or modify plans, verify spec coverage, archive completed versions, and refresh loop templates when users invoke /wiggum workflows."
+disable-model-invocation: true
 ---
 
 Autonomous development loop for phased implementation plans.

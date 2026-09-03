@@ -1,6 +1,7 @@
 ---
 name: ask
 description: "Get text perspectives from external models, personas, or structured thinking flows. Use when the user explicitly wants a second opinion, a named model take, multi-model comparison, or a perspective such as devil's advocate, pragmatist, security reviewer, product thinker, or similar. Do not use for generic reasoning, browser chat UI, image generation, model registry maintenance, or broad phrases like 'let's think through this' unless the user clearly asks for an external model."
+disable-model-invocation: true
 ---
 
 # ask

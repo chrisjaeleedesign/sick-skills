@@ -1,0 +1,4 @@
+interface:
+  display_name: "Matter of Fact Writing"
+  short_description: "Write direct, factual, low-rhetoric prose"
+  default_prompt: "Use $matter-of-fact-writing to rewrite this prose directly and without rhetorical emphasis."

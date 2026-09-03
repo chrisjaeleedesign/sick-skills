@@ -1,6 +1,7 @@
 ---
 name: design-an-interface
-description: Generate multiple radically different interface designs for a module using parallel sub-agents. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice".
+description: Generate and compare radically different interface designs for a module. Use only when the user explicitly invokes $design-an-interface or asks to design the same interface multiple ways.
+disable-model-invocation: true
 ---
 
 # Design an Interface
@@ -9,7 +10,7 @@ Based on "Design It Twice" from "A Philosophy of Software Design": your first id
 
 ## Workflow
 
-### 1. Gather Requirements
+### 1. Establish the design boundary
 
 Before designing, understand:
 
@@ -19,11 +20,15 @@ Before designing, understand:
 - [ ] Any constraints? (performance, compatibility, existing patterns)
 - [ ] What should be hidden inside vs exposed?
 
-Ask: "What does this module need to do? Who will use it?"
+Infer these from the repository when possible. Ask only when a missing answer
+would materially change the candidate interfaces.
 
-### 2. Generate Designs (Parallel Sub-Agents)
+### 2. Generate designs in parallel
 
-Spawn 3+ sub-agents simultaneously using Task tool. Each must produce a **radically different** approach.
+Use the available subagent mechanism to generate at least three viable,
+radically different approaches. Assign a different governing constraint to
+each candidate. During this divergence phase, do not let an always-on
+simplicity preference collapse the candidates into the same shape.
 
 ```
 Prompt template for each sub-agent:
@@ -45,7 +50,7 @@ Output format:
 4. Trade-offs of this approach
 ```
 
-### 3. Present Designs
+### 3. Present the caller experience
 
 Show each design with:
 
@@ -53,9 +58,9 @@ Show each design with:
 2. **Usage examples** - how callers actually use it in practice
 3. **What it hides** - complexity kept internal
 
-Present designs sequentially so user can absorb each approach before comparison.
+Keep each design concrete enough to evaluate from the caller's perspective.
 
-### 4. Compare Designs
+### 4. Compare designs
 
 After showing all designs, compare them on:
 
@@ -65,11 +70,17 @@ After showing all designs, compare them on:
 - **Depth**: small interface hiding significant complexity (good) vs large interface with thin implementation (bad)
 - **Ease of correct use** vs **ease of misuse**
 
-Discuss trade-offs in prose, not tables. Highlight where designs diverge most.
+Highlight where the designs genuinely diverge and what each makes easier or
+harder.
 
 ### 5. Synthesize
 
-Often the best design combines insights from multiple options. Ask:
+Apply Ponytail's simplicity discipline only now: prefer the least complex
+candidate that satisfies the actual callers and constraints. Combine designs
+only when the combination removes a demonstrated weakness rather than adding
+speculative flexibility.
+
+Ask when user judgment is still needed:
 
 - "Which design best fits your primary use case?"
 - "Any elements from other designs worth incorporating?"
@@ -91,4 +102,5 @@ From "A Philosophy of Software Design":
 - Don't let sub-agents produce similar designs - enforce radical difference
 - Don't skip comparison - the value is in contrast
 - Don't implement - this is purely about interface shape
-- Don't evaluate based on implementation effort
+- Don't let implementation effort dominate interface quality, but identify
+  designs that force disproportionate hidden complexity

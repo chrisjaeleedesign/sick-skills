@@ -1,0 +1,4 @@
+interface:
+  display_name: "CJL Features"
+  short_description: "Maintain a concise future-feature catalog"
+  default_prompt: "Use $cjl-features to add or clarify a future product feature."

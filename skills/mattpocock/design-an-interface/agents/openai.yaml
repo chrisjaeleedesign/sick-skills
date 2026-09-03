@@ -1,0 +1,6 @@
+interface:
+  display_name: "Design an Interface"
+  short_description: "Compare radically different module interfaces"
+  default_prompt: "Use $design-an-interface to explore several interface shapes for this module."
+policy:
+  allow_implicit_invocation: false

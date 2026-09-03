@@ -7,11 +7,10 @@ The skills in this directory are derived from Matt Pocock's `mattpocock/skills` 
 - Upstream author: Matt Pocock
 - Upstream license: MIT
 
-Selected skills were copied into `sick-skills` and adapted to use this workspace's `.agents` conventions:
+The retained adaptations are:
 
-- Generated PRDs, issues, QA reports, and refactor plans live under `.agents/artifacts/`
-- Skill setup/config docs live under `.agents/docs/`
-- Handoffs live under `.agents/handoffs/`
+- `design-an-interface`
+- `zoom-out`
 
 Copyright (c) 2026 Matt Pocock
 
