@@ -1,0 +1,6 @@
+interface:
+  display_name: "Task"
+  short_description: "Track project intent, ownership, and results"
+  default_prompt: "Use $task to capture, resume, or finish a tracked project task."
+policy:
+  allow_implicit_invocation: true

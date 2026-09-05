@@ -6,6 +6,7 @@ set -euo pipefail
 # Usage:
 #   bash install.sh                              # install into default targets
 #   bash install.sh --target /path/to/skills     # override; repeatable
+#   bash install.sh --skill task                # install only this skill; no prune
 #   SKILLS_TARGETS=path1:path2 bash install.sh   # override via env var
 #   bash install.sh --help
 #
@@ -35,6 +36,7 @@ install.sh — Symlink sick-skills into agent skill directories.
 Usage:
   bash install.sh
   bash install.sh --target <dir> [--target <dir> ...]
+  bash install.sh --skill <name> [--target <dir>]
   SKILLS_TARGETS="dir1:dir2" bash install.sh
   bash install.sh --help
 
@@ -47,8 +49,15 @@ EOF
 
 # --- Parse CLI flags ---
 cli_targets=()
+only_skill=""
 while [ $# -gt 0 ]; do
     case "$1" in
+        --skill)
+            [ $# -ge 2 ] || { echo "error: --skill requires a name" >&2; exit 2; }
+            [ -n "$2" ] || { echo "error: --skill requires a nonempty name" >&2; exit 2; }
+            only_skill="$2"
+            shift 2
+            ;;
         --target)
             [ $# -ge 2 ] || { echo "error: --target requires a path" >&2; exit 2; }
             cli_targets+=("$2")
@@ -126,6 +135,19 @@ discover_skills() {
 
 discover_skills
 
+if [ -n "$only_skill" ]; then
+    selected_source=""
+    for ((i = 0; i < ${#skill_names[@]}; i++)); do
+        if [ "${skill_names[$i]}" = "$only_skill" ]; then
+            selected_source="${skill_sources[$i]}"
+            break
+        fi
+    done
+    [ -n "$selected_source" ] || { echo "error: unknown skill '$only_skill'" >&2; exit 2; }
+    skill_names=("$only_skill")
+    skill_sources=("$selected_source")
+fi
+
 echo "Repo skills:    $SKILLS_SRC"
 echo "Targets (${#targets[@]}):"
 for t in "${targets[@]}"; do echo "  - $t"; done
@@ -177,8 +199,13 @@ install_into() {
             fi
         # Case 2: Real directory — back up before replacing
         elif [ -d "$target" ]; then
-            echo "  ⤴ $skill_name — backing up existing dir to ${skill_name}.bak"
-            mv "$target" "${target}.bak"
+            # Keep backups outside discovery so the retired skill is not loaded.
+            local backup_dir backup_path
+            backup_dir="$(dirname "$target_dir")/skill-backups"
+            mkdir -p "$backup_dir"
+            backup_path="$(mktemp -d "$backup_dir/${skill_name}.XXXXXXXX")"
+            echo "  ⤴ $skill_name — backing up existing dir to $backup_path/$skill_name"
+            mv "$target" "$backup_path/$skill_name"
             t_backed_up=$((t_backed_up + 1))
         # Case 3: Something else (regular file, etc.)
         elif [ -e "$target" ]; then
@@ -202,6 +229,7 @@ install_into() {
     # current location and any prior location the user moved the repo from).
     local entry entry_name link_target
     for entry in "$target_dir"/*; do
+        [ -z "$only_skill" ] || break
         [ -L "$entry" ] || continue
         entry_name="$(basename "$entry")"
         link_target="$(readlink "$entry")"
@@ -228,11 +256,7 @@ install_into() {
     echo "  → $t_installed installed, $t_skipped already correct, $t_backed_up backed up, $t_pruned pruned, $t_errors errors"
 
     if [ $t_backed_up -gt 0 ]; then
-        echo "    Backups in $target_dir:"
-        for bak in "$target_dir"/*.bak; do
-            [ -d "$bak" ] && echo "      $(basename "$bak")"
-        done
-        echo "    To remove after verifying: rm -rf $target_dir/*.bak"
+        echo "    Original skills retained in $(dirname "$target_dir")/skill-backups/"
     fi
 }
 
