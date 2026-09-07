@@ -41,8 +41,9 @@ task list --all
 task show --path "projects/example/Exact requested wording.md"
 ```
 
-`add` also accepts `--context`, `--done-when`, `--priority`, and `--due`. New tasks
-are unowned `backlog` items. Duplicate titles receive numeric filename suffixes;
+`add` also accepts `--context`, `--done-when`, `--priority`, `--due`, and repeated
+`--tag <tag>`. New tasks are unowned `backlog` items. Duplicate titles receive
+numeric filename suffixes;
 their exact titles are preserved. An optional UUID idempotency key becomes the
 task ID. Reusing that key with the same title and project returns the existing
 task; reuse with different inputs fails. After an uncertain rename/capture,
@@ -61,7 +62,7 @@ task release --path <path> --expected-hash <hash> --claim-id <current-claim> --a
 task complete --path <path> --expected-hash <hash> --claim-id <current-claim> --result <what-changed> --verification <evidence> --limitations <remaining-limits> --apply
 ```
 
-- `update`: Context, Done when, priority, due, or stage. Allowed stages here are
+- `update`: Context, Done when, tags, priority, due, or stage. Allowed stages here are
   `backlog`, `todo`, `canceled`; `claim` sets `in-progress`, `complete` sets `done`.
   Release first before returning an actively claimed task to backlog/todo.
   An explicit `update --stage todo` reopens a finished task and clears its owner;
@@ -79,15 +80,52 @@ task complete --path <path> --expected-hash <hash> --claim-id <current-claim> --
   wikilinks are not rewritten; inspect user-authored links when renaming.
 - `split --item <title> --item <title>`: creates unowned backlog replacements in
   the same project and cancels/links the original in one Git commit. Each child
-  links back to the original Context. Priority/due are copied only with explicit
-  `--inherit-priority` / `--inherit-due`. Never copy the original claim to children.
+  links back to the original Context. Priority/due/tags are copied only with
+  explicit `--inherit-priority` / `--inherit-due` / `--inherit-tags`. Never copy
+  the original claim to children.
+
+## Tags and subtags
+
+Tags use the same native YAML list and slash-separated nesting as vault notes:
+
+```yaml
+tags:
+  - ui/navigation
+  - writing/essay
+```
+
+```sh
+task add --title "Make navigation clearer" --tag ui/navigation --apply
+task update --path <path> --expected-hash <hash> --tag accessibility --apply
+task update --path <path> --expected-hash <hash> --remove-tag ui/navigation --apply
+task update --path <path> --expected-hash <hash> --clear-tags --apply
+task list --tag ui
+task list --all --tag ui --tag accessibility
+```
+
+Repeat `--tag` to add multiple tags without replacing existing ones. Repeat
+`--remove-tag` for exact removals: removing `ui` does not remove `ui/navigation`.
+Use `--clear-tags` to clear everything, optionally with `--tag` to replace the
+set. Adding and removing the same tag, or combining clear and remove, is rejected.
+Claimed tasks still require `--claim-id` when changing tags.
+
+`list --tag ui` matches both `ui` and descendants such as `ui/navigation`, but
+not `uikit`. Repeated filters must all match and can combine with `--query`.
+No parent tag needs to be stored separately.
+
+New input is trimmed, lowercased, and accepts an optional leading `#`. Each slash
+segment uses letters/digits with optional internal hyphens (lowercase kebab-case);
+empty segments, spaces, and entirely numeric tags are rejected. Matching and
+deduplication are case-insensitive. Existing tag spelling is preserved on updates.
+Tags are optional and do not change routing, stage, or ownership. Older tasks
+without a tags property read as untagged; no migration or read-time write occurs.
 
 ## Storage, conflicts, and failures
 
 Task notes contain ordinary YAML frontmatter and Markdown. `title` preserves
 the exact wording; the normalized filename is its readable path. Frontmatter
 contains `type`, `id`, `title`, `stage`, `project` (null in inbox), `owner`,
-`claim_id`, `conversation`, `priority`, `due`, `created`, and `updated`;
+`claim_id`, `conversation`, `tags`, `priority`, `due`, `created`, and `updated`;
 completion adds `completed`. Unknown properties and other body sections survive
 updates, although YAML formatting/comments may be normalized.
 

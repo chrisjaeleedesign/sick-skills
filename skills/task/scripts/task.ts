@@ -42,6 +42,15 @@ function uuid(value: string) {
   requireValue(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value), "Expected a UUID idempotency key.");
   return value.toLowerCase();
 }
+function tagKey(value: string) { return value.trim().replace(/^#/, "").toLowerCase(); }
+function inputTags(values: string[] = []) {
+  return [...new Set(values.map(value => {
+    const tag = tagKey(value);
+    requireValue(/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/.test(tag) && !/^\d+$/.test(tag),
+      `Invalid tag '${value}'. Use lowercase kebab-case with optional /subtags, for example ui/navigation.`);
+    return tag;
+  }))];
+}
 
 // Refuse symlinks, including broken links, before touching any task or config path.
 function safePath(root: string, relative: string) {
@@ -126,6 +135,9 @@ function parseNote(root: string, relative: string, content?: string): Note {
   requireValue(properties.project === expectedProject, `Project metadata disagrees with folder: ${relative}`);
   requireValue(typeof properties.title === "string" && properties.title.trim(), `Missing title: ${relative}`);
   requireValue(properties.stage !== "in-progress" || (properties.owner && properties.claim_id), `In-progress task lacks ownership: ${relative}`);
+  properties.tags ??= [];
+  requireValue(Array.isArray(properties.tags) && properties.tags.every(t => typeof t === "string"),
+    `tags must be a YAML list of strings: ${relative}`);
   return { path: relative, hash: hash(raw), properties, body: raw.slice(match[0].length) };
 }
 function render(note: Note) {
@@ -199,11 +211,19 @@ function freshNote(root: string, route: Route, title: string, reserved: Set<stri
   return {
     path: availablePath(root, route.folder, title, reserved), hash: "",
     properties: { type: "task", id, title, stage: "backlog", project: route.project, owner: null,
-      claim_id: null, conversation: null, priority: null, due: null, created: now, updated: now },
+      claim_id: null, conversation: null, tags: [], priority: null, due: null, created: now, updated: now },
     body: "\n## Context\n\n## Done when\n\n## Result\n",
   };
 }
 function details(note: Note, o: Options) {
+  if (o.tag !== undefined || o["remove-tag"] !== undefined || o["clear-tags"]) {
+    requireValue(!(o["clear-tags"] && o["remove-tag"]), "Use --clear-tags or --remove-tag, not both.");
+    const add = inputTags(o.tag), remove = inputTags(o["remove-tag"]);
+    requireValue(!add.some(t => remove.includes(t)), "Cannot add and remove the same tag in one update.");
+    const tags: string[] = o["clear-tags"] ? [] : [...note.properties.tags];
+    for (const tag of add) if (!tags.some(t => tagKey(t) === tag)) tags.push(tag);
+    note.properties.tags = tags.filter(t => !remove.includes(tagKey(t)));
+  }
   if (o.priority !== undefined) {
     requireValue(["", "urgent", "high", "medium", "low"].includes(o.priority), "Invalid --priority.");
     note.properties.priority = o.priority || null;
@@ -348,7 +368,7 @@ function planMutation(root: string, command: string, o: Options) {
           note.properties.owner = null; note.properties.conversation = null; delete note.properties.completed;
         }
       }
-      requireValue(["stage", "context", "done-when", "priority", "due"].some(k => o[k] !== undefined), "No task update supplied.");
+      requireValue(["stage", "context", "done-when", "priority", "due", "tag", "remove-tag", "clear-tags"].some(k => o[k] !== undefined), "No task update supplied.");
       break;
     }
     case "claim":
@@ -402,6 +422,7 @@ function planMutation(root: string, command: string, o: Options) {
         setSection(child, "Context", `Split from [[${note.path.slice(0, -3)}]].`);
         if (o["inherit-priority"]) child.properties.priority = note.properties.priority;
         if (o["inherit-due"]) child.properties.due = note.properties.due;
+        if (o["inherit-tags"]) child.properties.tags = [...note.properties.tags];
       }
       setSection(note, "Superseded by", children.map(c => `- [[${c.path.slice(0, -3)}]]`).join("\n"));
       note.properties.stage = "canceled"; note.properties.claim_id = null;
@@ -422,9 +443,9 @@ Routing: --source <directory> (default cwd), --project <slug>, or explicit --inb
 
 setup                          Initialize/validate the standalone Git vault.
 add --title <text>              Capture a backlog task; optional --idempotency-key <UUID>.
-list [--all] [--query <text>]    List the current project, or all projects and inbox.
+list [--all] [--tag <tag>]       List current project; --all includes all projects/inbox.
 show --path <relative.md>       Return metadata, body, and content hash.
-update --path ...               --context, --done-when, --priority, --due, --stage.
+update --path ...               --context, --done-when, --priority, --due, --stage, tags.
 rename --path ... --title ...   Rename and heal full vault-relative wikilinks.
 split --path ... --item ...     Repeat --item for each approved replacement.
 claim --path ... --owner ...    Claim with optional --conversation <reference>.
@@ -436,7 +457,10 @@ Mutations preview by default; --apply commits. Every existing-task mutation
 requires --expected-hash from show and, if claimed, the current --claim-id.
 complete/release/handoff require an active claim. update cannot set done or
 in-progress. Priority: urgent/high/medium/low; due: YYYY-MM-DD; empty clears.
-split defaults to unowned backlog children; --inherit-priority/--inherit-due
+Tags: repeat --tag on add/update; update --remove-tag removes exact tags,
+--clear-tags clears all. list --tag ui includes ui/subtags; repeated filters AND.
+list also accepts --query <text> to search titles and bodies.
+split defaults to unowned backlog children; --inherit-priority/--inherit-due/--inherit-tags
 only when explicitly requested. Setup never adopts an existing nonempty folder.
 Output is JSON; errors go to stderr with a nonzero exit code.
 `;
@@ -444,11 +468,11 @@ Output is JSON; errors go to stderr with a nonzero exit code.
 function parseOptions(args: string[]): { command: string; o: Options } {
   const command = args[0] ?? "help";
   const fields: Record<string, string[]> = {
-    setup: [], add: ["title", "context", "done-when", "priority", "due", "idempotency-key"],
-    list: ["all", "query"], show: ["path"],
-    update: ["path", "expected-hash", "claim-id", "context", "done-when", "priority", "due", "stage"],
+    setup: [], add: ["title", "context", "done-when", "priority", "due", "idempotency-key", "tag"],
+    list: ["all", "query", "tag"], show: ["path"],
+    update: ["path", "expected-hash", "claim-id", "context", "done-when", "priority", "due", "stage", "tag", "remove-tag", "clear-tags"],
     rename: ["path", "expected-hash", "claim-id", "title"],
-    split: ["path", "expected-hash", "claim-id", "item", "inherit-priority", "inherit-due"],
+    split: ["path", "expected-hash", "claim-id", "item", "inherit-priority", "inherit-due", "inherit-tags"],
     claim: ["path", "expected-hash", "owner", "conversation"],
     release: ["path", "expected-hash", "claim-id"],
     handoff: ["path", "expected-hash", "claim-id", "owner", "conversation"],
@@ -456,11 +480,11 @@ function parseOptions(args: string[]): { command: string; o: Options } {
   };
   if (command === "help" || command === "--help") return { command: "help", o: {} };
   requireValue(fields[command], `Unknown command '${command}'. Run help.`);
-  const flags = ["apply", "help", "inbox", "all", "inherit-priority", "inherit-due"];
+  const flags = ["apply", "help", "inbox", "all", "inherit-priority", "inherit-due", "inherit-tags", "clear-tags"];
   const options = Object.fromEntries(["help", ...fields[command],
     ...(command === "setup" ? ["apply"] : ["source", "project", "inbox"]),
     ...(["setup", "list", "show"].includes(command) ? [] : ["apply"]),
-  ].map(key => [key, { type: flags.includes(key) ? "boolean" : "string", ...(key === "item" ? { multiple: true } : {}) }]));
+  ].map(key => [key, { type: flags.includes(key) ? "boolean" : "string", ...(["item", "tag", "remove-tag"].includes(key) ? { multiple: true } : {}) }]));
   const o: Options = parseArgs({ args: args.slice(1), options: options as any, strict: true }).values;
   return { command: o.help ? "help" : command, o };
 }
@@ -489,8 +513,10 @@ export async function run(args: string[]) {
   if (command === "list") {
     requireValue(!o.all || !(o.project !== undefined || o.inbox), "--all cannot be combined with project routing.");
     const route = o.all ? null : resolveRoute(root, o);
+    const tags = inputTags(o.tag);
     const notes = (route ? allPaths(root, route.folder).map(p => parseNote(root, p)) : allNotes(root))
-      .filter(n => !o.query || `${n.properties.title}\n${n.body}`.toLowerCase().includes(String(o.query).toLowerCase()));
+      .filter(n => !o.query || `${n.properties.title}\n${n.body}`.toLowerCase().includes(String(o.query).toLowerCase()))
+      .filter(n => tags.every(tag => n.properties.tags.some((t: string) => tagKey(t) === tag || tagKey(t).startsWith(`${tag}/`))));
     return { vault: root, tasks: notes.map(n => ({ ...n.properties, path: n.path, absolute_path: path.join(root, n.path), hash: n.hash })) };
   }
   if (command === "show") {

@@ -237,6 +237,109 @@ describe("task lifecycle and preservation", () => {
   });
 });
 
+describe("tags and subtags", () => {
+  test("capture normalizes tags and parent filters respect boundaries and routing", () => {
+    const f = fixture(); f.setup();
+    const nested = f.add("Clearer navigation", ["--tag", " #UI/Navigation ", "--tag", "accessibility", "--tag", "ui/navigation"]);
+    expect(nested.properties.tags).toEqual(["ui/navigation", "accessibility"]);
+    expect(fs.readFileSync(path.join(f.vault, nested.path), "utf8")).toContain("- ui/navigation");
+    const parent = f.add("UI polish", ["--tag", "ui"]);
+    f.add("Separate topic", ["--tag", "uikit"]);
+    f.add("Untagged");
+    const other = f.add("Other project", ["--project", "other", "--tag", "ui/navigation/menus"]);
+    const inbox = f.add("Separate general work", ["--inbox", "--tag", "ui"]);
+    expect(f.call(["list", "--tag", "#UI"]).tasks.map((n: any) => n.id).sort()).toEqual([nested.properties.id, parent.properties.id].sort());
+    expect(f.call(["list", "--tag", "ui/navigation"]).tasks.map((n: any) => n.id)).toEqual([nested.properties.id]);
+    expect(f.call(["list", "--tag", "ui", "--tag", "accessibility"]).tasks).toHaveLength(1);
+    expect(f.call(["list", "--tag", "ui", "--query", "clearer"]).tasks).toHaveLength(1);
+    expect(f.call(["list", "--tag", "ui", "--query", "Separate"]).tasks).toEqual([]);
+    expect(f.call(["list", "--all", "--tag", "ui"]).tasks).toHaveLength(4);
+    expect(f.call(["list", "--all", "--tag", "ui/navigation"]).tasks).toHaveLength(2);
+    expect(f.call(["list", "--project", "other", "--tag", "ui"]).tasks[0].id).toBe(other.properties.id);
+    expect(f.call(["list", "--inbox", "--tag", "ui"]).tasks[0].id).toBe(inbox.properties.id);
+  });
+  test("tag edits preview, add, remove exactly, replace, and retain conflict guards", () => {
+    const f = fixture(); f.setup(); let n = f.add("Tagged work", ["--tag", "ui", "--tag", "ui/navigation"]);
+    const head = git(f.vault, "rev-parse", "HEAD");
+    const preview = f.call(["update", "--path", n.path, "--expected-hash", n.hash, "--tag", "accessibility"]);
+    expect(preview.applied).toBe(false);
+    expect(preview.tasks[0].properties.tags).toEqual(["ui", "ui/navigation", "accessibility"]);
+    expect(f.show(n.path).hash).toBe(n.hash);
+    expect(git(f.vault, "rev-parse", "HEAD")).toBe(head);
+    const old = n;
+    n = f.change("update", n, ["--tag", "accessibility", "--tag", "UI"]).tasks[0];
+    expect(n.properties.tags).toEqual(["ui", "ui/navigation", "accessibility"]);
+    expect(f.change("update", old, ["--tag", "stale"], false).error).toContain("Stale task hash");
+    n = f.change("update", n, ["--remove-tag", "#UI", "--remove-tag", "accessibility"]).tasks[0];
+    expect(n.properties.tags).toEqual(["ui/navigation"]);
+    n = f.change("claim", n, ["--owner", "session-a"]).tasks[0];
+    expect(f.call(["update", "--path", n.path, "--expected-hash", n.hash, "--clear-tags", "--apply"], f.repo, false).error).toContain("current --claim-id");
+    n = f.change("update", n, ["--clear-tags", "--tag", "writing/essay"]).tasks[0];
+    expect(n.properties.tags).toEqual(["writing/essay"]);
+    expect(n.properties.owner).toBe("session-a");
+    expect(n.properties.stage).toBe("in-progress");
+    n = f.change("update", n, ["--clear-tags"]).tasks[0];
+    expect(n.properties.tags).toEqual([]);
+  });
+  test("legacy tasks need no migration and manual tag spelling is preserved", () => {
+    const f = fixture(); f.setup(); const n = f.add();
+    const file = path.join(f.vault, n.path);
+    const raw = fs.readFileSync(file, "utf8").replace(/^tags:\s*\[\]\n/m, "");
+    expect(raw).not.toContain("tags:");
+    fs.writeFileSync(file, raw);
+    const head = git(f.vault, "rev-parse", "HEAD");
+    expect(f.show(n.path).properties.tags).toEqual([]);
+    expect(f.show(n.path).hash).toBe(createHash("sha256").update(raw).digest("hex"));
+    expect(f.call(["list"]).tasks[0].tags).toEqual([]);
+    expect(f.call(["list", "--tag", "ui"]).tasks).toEqual([]);
+    expect(fs.readFileSync(file, "utf8")).toBe(raw);
+    expect(git(f.vault, "rev-parse", "HEAD")).toBe(head);
+    fs.writeFileSync(file, raw.replace("type: task", "tags: [UI/Navigation]\ncustom_field: keep\ntype: task"));
+    expect(f.call(["list", "--tag", "ui"]).tasks).toHaveLength(1);
+    const updated = f.change("update", f.show(n.path), ["--tag", "ui/navigation", "--tag", "accessibility"]).tasks[0];
+    expect(updated.properties.tags).toEqual(["UI/Navigation", "accessibility"]);
+    expect(updated.properties.custom_field).toBe("keep");
+    expect(f.change("update", updated, ["--remove-tag", "ui/navigation"]).tasks[0].properties.tags).toEqual(["accessibility"]);
+  });
+  test("lifecycle preserves tags and split only inherits them explicitly", () => {
+    const f = fixture(); f.setup(); let n = f.add("Tagged outcome", ["--tag", "ui/navigation", "--done-when", "Navigation is clear"]);
+    n = f.change("claim", n, ["--owner", "session-a"]).tasks[0];
+    n = f.change("handoff", n, ["--owner", "session-b"]).tasks[0];
+    n = f.change("release", n).tasks[0];
+    n = f.change("claim", n, ["--owner", "session-c"]).tasks[0];
+    n = f.change("rename", n, ["--title", "Renamed tagged outcome"]).tasks[0];
+    n = f.change("complete", n, ["--result", "Clear navigation", "--verification", "Checked"]).tasks[0];
+    expect(n.properties.tags).toEqual(["ui/navigation"]);
+    const parent = f.add("Split tagged work", ["--tag", "ui/navigation"]);
+    const split = f.change("split", parent, ["--item", "One", "--item", "Two"]);
+    expect(split.tasks.map((t: any) => t.properties.tags)).toEqual([["ui/navigation"], [], []]);
+    const other = f.add("Inherit tagged work", ["--tag", "ui/navigation"]);
+    const inherited = f.change("split", other, ["--item", "Three", "--item", "Four", "--inherit-tags"]);
+    expect(inherited.tasks.map((t: any) => t.properties.tags)).toEqual([["ui/navigation"], ["ui/navigation"], ["ui/navigation"]]);
+  });
+  test("invalid tags and contradictory edits fail without changes", () => {
+    const f = fixture(); f.setup(); const n = f.add(); const head = git(f.vault, "rev-parse", "HEAD");
+    for (const tag of ["", " ", "#", "123", "ui//navigation", "/ui", "ui/", "two words", "ui.nav", "../ui"]) {
+      expect(f.call(["add", "--title", "Invalid", "--tag", tag, "--apply"], f.repo, false).error).toContain("Invalid tag");
+      expect(f.change("update", n, ["--tag", tag], false).error).toContain("Invalid tag");
+      expect(f.call(["list", "--tag", tag], f.repo, false).error).toContain("Invalid tag");
+    }
+    expect(f.change("update", n, ["--tag", "ui", "--remove-tag", "#UI"], false).error).toContain("same tag");
+    expect(f.change("update", n, ["--clear-tags", "--remove-tag", "ui"], false).error).toContain("not both");
+    expect(f.change("update", n, ["--remove-tag", "ui//nav"], false).error).toContain("Invalid tag");
+    expect(git(f.vault, "rev-parse", "HEAD")).toBe(head);
+    expect(git(f.vault, "status", "--porcelain")).toBe("");
+    expect(f.show(n.path).hash).toBe(n.hash);
+    const file = path.join(f.vault, n.path), raw = fs.readFileSync(file, "utf8");
+    for (const invalid of ["ui/navigation", "[123]", "{ui: navigation}"]) {
+      const malformed = raw.replace(/^tags:\s*\[\]\n/m, `tags: ${invalid}\n`);
+      fs.writeFileSync(file, malformed);
+      expect(f.call(["show", "--path", n.path], f.repo, false).error).toContain("YAML list of strings");
+      expect(fs.readFileSync(file, "utf8")).toBe(malformed);
+    }
+  });
+});
+
 describe("transactions", () => {
   test("two concurrent claim attempts produce exactly one winner", async () => {
     const f = fixture(); f.setup(); const n = f.add();

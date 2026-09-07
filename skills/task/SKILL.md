@@ -48,6 +48,12 @@ where the task belongs unless Chris has already supplied that choice.
   `--idempotency-key` for add and reuse it if the outcome is uncertain.
 - Capture can be one sentence. Do not invent dates, urgency, project scope, or
   acceptance criteria merely to fill fields. Clarify only what changes the work.
+- Tags are optional native YAML `tags`, including slash-separated subtags such
+  as `ui/navigation` or `writing/essay`. Reuse applicable existing tags; do not
+  impose a taxonomy or require tagging before capture. Use repeated `--tag` on
+  add/update, `--remove-tag` for exact removals, or `--clear-tags` to reset them.
+  `list --tag ui` includes `ui/navigation`; repeated filters must all match.
+  Tags organize topics across projects; they do not replace project or stage.
 - For a brain dump needing interpretation or a proposed split, show the proposed
   items first. An already explicit list of tasks to add needs no second approval.
 - Before implementation, read **Context** and **Done when**, agree on missing
