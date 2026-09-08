@@ -1,150 +1,110 @@
 # Task CLI
 
-Run `bun <skill-dir>/scripts/task.ts <command>` from the project, or pass
-`--source <project-directory>`. The examples below abbreviate that prefix as
-`task`; no global `task` executable is installed.
+Run bun <skill-dir>/scripts/task.ts <command> from the project, or pass
+--source <directory>. The examples abbreviate this as task; no global task
+executable is installed.
 
-## Setup and routing
+## Routing and capture
 
-`task setup` previews creation. `task setup --apply` initializes an independent
-Git repository at `/Volumes/Misc/.agents/tasks`, or at the absolute
-`CJL_TASK_VAULT` override. It validates an already initialized vault. It refuses
-to adopt nonempty directories or operate through symlinks. Git must have an
-author name and email configured; setup does not change global Git settings.
+    task setup
+    task projects
+    task list --all
+    task list --project "pages/LifeOS System.md"
+    task add --title "Exact requested wording" --project "pages/LifeOS System.md" --idempotency-key <uuid> --apply
+    task add --title "Explicitly general work" --inbox --idempotency-key <uuid> --apply
+    task show --path "tasks/Exact requested wording.md"
 
-Automatic routing writes to `projects/<main-repository-name>/`. Its first
-capture records the repository's canonical Git directory in `.project.json`
-inside that project folder. Another repository with the same name is rejected.
-Choose a distinct identity with `.agents/task-project.json`, or use an explicit
-`--project <name>` to intentionally select an existing project. Identity names
-allow letters, numbers, underscores and hyphens. They are case-sensitive; avoid
-case-only alternatives on case-insensitive filesystems.
+setup only validates the existing LifeOS vault. The default checkout is
+/Volumes/Misc/life_os; CJL_LIFE_OS_ROOT relocates it. Missing LifeOS or the retired
+CJL_TASK_VAULT setting fails without creating another store.
 
-The optional identity file belongs at the main checkout's root. Keep its contents
-consistent in worktrees and track it when shared across checkouts (some repos
-ignore `.agents/`). Never create it merely to repeat the default name.
+projects returns existing active/backlog project pages and an optional suggestion
+from the main checkout's .agents/task-project.json:
 
-`--project` bypasses automatic identity and selects that project deliberately.
-An explicit-only project has no automatic repository binding; continue selecting
-it explicitly. `--inbox` selects specifically separate work. The two flags are
-mutually exclusive. `list --all` is read-only access to the complete backlog.
-Operations on an existing task must select its project, even when its full path
-is known; this catches accidental cross-project writes.
+    {"project_path":"pages/Existing Project.md"}
 
-## Commands
+Mappings never create projects or supply Chris's confirmation. Worktrees share
+the main mapping and reject contradictory copies. Explicit --project selects a
+validated page; --inbox explicitly selects no project. They are mutually exclusive.
+add without either selection previews the need for confirmation; applying fails.
 
-```sh
-task add --title "Exact requested wording" --idempotency-key <uuid> --apply
-task add --inbox --title "Explicitly separate task" --apply
-task list --query "wording"
-task list --all
-task show --path "projects/example/Exact requested wording.md"
-```
+list defaults to the mapped project if available, otherwise all tasks. --all is
+cross-project; --inbox filters projectless tasks. show and existing-task operations
+use exact task paths and do not require a repository mapping. Legacy LifeOS task
+paths resolve through its existing alias index.
 
-`add` also accepts `--context`, `--done-when`, `--priority`, `--due`, and repeated
-`--tag <tag>`. New tasks are unowned `backlog` items. Duplicate titles receive
-numeric filename suffixes;
-their exact titles are preserved. An optional UUID idempotency key becomes the
-task ID. Reusing that key with the same title and project returns the existing
-task; reuse with different inputs fails. After an uncertain rename/capture,
-inspect `list --all` by ID before creating another task.
+add accepts --context, --done-when, --group, --priority, --due, and repeated --tag.
+It creates backlog tasks. Priority is urgent/high/medium/low; due is YYYY-MM-DD.
+No values are inferred by the CLI. A project supplies its group. Repeated capture
+with the same idempotency key and inputs returns the same task; conflicting reuse
+fails. Filenames are readable normalized titles, with numeric collision suffixes.
+Exact capture wording remains in the existing audit ledger, not title frontmatter.
 
-Every existing-task mutation requires `--path` and `--expected-hash <hash>` from
-`show`. A claimed task also requires `--claim-id <claim_id>` from that record.
-These are cooperation/conflict guards, not authentication or a security boundary.
-Anyone with filesystem access can inspect or manually edit these records.
+## Mutations and ownership
 
-```sh
-task update --path <path> --expected-hash <hash> --context <text> --done-when <text> --apply
-task claim --path <path> --expected-hash <hash> --owner <specific-owner> --conversation <actual-reference> --apply
-task handoff --path <path> --expected-hash <hash> --claim-id <current-claim> --owner <next-owner> --apply
-task release --path <path> --expected-hash <hash> --claim-id <current-claim> --apply
-task complete --path <path> --expected-hash <hash> --claim-id <current-claim> --result <what-changed> --verification <evidence> --limitations <remaining-limits> --apply
-```
+Every existing-task mutation requires --path and --expected-hash from show.
+A live claim also requires --claim-id. Applied receipts return taskPath and
+updated data; show returns path, properties, body, and hash. JSON output is
+authoritative; previewed claim IDs are not live claims.
 
-- `update`: Context, Done when, tags, priority, due, or stage. Allowed stages here are
-  `backlog`, `todo`, `canceled`; `claim` sets `in-progress`, `complete` sets `done`.
-  Release first before returning an actively claimed task to backlog/todo.
-  An explicit `update --stage todo` reopens a finished task and clears its owner;
-  the previous Result remains until the next completion and remains in Git.
-- Priority: `urgent`, `high`, `medium`, `low`; due: a real `YYYY-MM-DD` date.
-  An empty string clears these optional fields. Do not infer values.
-- `handoff`: requires the current claim, generates a new claim ID, and clears
-  the old conversation unless a new `--conversation` is supplied.
-- `complete`: requires a claim, nonempty Done when, result, and verification.
-  Writes Result and stage together, retaining the final owner and conversation
-  as history. Optional `--limitations` goes in Result, not acceptance criteria.
-- `rename --title <text>`: keeps identity and content, changes title/filename,
-  and heals full vault-relative wikilinks used by the CLI. Case-only filename
-  changes fail explicitly. Arbitrary Markdown links and short ambiguous
-  wikilinks are not rewritten; inspect user-authored links when renaming.
-- `split --item <title> --item <title>`: creates unowned backlog replacements in
-  the same project and cancels/links the original in one Git commit. Each child
-  links back to the original Context. Priority/due/tags are copied only with
-  explicit `--inherit-priority` / `--inherit-due` / `--inherit-tags`. Never copy
-  the original claim to children.
+    task update --path <path> --expected-hash <hash> --context <text> --done-when <text> --apply
+    task claim --path <path> --expected-hash <hash> --owner <specific-owner> --conversation <actual-reference> --apply
+    task handoff --path <path> --expected-hash <hash> --claim-id <claim> --owner <next-owner> --apply
+    task release --path <path> --expected-hash <hash> --claim-id <claim> --apply
+    task complete --path <path> --expected-hash <hash> --claim-id <claim> --result <changes> --verification <evidence> --limitations <limits> --apply
 
-## Tags and subtags
+- claim requires Context and Done when, sets in-progress, and generates a claim.
+- handoff rotates the claim and clears conversation unless a replacement is given.
+- release clears owner/claim/conversation and returns to todo.
+- complete requires the current claim, Done when, Result, and verification.
+  It retains the final owner/conversation, clears the live claim, and records
+  completed. Omitted limitations are labeled None reported, not proven absent.
+- Agent update cannot set done or in-progress. An explicit human status change
+  uses --human-requested. Overriding a live claim additionally requires
+  --human-override "<Chris's instruction>"; the service audits it.
+- Reopen explicitly with update --stage todo. Prior Result remains as history;
+  a later completion replaces the managed Result while Git preserves the prior one.
+- update supports --project, --inbox/--clear-project, --group, --priority, --due,
+  --context, --done-when, and corresponding --clear-* flags.
+- rename --title <name> uses Obsidian's backlink-aware move and preserves metadata.
+  Obsidian must be available. Dirty targets/backlinks or unexpected changes fail.
+- split --item <title> --item <title> --idempotency-key <key> creates unowned backlog
+  children and cancels/links the parent in one Git transaction. Project/group are
+  inherited; priority/due/tags require --inherit-priority/--inherit-due/--inherit-tags.
+  Older partially completed LifeOS splits retain their existing recovery path.
 
-Tags use the same native YAML list and slash-separated nesting as vault notes:
+## Tags and metadata
 
-```yaml
-tags:
-  - ui/navigation
-  - writing/essay
-```
+    task update --path <path> --expected-hash <hash> --tag ui/navigation --apply
+    task update --path <path> --expected-hash <hash> --remove-tag ui/navigation --apply
+    task update --path <path> --expected-hash <hash> --clear-tags --tag writing/essay --apply
+    task list --all --tag ui --tag accessibility
 
-```sh
-task add --title "Make navigation clearer" --tag ui/navigation --apply
-task update --path <path> --expected-hash <hash> --tag accessibility --apply
-task update --path <path> --expected-hash <hash> --remove-tag ui/navigation --apply
-task update --path <path> --expected-hash <hash> --clear-tags --apply
-task list --tag ui
-task list --all --tag ui --tag accessibility
-```
+--tag adds without replacing existing tags. --remove-tag removes exact tags;
+removing ui does not remove ui/navigation. Parent filtering includes descendants
+but not peers such as uikit. Repeated filters use AND. New inputs normalize to
+lowercase kebab-case slash segments; existing spelling survives unrelated updates.
+Do not combine clear/remove or add/remove of the same tag.
 
-Repeat `--tag` to add multiple tags without replacing existing ones. Repeat
-`--remove-tag` for exact removals: removing `ui` does not remove `ui/navigation`.
-Use `--clear-tags` to clear everything, optionally with `--tag` to replace the
-set. Adding and removing the same tag, or combining clear and remove, is rejected.
-Claimed tasks still require `--claim-id` when changing tags.
+The older LifeOS worker task CLI retains replacement --tag semantics and provides
+--add-tag for additions. The skill client uses the additive interface above.
 
-`list --tag ui` matches both `ui` and descendants such as `ui/navigation`, but
-not `uikit`. Repeated filters must all match and can combine with `--query`.
-No parent tag needs to be stored separately.
+Core frontmatter: type, stage, projects, group, tags, priority, due.
+Optional coordination: id, owner, claim_id, conversation, created, updated, completed.
+New managed captures receive IDs; existing personal notes are not bulk rewritten.
+Filenames are canonical names. Unknown properties and unmodified body sections
+survive writes; YAML formatting/comments may normalize.
 
-New input is trimmed, lowercased, and accepts an optional leading `#`. Each slash
-segment uses letters/digits with optional internal hyphens (lowercase kebab-case);
-empty segments, spaces, and entirely numeric tags are rejected. Matching and
-deduplication are case-insensitive. Existing tag spelling is preserved on updates.
-Tags are optional and do not change routing, stage, or ownership. Older tasks
-without a tags property read as untagged; no migration or read-time write occurs.
+## Conflicts and recovery
 
-## Storage, conflicts, and failures
+All clients share LifeOS's Git lock, hashes, exact-path commits, and audit ledger.
+No daemon or network service is needed. SQLite is existing audit/interaction state,
+not another task store. Commits are local history, not an off-device backup.
 
-Task notes contain ordinary YAML frontmatter and Markdown. `title` preserves
-the exact wording; the normalized filename is its readable path. Frontmatter
-contains `type`, `id`, `title`, `stage`, `project` (null in inbox), `owner`,
-`claim_id`, `conversation`, `tags`, `priority`, `due`, `created`, and `updated`;
-completion adds `completed`. Unknown properties and other body sections survive
-updates, although YAML formatting/comments may be normalized.
+On stale hashes or claims, reread and reconcile. Dirty target files/backlinks
+require reconciliation; unrelated dirty files remain untouched. A failed write or
+Git commit restores affected files. Human filesystem edits do not obey agent locks.
 
-Every command returns JSON (except help). `show` returns the current raw content
-hash. Applied writes return paths, the resulting records, and a Git commit.
-Preview returns proposed contents without changing files; its proposed claim ID
-or hash is not an actual claim. Use the applied receipt or `show` before work.
-
-One vault lock serializes applied CLI mutations. The writer checks content
-hashes, replaces files atomically, and commits only affected paths. Unrelated
-unstaged files are left alone; staged vault changes block writes so they are not
-absorbed. Manual edits already present when `show` ran are preserved and included
-in that task's next commit. Git commits are local history, not an off-device
-backup. No network calls or pushes occur.
-
-Ordinary write/commit failure restores the exact pre-operation files. An abrupt
-process kill may leave a lock and unfinished Git changes: inspect the PID in
-`.git/task.lock`, verify it has exited, review Git status/diff, and reconcile the
-affected notes before removing that specific stale lock. Never discard manual
-edits or reclaim an interrupted task automatically. An unavailable vault,
-conflicting claim, invalid route, or stale hash requires an explicit error;
-there is no fallback to another location or the inbox.
+After abrupt interruption, inspect the target files, Git status, and existing
+LifeOS transaction recovery state. Do not discard edits, delete locks, steal claims,
+or fall back to the archived standalone vault automatically.

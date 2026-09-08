@@ -18,6 +18,7 @@ behavior an agent already knows. Ordinary requests should use no special skill.
 - **market-research** — Creates local, cited research artifacts for market decisions.
 - **matter-of-fact-writing** — Explicit factual, neutral, low-rhetoric writing mode.
 - **openrouter-image** — OpenRouter image generation and editing through the shared model runtime.
+- **task** — Explicit personal and agent task tracking through the shared LifeOS service, with confirmed project assignment and agent ownership.
 - **wiggum** — Autonomous development loop. Scaffolds phased implementation plans, runs workers, and commits per phase.
 - **write-like-chris** — Writes reflective material in Chris's established voice.
 - **mattpocock/design-an-interface** — Interface-design interview and planning workflow.
