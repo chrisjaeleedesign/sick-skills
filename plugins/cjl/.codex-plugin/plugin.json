@@ -1,0 +1,20 @@
+{
+  "name": "cjl",
+  "version": "0.1.0+codex.20260912192204",
+  "description": "Standardize how Chris's agents capture, investigate, execute, and hand off work.",
+  "author": {
+    "name": "Chris Lee"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "CJL",
+    "shortDescription": "Consistent agent work, setup, and handoffs",
+    "longDescription": "CJL gives agents a consistent workflow for choosing the right record, investigating problems, executing work, maintaining GitHub issues, applying repository standards, and packaging topic-scoped handoffs.",
+    "developerName": "Chris Lee",
+    "category": "Productivity",
+    "capabilities": [
+      "Instructions"
+    ],
+    "defaultPrompt": "Use CJL: Work to handle this request and maintain the appropriate durable record."
+  }
+}

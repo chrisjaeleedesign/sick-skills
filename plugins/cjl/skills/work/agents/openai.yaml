@@ -1,0 +1,6 @@
+interface:
+  display_name: "Work"
+  short_description: "Capture, investigate, and execute tracked work"
+  default_prompt: "Use $work to handle this request and maintain the appropriate durable record."
+policy:
+  allow_implicit_invocation: false

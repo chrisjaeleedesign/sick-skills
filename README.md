@@ -4,6 +4,10 @@ Global agent skills. Each skill is a self-contained directory under `skills/`,
 or one namespace level below it, that gets symlinked into agent skill
 directories for global availability.
 
+## Plugins
+
+- **CJL** — Groups Work, Setup, and Handoff into one personal agent workflow. Source: `plugins/cjl/`.
+
 Skills represent exceptional behavior or specialized access, not every useful
 behavior an agent already knows. Ordinary requests should use no special skill.
 
@@ -14,7 +18,9 @@ behavior an agent already knows. Ordinary requests should use no special skill.
 - **cjl-features** — Lightweight catalog of potential product capabilities, definitions, and value.
 - **cjl-standards** — Explicit-only creation, audit, and update of concise project `AGENTS.md` guidance.
 - **creator-content-scrape-store** — Operates the local X and Instagram ingestion store.
+- **debug** — Explicit bug investigation that maintains a detailed repository issue through reproduction, diagnosis, and a proposed fix.
 - **design-studio** — Interactive UI prototype gallery and design exploration tools.
+- **handoff** — Compresses topic-relevant conversation context for another agent or conversation.
 - **market-research** — Creates local, cited research artifacts for market decisions.
 - **matter-of-fact-writing** — Explicit factual, neutral, low-rhetoric writing mode.
 - **openrouter-image** — OpenRouter image generation and editing through the shared model runtime.
