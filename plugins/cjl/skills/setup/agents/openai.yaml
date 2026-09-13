@@ -1,6 +1,6 @@
 interface:
-  display_name: "Setup"
-  short_description: "Initialize, audit, or update repository guidance"
-  default_prompt: "Use $setup to inspect and maintain this project's AGENTS.md guidance."
+  display_name: "CJL: Setup"
+  short_description: "Create and maintain repository guidance"
+  default_prompt: "Use $setup to establish or improve this project's AGENTS.md guidance."
 policy:
   allow_implicit_invocation: false

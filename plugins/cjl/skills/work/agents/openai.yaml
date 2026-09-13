@@ -1,5 +1,5 @@
 interface:
-  display_name: "Work"
+  display_name: "CJL: Work"
   short_description: "Capture, investigate, and execute tracked work"
   default_prompt: "Use $work to handle this request and maintain the appropriate durable record."
 policy:

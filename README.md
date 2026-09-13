@@ -15,10 +15,7 @@ behavior an agent already knows. Ordinary requests should use no special skill.
 
 - **ask** — External text-model perspectives with personas, flows, attachments, and JSONL conversation history.
 - **caveman** — Explicit-only compressed chat mode with normal-prose safety boundaries.
-- **cjl-features** — Lightweight catalog of potential product capabilities, definitions, and value.
-- **cjl-standards** — Explicit-only creation, audit, and update of concise project `AGENTS.md` guidance.
 - **creator-content-scrape-store** — Operates the local X and Instagram ingestion store.
-- **debug** — Explicit bug investigation that maintains a detailed repository issue through reproduction, diagnosis, and a proposed fix.
 - **design-studio** — Interactive UI prototype gallery and design exploration tools.
 - **market-research** — Creates local, cited research artifacts for market decisions.
 - **matter-of-fact-writing** — Explicit factual, neutral, low-rhetoric writing mode.

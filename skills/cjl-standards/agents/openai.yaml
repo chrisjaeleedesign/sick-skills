@@ -1,6 +1,0 @@
-interface:
-  display_name: "CJL Standards"
-  short_description: "Create concise project AGENTS.md guidance"
-  default_prompt: "Use $cjl-standards to audit or update this project's AGENTS.md guidance."
-policy:
-  allow_implicit_invocation: false
